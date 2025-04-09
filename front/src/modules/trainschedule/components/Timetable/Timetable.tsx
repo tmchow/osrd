@@ -41,6 +41,8 @@ type TimetableProps = {
   timetableItems?: TimetableItemWithTimetableId[];
   timetableItemsWithDetails: TimetableItemWithDetails[];
   dtoImport: () => void;
+  selectedTimetableItemIds: TimetableItemId[];
+  setSelectedTimetableItemIds: (ids: TimetableItemId[]) => void;
 };
 
 const formatDepartureDate = (d: Date) => dayjs(d).locale(i18n.language).format('dddd D MMMM YYYY');
@@ -56,11 +58,12 @@ const Timetable = ({
   timetableItems = [],
   timetableItemsWithDetails,
   dtoImport,
+  selectedTimetableItemIds,
+  setSelectedTimetableItemIds,
 }: TimetableProps) => {
   const { t } = useTranslation(['operationalStudies/scenario', 'common/itemTypes']);
 
   const [conflictsListExpanded, setConflictsListExpanded] = useState(false);
-  const [selectedTimetableItemIds, setSelectedTimetableItemIds] = useState<TimetableItemId[]>([]);
   const [showTrainDetails, setShowTrainDetails] = useState(false);
   const selectedTrainId = useSelector(getSelectedTrainId);
   const trainIdUsedForProjection = useSelector(getTrainIdUsedForProjection);

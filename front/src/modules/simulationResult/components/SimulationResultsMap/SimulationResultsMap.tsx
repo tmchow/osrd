@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 import bbox from '@turf/bbox';
 import { lineString, point } from '@turf/helpers';
@@ -45,7 +45,9 @@ const MAP_ID = 'simulation-result-map';
 
 type SimulationResultMapProps = {
   pathfindingResult?: PathfindingResultSuccess;
+  pathsfindingResult?: PathfindingResultSuccess[];
   geometry?: PathPropertiesFormatted['geometry'];
+  geometries?: PathPropertiesFormatted['geometry'][];
   timetableItemSimulation?: SimulationResponseSuccess & {
     timetableItemId: TimetableItemId;
     startTime: string;
@@ -55,7 +57,9 @@ type SimulationResultMapProps = {
 
 const SimulationResultMap = ({
   pathfindingResult,
+  pathsfindingResult,
   geometry,
+  geometries,
   timetableItemSimulation,
   setMapCanvas,
 }: SimulationResultMapProps) => {
@@ -67,46 +71,65 @@ const SimulationResultMap = ({
     useSelector(getMap);
   const isPlaying = useSelector(getIsPlaying);
 
-  const mapRef = React.useRef<MapRef>(null);
+  const mapRef = useRef<MapRef>(null);
   const [selectedTrainHoverPosition, setSelectedTrainHoverPosition] =
     useState<TimetableItemCurrentInfo>();
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
 
   const geojsonPath = useMemo(() => geometry && lineString(geometry.coordinates), [geometry]);
 
-  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
+  const geojsonPaths = useMemo(
+    () => geometries?.map((geo) => lineString(geo.coordinates)) || [],
+    [geometries]
+  );
 
-  // Compute path items coordinates in order to place them on the map
   useEffect(() => {
-    const getPathItemsCoordinates = async (path: PathfindingResultSuccess) => {
-      const trackIds = path.track_section_ranges.map((range) => range.track_section);
-      const tracks = await getTrackSectionsByIds(trackIds);
-      const tracksLengthCumulativeSums = getTrackLengthCumulativeSums(path.track_section_ranges);
+    const getPathItemsCoordinates = async (paths: PathfindingResultSuccess[]) => {
+      const allMarkers: MapMarker[] = [];
 
-      const markers = path.path_item_positions.map((position, index) => {
-        let pointType = MARKER_TYPE.VIA;
-        if (index === 0) {
-          pointType = MARKER_TYPE.ORIGIN;
-        } else if (index === path.path_item_positions.length - 1) {
-          pointType = MARKER_TYPE.DESTINATION;
-        }
-        return {
-          coordinates: getPointOnPathCoordinates(
-            tracks,
-            path.track_section_ranges,
-            tracksLengthCumulativeSums,
-            position
-          ),
-          pointType,
-        };
-      });
+      for (const path of paths) {
+        const trackIds = path.track_section_ranges.map((range) => range.track_section);
+        const tracks = await getTrackSectionsByIds(trackIds);
+        const tracksLengthCumulativeSums = getTrackLengthCumulativeSums(path.track_section_ranges);
 
-      setMapMarkers(markers);
+        const markers = path.path_item_positions.map((position, index) => {
+          let pointType = MARKER_TYPE.VIA;
+          if (index === 0) {
+            pointType = MARKER_TYPE.ORIGIN;
+          } else if (index === path.path_item_positions.length - 1) {
+            pointType = MARKER_TYPE.DESTINATION;
+          }
+          return {
+            coordinates: getPointOnPathCoordinates(
+              tracks,
+              path.track_section_ranges,
+              tracksLengthCumulativeSums,
+              position
+            ),
+            pointType,
+          };
+        });
+
+        allMarkers.push(...markers);
+      }
+
+      setMapMarkers(allMarkers);
     };
 
+    const pathsToProcess: PathfindingResultSuccess[] = [];
+
     if (pathfindingResult) {
-      getPathItemsCoordinates(pathfindingResult);
+      pathsToProcess.push(pathfindingResult);
     }
-  }, [pathfindingResult]);
+
+    if (pathsfindingResult && pathsfindingResult.length > 0) {
+      pathsToProcess.push(...pathsfindingResult);
+    }
+
+    if (pathsToProcess.length > 0) {
+      getPathItemsCoordinates(pathsToProcess);
+    }
+  }, [pathfindingResult, pathsfindingResult]);
 
   const interactiveLayerIds = useMemo(
     () => (geojsonPath ? ['geojsonPath', 'main-train-path'] : []),
@@ -165,7 +188,7 @@ const SimulationResultMap = ({
       if (timePositionLocal instanceof Date) {
         updateTimePosition(timePositionLocal);
       } else {
-        throw new Error('Map onFeatureHover, try to update TimePositionValue with incorrect imput');
+        throw new Error('Map onFeatureHover, try to update TimePositionValue with incorrect input');
       }
     }
   };
@@ -208,12 +231,23 @@ const SimulationResultMap = ({
         terrain3DExaggeration={terrain3DExaggeration}
         layersSettings={layersSettings}
       >
+        {geojsonPaths.map((geojsonPathFromPaths, index) => (
+          <Itinerary
+            key={index}
+            geojsonPath={geojsonPathFromPaths}
+            layerOrder={LAYER_GROUPS_ORDER[LAYERS.PATH.GROUP]}
+            idSuffix={index}
+          />
+        ))}
         {geojsonPath && (
-          <Itinerary geojsonPath={geojsonPath} layerOrder={LAYER_GROUPS_ORDER[LAYERS.PATH.GROUP]} />
+          <Itinerary
+            geojsonPath={geojsonPath}
+            layerOrder={LAYER_GROUPS_ORDER[LAYERS.PATH.GROUP]}
+            idSuffix={geojsonPath.properties?.id}
+          />
         )}
 
         <MapMarkers markers={mapMarkers} />
-
         {geojsonPath && selectedTrainHoverPosition && timetableItemSimulation && (
           <TrainOnMap
             trainInfo={selectedTrainHoverPosition}

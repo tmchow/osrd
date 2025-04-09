@@ -6,9 +6,10 @@ import OrderedLayer from 'common/Map/Layers/OrderedLayer';
 type ItineraryProps = {
   geojsonPath: Feature<LineString>;
   layerOrder: number;
+  idSuffix?: number | string;
 };
 
-const Itinerary = ({ geojsonPath, layerOrder }: ItineraryProps) => {
+const Itinerary = ({ geojsonPath, layerOrder, idSuffix = 'x' }: ItineraryProps) => {
   const paintBackgroundLine = {
     'line-width': 4,
     'line-color': '#EDF9FF',
@@ -22,13 +23,18 @@ const Itinerary = ({ geojsonPath, layerOrder }: ItineraryProps) => {
   return (
     <Source type="geojson" data={geojsonPath}>
       <OrderedLayer
-        id="geojsonPathBackgroundLine"
+        id={`geojsonPathBackgroundLine-${idSuffix}`}
         type="line"
         paint={paintBackgroundLine}
         beforeId="geojsonPathLine"
         layerOrder={layerOrder}
       />
-      <OrderedLayer id="geojsonPathLine" type="line" paint={paintLine} layerOrder={layerOrder} />
+      <OrderedLayer
+        id={`geojsonPathLine-${idSuffix}`}
+        type="line"
+        paint={paintLine}
+        layerOrder={layerOrder}
+      />
     </Source>
   );
 };

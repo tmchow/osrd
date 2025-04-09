@@ -62,6 +62,7 @@ const ScenarioContent = ({
   const macroEditorState = useRef<MacroEditorState>();
   const [ngeDto, setNgeDto] = useState<NetzgrafikDto>();
   const [ngeIsLoading, setNGEIsLoading] = useState(true);
+  const [selectedTimetableItemIds, setSelectedTimetableItemIds] = useState<TimetableItemId[]>([]);
 
   const dtoImport = useCallback(async () => {
     const timetablePromise = dispatch(
@@ -158,6 +159,8 @@ const ScenarioContent = ({
                   timetableItems={timetableItems}
                   timetableItemsWithDetails={timetableItemsWithDetails}
                   dtoImport={dtoImport}
+                  selectedTimetableItemIds={selectedTimetableItemIds}
+                  setSelectedTimetableItemIds={setSelectedTimetableItemIds}
                 />
               </>
             )}
@@ -227,6 +230,7 @@ const ScenarioContent = ({
                   conflicts={conflicts}
                   timetableItemsWithDetails={timetableItemsWithDetails}
                   updateTrainDepartureTime={updateTrainDepartureTime}
+                  selectedTimetableItemIds={selectedTimetableItemIds}
                 />
               )
             )}

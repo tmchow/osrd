@@ -166,8 +166,10 @@ export type SimulationResultsData = {
   selectedTimetableItemPowerRestrictions: LayerData<PowerRestrictionValues>[];
   timetableItemSimulation?: SimulationResponseSuccess;
   pathProperties?: PathPropertiesFormatted;
+  pathsProperties?: PathPropertiesFormatted[];
   pathLength?: number;
   path?: PathfindingResultSuccess;
+  paths?: PathfindingResultSuccess[];
 };
 
 export type OperationalPointWithTimeAndSpeed = {

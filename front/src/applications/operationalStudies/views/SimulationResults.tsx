@@ -42,9 +42,9 @@ type SimulationResultsProps = {
   infraId?: number;
   projectionData?: ProjectionData;
   timetableItemsWithDetails: TimetableItemWithDetails[];
-
   conflicts?: Conflict[];
   updateTrainDepartureTime: (trainId: TimetableItemId, newDepartureTime: Date) => void;
+  selectedTimetableItemIds: TimetableItemId[];
 };
 
 const SimulationResults = ({
@@ -55,6 +55,7 @@ const SimulationResults = ({
   timetableItemsWithDetails,
   conflicts = [],
   updateTrainDepartureTime,
+  selectedTimetableItemIds,
 }: SimulationResultsProps) => {
   const { t } = useTranslation('simulation');
   const dispatch = useAppDispatch();
@@ -67,8 +68,10 @@ const SimulationResults = ({
     selectedTimetableItemPowerRestrictions,
     timetableItemSimulation,
     pathProperties,
+    pathsProperties,
     path,
-  } = useSimulationResults();
+    paths,
+  } = useSimulationResults({ selectedTimetableItemIds });
 
   const trainIdUsedForProjection = useSelector(getTrainIdUsedForProjection);
 
@@ -254,14 +257,16 @@ const SimulationResults = ({
           {/* SIMULATION : MAP */}
           <div data-testid="simulation-map" className="simulation-map">
             <SimulationResultsMap
+              pathfindingResult={path}
+              pathsfindingResult={paths}
               geometry={pathProperties?.geometry}
+              geometries={pathsProperties?.map((properties) => properties.geometry)}
               timetableItemSimulation={{
                 ...timetableItemSimulation,
                 timetableItemId: selectedTimetableItem.id,
                 startTime: selectedTimetableItem.start_time,
               }}
               setMapCanvas={setMapCanvas}
-              pathfindingResult={path}
             />
           </div>
 
