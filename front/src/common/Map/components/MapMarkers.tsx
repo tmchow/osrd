@@ -12,6 +12,7 @@ const MARKER_OFFSET: [number, number] = [0, 8];
 export type MapMarker = {
   coordinates: Position;
   pointType: MARKER_TYPE;
+  markerIndex?: number;
 };
 
 type MapMarkersProps = {
@@ -19,8 +20,9 @@ type MapMarkersProps = {
 };
 
 const MapMarkers = ({ markers }: MapMarkersProps) =>
-  markers.map(({ coordinates, pointType }, index) => {
-    const viaNumber = markers[0].pointType === MARKER_TYPE.VIA ? index + 1 : index;
+  markers.map(({ coordinates, pointType, markerIndex }, index) => {
+    const indexToUse = markerIndex ?? index;
+    const viaNumber = markers[0].pointType === MARKER_TYPE.VIA ? indexToUse + 1 : indexToUse;
     let imgSrc = viaIcon;
     let imgAlt = `via ${viaNumber}`;
 
@@ -38,7 +40,7 @@ const MapMarkers = ({ markers }: MapMarkersProps) =>
         latitude={coordinates[1]}
         anchor="bottom"
         offset={MARKER_OFFSET}
-        key={index}
+        key={indexToUse}
       >
         <img src={imgSrc} alt={imgAlt} />
         {pointType === MARKER_TYPE.VIA && (

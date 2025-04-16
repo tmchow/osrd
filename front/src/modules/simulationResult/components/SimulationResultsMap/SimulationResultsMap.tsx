@@ -94,6 +94,7 @@ const SimulationResultMap = ({
 
         const markers = path.path_item_positions.map((position, index) => {
           let pointType = MARKER_TYPE.VIA;
+          const indexToUse = path.path_item_positions.length > 1 ? index + 1 : index;
           if (index === 0) {
             pointType = MARKER_TYPE.ORIGIN;
           } else if (index === path.path_item_positions.length - 1) {
@@ -107,6 +108,7 @@ const SimulationResultMap = ({
               position
             ),
             pointType,
+            markerIndex: indexToUse,
           };
         });
 
