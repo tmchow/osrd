@@ -1,0 +1,161 @@
+---
+source: editoast_derive/src/view_error.rs
+---
+// Source
+// -----------------------------------------------------------------------------
+
+#[view_error(context)]
+enum Heterogeneous {
+    #[view_error(status = 500)]
+    Unit,
+    #[view_error(status = 501)]
+    NewType(String),
+    #[view_error(status = 502)]
+    Tuple(String, u32),
+    #[view_error(status = 400)]
+    Struct { cause: String, fix: String, incident_id: u64 },
+}
+
+// Macro expansion
+// -----------------------------------------------------------------------------
+
+impl crate::views::error::ViewError for Heterogeneous {
+    const LABEL: &'static str = "Heterogeneous";
+    fn status(&self) -> axum::http::StatusCode {
+        match self {
+            Heterogeneous::Unit => axum::http::StatusCode::from_u16(500u16).unwrap(),
+            Heterogeneous::NewType(_0) => {
+                axum::http::StatusCode::from_u16(501u16).unwrap()
+            }
+            Heterogeneous::Tuple(_0, _1) => {
+                axum::http::StatusCode::from_u16(502u16).unwrap()
+            }
+            Heterogeneous::Struct { .. } => {
+                axum::http::StatusCode::from_u16(400u16).unwrap()
+            }
+        }
+    }
+    fn variant_label(&self) -> Option<&'static str> {
+        match self {
+            Heterogeneous::Unit => Some("Unit"),
+            Heterogeneous::NewType(_0) => Some("NewType"),
+            Heterogeneous::Tuple(_0, _1) => Some("Tuple"),
+            Heterogeneous::Struct { .. } => Some("Struct"),
+        }
+    }
+    fn context(self) -> std::collections::HashMap<String, serde_json::Value> {
+        match self {
+            Heterogeneous::Unit => std::collections::HashMap::from([]),
+            Heterogeneous::NewType(_0) => {
+                std::collections::HashMap::from([
+                    (
+                        "_0".to_owned(),
+                        serde_json::to_value(_0)
+                            .expect("failed to serialize context value"),
+                    ),
+                ])
+            }
+            Heterogeneous::Tuple(_0, _1) => {
+                std::collections::HashMap::from([
+                    (
+                        "_0".to_owned(),
+                        serde_json::to_value(_0)
+                            .expect("failed to serialize context value"),
+                    ),
+                    (
+                        "_1".to_owned(),
+                        serde_json::to_value(_1)
+                            .expect("failed to serialize context value"),
+                    ),
+                ])
+            }
+            Heterogeneous::Struct { cause, fix, incident_id } => {
+                std::collections::HashMap::from([
+                    (
+                        "cause".to_owned(),
+                        serde_json::to_value(cause)
+                            .expect("failed to serialize context value"),
+                    ),
+                    (
+                        "fix".to_owned(),
+                        serde_json::to_value(fix)
+                            .expect("failed to serialize context value"),
+                    ),
+                    (
+                        "incident_id".to_owned(),
+                        serde_json::to_value(incident_id)
+                            .expect("failed to serialize context value"),
+                    ),
+                ])
+            }
+        }
+    }
+    fn responses() -> Vec<crate::views::error::OpenApiResponse> {
+        Vec::from([
+            crate::views::error::OpenApiResponse {
+                variant: None,
+                message_template: None,
+                status: axum::http::StatusCode::from_u16(500u16).unwrap(),
+                context: Vec::from([]),
+            },
+            crate::views::error::OpenApiResponse {
+                variant: None,
+                message_template: None,
+                status: axum::http::StatusCode::from_u16(501u16).unwrap(),
+                context: Vec::from([
+                    crate::views::error::ContextEntry {
+                        key: "_0",
+                        schema: <String as utoipa::PartialSchema>::schema(),
+                    },
+                ]),
+            },
+            crate::views::error::OpenApiResponse {
+                variant: None,
+                message_template: None,
+                status: axum::http::StatusCode::from_u16(502u16).unwrap(),
+                context: Vec::from([
+                    crate::views::error::ContextEntry {
+                        key: "_0",
+                        schema: <String as utoipa::PartialSchema>::schema(),
+                    },
+                    crate::views::error::ContextEntry {
+                        key: "_1",
+                        schema: <u32 as utoipa::PartialSchema>::schema(),
+                    },
+                ]),
+            },
+            crate::views::error::OpenApiResponse {
+                variant: None,
+                message_template: None,
+                status: axum::http::StatusCode::from_u16(400u16).unwrap(),
+                context: Vec::from([
+                    crate::views::error::ContextEntry {
+                        key: "cause",
+                        schema: <String as utoipa::PartialSchema>::schema(),
+                    },
+                    crate::views::error::ContextEntry {
+                        key: "fix",
+                        schema: <String as utoipa::PartialSchema>::schema(),
+                    },
+                    crate::views::error::ContextEntry {
+                        key: "incident_id",
+                        schema: <u64 as utoipa::PartialSchema>::schema(),
+                    },
+                ]),
+            },
+        ])
+    }
+}
+impl utoipa::IntoResponses for Heterogeneous {
+    fn responses() -> std::collections::BTreeMap<
+        String,
+        utoipa::openapi::RefOr<utoipa::openapi::response::Response>,
+    > {
+        <Self as crate::views::error::ViewError>::utoipa_responses().into()
+    }
+}
+impl axum::response::IntoResponse for Heterogeneous {
+    fn into_response(self) -> axum::response::Response {
+        <Self as crate::views::error::ViewError>::into_response(self)
+    }
+}
