@@ -1,4 +1,10 @@
 import { isNil, sortBy } from 'lodash';
+import type { ThunkDispatch, Action } from '@reduxjs/toolkit';
+import type {
+  ApiEndpointQuery,
+  QueryDefinition,
+  EndpointDefinitions,
+} from '@reduxjs/toolkit/query/react';
 
 import type { TimetableItem, TimetableItemId, TrainId } from 'reducers/osrdconf/types';
 import {
@@ -24,6 +30,48 @@ import {
 const formatPathPropertiesProps = (props: Property[]) =>
   props.map((prop) => `props[]=${prop}`).join('&');
 
+type EndpointQueryArgs<E> = E extends ApiEndpointQuery<
+  QueryDefinition<infer QueryArgs, infer _BaseQuery, infer _TagTypes, infer _ResultType>,
+  EndpointDefinitions
+>
+  ? QueryArgs
+  : never;
+
+type EndpointQueryResult<E> = E extends ApiEndpointQuery<
+  QueryDefinition<infer _QueryArgs, infer _BaseQuery, infer _TagTypes, infer ResultType>,
+  EndpointDefinitions
+>
+  ? ResultType
+  : never;
+
+type PaginatedApiEndpointQuery = typeof osrdEditoastApi.endpoints.getTimetableByIdTrainSchedules;
+
+const fetchAllPages = async <E extends PaginatedApiEndpointQuery>(
+  endpoint: E,
+  args: EndpointQueryArgs<E>,
+  dispatch: ThunkDispatch<unknown, unknown, Action>
+): Promise<EndpointQueryResult<E>['results']> => {
+  let page = 1;
+  let reachEnd = false;
+  const results: TrainScheduleResponse[] = [];
+  while (!reachEnd) {
+    const promise = dispatch(
+      endpoint.initiate(
+        {
+          ...args,
+          page,
+        },
+        { subscribe: false }
+      )
+    );
+    const { data } = await promise;
+    if (data) results.push(...data.results);
+    reachEnd = isNil(data?.next);
+    page += 1;
+  }
+  return results;
+};
+
 const osrdEditoastApi = generatedEditoastApi
   .injectEndpoints({
     endpoints: (builder) => ({
@@ -32,27 +80,12 @@ const osrdEditoastApi = generatedEditoastApi
         { timetableId: number }
       >({
         queryFn: async ({ timetableId }, { dispatch }) => {
-          const pageSize = 200;
-          let page = 1;
-          let reachEnd = false;
-          const result: TrainScheduleResponse[] = [];
-          while (!reachEnd) {
-            const promise = dispatch(
-              osrdEditoastApi.endpoints.getTimetableByIdTrainSchedules.initiate(
-                {
-                  id: timetableId,
-                  pageSize,
-                  page,
-                },
-                { subscribe: false }
-              )
-            );
-            const { data } = await promise;
-            if (data) result.push(...data.results);
-            reachEnd = isNil(data?.next);
-            page += 1;
-          }
-          return { data: result };
+          const data/*: TrainScheduleResponse[]*/ = await fetchAllPages(
+            osrdEditoastApi.endpoints.getTimetableByIdTrainSchedules,
+            { id: timetableId, pageSize: 200 },
+            dispatch
+          );
+          return { data: [] as TrainScheduleResponse[] }; // TODO: ehhhhhhhh
         },
         providesTags: ['timetable'],
       }),
