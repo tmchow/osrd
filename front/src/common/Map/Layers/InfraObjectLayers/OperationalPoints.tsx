@@ -1,5 +1,10 @@
 import type { Geometry } from 'geojson';
 import { isNil } from 'lodash';
+import type {
+  ColorSpecification,
+  DataDrivenPropertyValueSpecification,
+  FilterSpecification,
+} from 'maplibre-gl';
 import { Source, type LayerProps } from 'react-map-gl/maplibre';
 
 import { MAP_URL } from 'common/Map/const';
@@ -14,7 +19,36 @@ type OperationalPointsProps = {
   infraID: number | undefined;
   operationnalPointId?: string;
   highlightedArea?: Geometry;
+  highlightedOperationalPoints?: number[];
 };
+
+function getColorByHighlighted(data: {
+  highlightedArea?: Geometry;
+  highlightedOperationalPoints?: number[];
+  inColor: string;
+  outColor: string;
+}): DataDrivenPropertyValueSpecification<ColorSpecification> {
+  if (data.highlightedOperationalPoints && data.highlightedOperationalPoints.length > 0)
+    return [
+      'case',
+      ['in', ['get', 'extensions_sncf_ci'], ['literal', data.highlightedOperationalPoints]],
+      data.inColor,
+      data.outColor,
+    ];
+  if (data.highlightedArea)
+    return ['case', ['within', data.highlightedArea], data.inColor, data.outColor];
+  return data.inColor;
+}
+
+function getFilterHighlighted(data: {
+  highlightedArea?: Geometry;
+  highlightedOperationalPoints?: number[];
+}): FilterSpecification {
+  if (data.highlightedOperationalPoints && data.highlightedOperationalPoints.length > 0)
+    return ['in', ['get', 'extensions_sncf_ci'], ['literal', data.highlightedOperationalPoints]];
+  if (data.highlightedArea) return ['within', data.highlightedArea];
+  return true;
+}
 
 const OperationalPointsLayer = ({
   colors,
@@ -22,6 +56,7 @@ const OperationalPointsLayer = ({
   infraID,
   operationnalPointId,
   highlightedArea,
+  highlightedOperationalPoints,
 }: OperationalPointsProps) => {
   if (isNil(infraID)) return null;
 
@@ -30,9 +65,12 @@ const OperationalPointsLayer = ({
     'source-layer': 'operational_points',
     minzoom: 8,
     paint: {
-      'circle-stroke-color': highlightedArea
-        ? ['case', ['within', highlightedArea], colors.op.circle, colors.muted.color]
-        : colors.op.circle,
+      'circle-stroke-color': getColorByHighlighted({
+        highlightedArea,
+        highlightedOperationalPoints,
+        inColor: colors.op.circle,
+        outColor: colors.muted.color,
+      }),
       'circle-stroke-width': 2,
       'circle-color': 'rgba(255, 255, 255, 0)',
       'circle-radius': 3,
@@ -71,9 +109,12 @@ const OperationalPointsLayer = ({
       'text-max-width': 32,
     },
     paint: {
-      'text-color': highlightedArea
-        ? ['case', ['within', highlightedArea], colors.op.text, colors.muted.color]
-        : colors.op.text,
+      'text-color': getColorByHighlighted({
+        highlightedArea,
+        highlightedOperationalPoints,
+        inColor: colors.op.text,
+        outColor: colors.muted.color,
+      }),
       'text-halo-width': 2,
       'text-halo-color': colors.op.halo,
       'text-halo-blur': 1,
@@ -97,9 +138,12 @@ const OperationalPointsLayer = ({
       'text-max-width': 32,
     },
     paint: {
-      'text-color': highlightedArea
-        ? ['case', ['within', highlightedArea], colors.op.minitext, colors.muted.color]
-        : colors.op.minitext,
+      'text-color': getColorByHighlighted({
+        highlightedArea,
+        highlightedOperationalPoints,
+        inColor: colors.op.minitext,
+        outColor: colors.muted.color,
+      }),
       'text-halo-width': 2,
       'text-halo-color': colors.op.halo,
       'text-halo-blur': 1,
@@ -135,7 +179,7 @@ const OperationalPointsLayer = ({
       'text-ignore-placement': false,
       'text-offset': [0.75, 0.1],
     },
-    filter: highlightedArea ? ['within', highlightedArea] : true,
+    filter: getFilterHighlighted({ highlightedArea, highlightedOperationalPoints }),
     paint: {
       'text-color': colors.op.text,
       'text-halo-width': 2,
