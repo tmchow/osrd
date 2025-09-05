@@ -192,6 +192,7 @@ describe('stdcmConfReducers', () => {
           ],
         } as Geometry,
         operationalPoints: [1, 2, 3, 4],
+        tsIds: [],
       };
       store.dispatch(updateStdcmEnvironmentActiveArea(perimeter));
       const state = store.getState()[stdcmConfSlice.name];

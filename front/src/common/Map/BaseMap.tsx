@@ -45,6 +45,7 @@ type MapProps = Pick<MapState, 'mapSettings'> & {
    */
   highlightedArea?: Geometry;
   highlightedOperationalPoints?: number[];
+  highlightedTracksections?: string[];
 };
 
 const BaseMap = ({
@@ -64,6 +65,7 @@ const BaseMap = ({
   onIdle,
   highlightedArea,
   highlightedOperationalPoints,
+  highlightedTracksections,
 }: PropsWithChildren<MapProps>) => {
   const mapBlankStyle = useMapBlankStyle();
 
@@ -156,6 +158,7 @@ const BaseMap = ({
           layersSettings={layersSettings}
           highlightedArea={highlightedArea}
           highlightedOperationalPoints={highlightedOperationalPoints}
+          highlightedTracksections={highlightedTracksections}
         />
       )}
 

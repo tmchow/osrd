@@ -85,6 +85,7 @@ export type OsrdStdcmConfState = OsrdConfState & {
   activePerimeter?: {
     geometry: Geometry;
     operationalPoints: number[];
+    tsIds: string[];
   };
 };
 

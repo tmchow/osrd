@@ -362,6 +362,7 @@ const StdcmConfig = ({
             pathStepMarkers={markersInfo}
             highlightedArea={activePerimeter?.geometry}
             highlightedOperationalPoints={activePerimeter?.operationalPoints}
+            highlightedTracksections={activePerimeter?.tsIds}
             mapSettings={mapSettings}
             updateMapSettings={updateMapSettings}
           >
