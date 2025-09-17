@@ -4,7 +4,7 @@ source: editoast_derive/src/view_error.rs
 // Source
 // -----------------------------------------------------------------------------
 
-#[view_error(status = 404)]
+#[view_error(status = UNAUTHORIZED)]
 struct Named {
     field: String,
 }
@@ -15,7 +15,7 @@ struct Named {
 impl crate::views::error::ViewError for Named {
     const LABEL: &'static str = "Named";
     fn status(&self) -> axum::http::StatusCode {
-        axum::http::StatusCode::from_u16(404u16).unwrap()
+        axum::http::StatusCode::UNAUTHORIZED
     }
     fn context(&self) -> std::collections::HashMap<String, serde_json::Value> {
         std::collections::HashMap::from([])
@@ -25,7 +25,7 @@ impl crate::views::error::ViewError for Named {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(404u16).unwrap(),
+                status: axum::http::StatusCode::UNAUTHORIZED,
                 context: Vec::from([]),
             },
         ])

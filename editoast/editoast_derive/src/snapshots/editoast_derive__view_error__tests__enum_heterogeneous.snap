@@ -6,13 +6,12 @@ source: editoast_derive/src/view_error.rs
 
 #[view_error(context)]
 enum Heterogeneous {
-    #[view_error(status = 500)]
     Unit,
-    #[view_error(status = 501)]
+    #[view_error(status = INTERNAL_SERVER_ERROR)]
     NewType(String),
-    #[view_error(status = 502)]
+    #[view_error(status = BAD_REQUEST)]
     Tuple(String, u32),
-    #[view_error(status = 400)]
+    #[view_error(status = PAYMENT_REQUIRED)]
     Struct { cause: String, fix: String, incident_id: u64 },
 }
 
@@ -23,16 +22,10 @@ impl crate::views::error::ViewError for Heterogeneous {
     const LABEL: &'static str = "Heterogeneous";
     fn status(&self) -> axum::http::StatusCode {
         match self {
-            Heterogeneous::Unit => axum::http::StatusCode::from_u16(500u16).unwrap(),
-            Heterogeneous::NewType(_0) => {
-                axum::http::StatusCode::from_u16(501u16).unwrap()
-            }
-            Heterogeneous::Tuple(_0, _1) => {
-                axum::http::StatusCode::from_u16(502u16).unwrap()
-            }
-            Heterogeneous::Struct { .. } => {
-                axum::http::StatusCode::from_u16(400u16).unwrap()
-            }
+            Heterogeneous::Unit => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Heterogeneous::NewType(_0) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Heterogeneous::Tuple(_0, _1) => axum::http::StatusCode::BAD_REQUEST,
+            Heterogeneous::Struct { .. } => axum::http::StatusCode::PAYMENT_REQUIRED,
         }
     }
     fn variant_label(&self) -> Option<&'static str> {
@@ -95,13 +88,13 @@ impl crate::views::error::ViewError for Heterogeneous {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(500u16).unwrap(),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 context: Vec::from([]),
             },
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(501u16).unwrap(),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 context: Vec::from([
                     crate::views::error::ContextEntry {
                         key: "_0",
@@ -112,7 +105,7 @@ impl crate::views::error::ViewError for Heterogeneous {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(502u16).unwrap(),
+                status: axum::http::StatusCode::BAD_REQUEST,
                 context: Vec::from([
                     crate::views::error::ContextEntry {
                         key: "_0",
@@ -127,7 +120,7 @@ impl crate::views::error::ViewError for Heterogeneous {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(400u16).unwrap(),
+                status: axum::http::StatusCode::PAYMENT_REQUIRED,
                 context: Vec::from([
                     crate::views::error::ContextEntry {
                         key: "cause",

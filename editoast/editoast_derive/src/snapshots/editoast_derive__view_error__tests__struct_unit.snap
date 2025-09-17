@@ -4,7 +4,7 @@ source: editoast_derive/src/view_error.rs
 // Source
 // -----------------------------------------------------------------------------
 
-#[view_error(status = 404)]
+#[view_error(status = NOT_FOUND)]
 struct Unit;
 
 // Macro expansion
@@ -13,7 +13,7 @@ struct Unit;
 impl crate::views::error::ViewError for Unit {
     const LABEL: &'static str = "Unit";
     fn status(&self) -> axum::http::StatusCode {
-        axum::http::StatusCode::from_u16(404u16).unwrap()
+        axum::http::StatusCode::NOT_FOUND
     }
     fn context(&self) -> std::collections::HashMap<String, serde_json::Value> {
         std::collections::HashMap::from([])
@@ -23,7 +23,7 @@ impl crate::views::error::ViewError for Unit {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(404u16).unwrap(),
+                status: axum::http::StatusCode::NOT_FOUND,
                 context: Vec::from([]),
             },
         ])

@@ -4,7 +4,7 @@ source: editoast_derive/src/view_error.rs
 // Source
 // -----------------------------------------------------------------------------
 
-#[view_error(status = 404, context)]
+#[view_error(context)]
 struct TupleWithContext(String, u32);
 
 // Macro expansion
@@ -13,7 +13,7 @@ struct TupleWithContext(String, u32);
 impl crate::views::error::ViewError for TupleWithContext {
     const LABEL: &'static str = "TupleWithContext";
     fn status(&self) -> axum::http::StatusCode {
-        axum::http::StatusCode::from_u16(404u16).unwrap()
+        axum::http::StatusCode::INTERNAL_SERVER_ERROR
     }
     fn context(&self) -> std::collections::HashMap<String, serde_json::Value> {
         std::collections::HashMap::from([
@@ -32,7 +32,7 @@ impl crate::views::error::ViewError for TupleWithContext {
             crate::views::error::OpenApiResponse {
                 variant: None,
                 message_template: None,
-                status: axum::http::StatusCode::from_u16(404u16).unwrap(),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 context: Vec::from([
                     crate::views::error::ContextEntry {
                         key: "_0",

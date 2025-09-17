@@ -40,7 +40,7 @@ struct Args {
     context: bool,
 
     #[darling(flatten)]
-    struct_error: StructArgs,
+    args: StructArgs,
 }
 
 #[derive(Debug, FromVariant)]
@@ -49,9 +49,26 @@ struct VariantArgs {
     ident: syn::Ident,
     fields: ast::Fields<FieldArgs>,
     // TODO: use StatusCode instead
-    status: u16,
+    #[darling(default)]
+    status: StatusCodeArg,
     #[darling(default)]
     context: bool,
+}
+
+#[derive(Debug, Clone, FromMeta)]
+struct StatusCodeArg(syn::Ident);
+
+impl Default for StatusCodeArg {
+    fn default() -> Self {
+        Self(syn::parse_quote! { INTERNAL_SERVER_ERROR }) // 500
+    }
+}
+
+impl ToTokens for StatusCodeArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let code = &self.0;
+        tokens.extend(quote! { axum::http::StatusCode::#code })
+    }
 }
 
 #[derive(Debug, FromField)]
@@ -62,8 +79,8 @@ struct FieldArgs {
 
 #[derive(Debug, FromMeta)]
 struct StructArgs {
-    // TODO: use StatusCode instead
-    status: Option<u16>,
+    #[darling(default)]
+    status: StatusCodeArg,
 }
 
 // TODO: #[derive(Debug, FromMeta)] struct Context
@@ -74,7 +91,7 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
         data,
         name,
         context,
-        struct_error,
+        args: StructArgs { status },
     } = Args::from_derive_input(input)?;
 
     let label = name.unwrap_or_else(|| ident.to_string());
@@ -85,7 +102,7 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
                 &ident,
                 syn::parse_quote! { self },
                 &variants,
-                |VariantArgs { status, .. }| quote! { axum::http::StatusCode::from_u16(#status).unwrap() },
+                |VariantArgs { status, .. }| quote! { #status },
             );
             let variant_label_impl = Matching::new(
                 &ident,
@@ -106,7 +123,7 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
                      ..
                  }| {
                     let context = if context || *variant_context {
-                        context_of_fields(&fields)
+                        context_of_fields(fields)
                     } else {
                         vec![]
                     };
@@ -121,7 +138,7 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
                      context: variant_context,
                      ..
                  }| {
-                    Response::from_struct(context || *variant_context, *status, fields)
+                    Response::from_struct(context || *variant_context, status.clone(), fields)
                 },
             );
             quote! {
@@ -140,27 +157,17 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
             }
         }
         ast::Data::Struct(fields) => {
-            let StructArgs {
-                status: Some(status),
-            } = struct_error
-            else {
-                return Err(
-                    darling::Error::custom("missing struct-level `status` attribute")
-                        .with_span(&ident),
-                );
-            };
-
             let context_values = if context {
                 context_of_fields(&fields)
             } else {
                 vec![]
             };
 
-            let response = Response::from_struct(context, status, &fields);
+            let response = Response::from_struct(context, status.clone(), &fields);
 
             quote! {
                 fn status(&self) -> axum::http::StatusCode {
-                    axum::http::StatusCode::from_u16(#status).unwrap()
+                    #status
                 }
 
                 fn context(&self) -> std::collections::HashMap<String, serde_json::Value> {
@@ -202,7 +209,7 @@ pub fn view_error(input: &DeriveInput) -> Result<TokenStream> {
 struct Response {
     variant: Option<String>,
     message_template: Option<String>,
-    status: u16,
+    status: StatusCodeArg,
     context: Vec<(String, syn::Type)>,
 }
 
@@ -237,7 +244,7 @@ impl ToTokens for Response {
             crate::views::error::OpenApiResponse {
                 variant: #variant,
                 message_template: #message_template,
-                status: axum::http::StatusCode::from_u16(#status).unwrap(),
+                status: #status,
                 context: Vec::from([#(#context),*]),
             }
         });
@@ -280,7 +287,7 @@ impl<T: ToTokens> ToTokens for Matching<'_, T> {
             destructure_fields,
             cases,
         } = self;
-        let cases = cases.into_iter().map(|(variant, expression)| {
+        let cases = cases.iter().map(|(variant, expression)| {
             let var_name = &variant.ident;
             let fields = variant
                 .fields
@@ -327,7 +334,11 @@ fn context_of_fields(fields: &ast::Fields<FieldArgs>) -> Vec<TokenStream> {
 }
 
 impl Response {
-    fn from_struct(context: bool, status: u16, fields: &darling::ast::Fields<FieldArgs>) -> Self {
+    fn from_struct(
+        context: bool,
+        status: StatusCodeArg,
+        fields: &darling::ast::Fields<FieldArgs>,
+    ) -> Self {
         let context = if context && !fields.is_unit() {
             fields
                 .iter()
@@ -364,7 +375,7 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404)]
+                #[view_error(status = NOT_FOUND)]
                 struct Unit;
             }
         );
@@ -375,7 +386,7 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404, context)]
+                #[view_error(context)]
                 struct UnitWithContext;
             }
         );
@@ -386,7 +397,6 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404)]
                 struct NewType(String);
             }
         );
@@ -397,7 +407,6 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404)]
                 struct Tuple(String, u32);
             }
         );
@@ -408,7 +417,7 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404, context)]
+                #[view_error(context)]
                 struct TupleWithContext(String, u32);
             }
         );
@@ -419,7 +428,7 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404)]
+                #[view_error(status = UNAUTHORIZED)]
                 struct Named {
                     field: String,
                 }
@@ -432,7 +441,7 @@ mod tests {
         crate::assert_macro_expansion!(
             view_error,
             syn::parse_quote! {
-                #[view_error(status = 404, context)]
+                #[view_error(context)]
                 struct NamedWithContext {
                     cause: String,
                     fix: String,
@@ -449,13 +458,12 @@ mod tests {
             syn::parse_quote! {
                 #[view_error(context)]
                 enum Heterogeneous {
-                    #[view_error(status = 500)]
-                    Unit,
-                    #[view_error(status = 501)]
+                    Unit, // default status code 400
+                    #[view_error(status = INTERNAL_SERVER_ERROR)]
                     NewType(String),
-                    #[view_error(status = 502)]
+                    #[view_error(status = BAD_REQUEST)]
                     Tuple(String, u32),
-                    #[view_error(status = 400)]
+                    #[view_error(status = PAYMENT_REQUIRED)]
                     Struct {
                         cause: String,
                         fix: String,
