@@ -10,6 +10,20 @@ use quote::quote;
 use syn::DeriveInput;
 use syn::spanned::Spanned;
 
+// TODO LIST
+// - [X] derive macro boilerplate
+// - [X] supports all definitions
+// - [X] status code
+// - [X] context (simple)
+// - [ ] context (compound)
+// - [ ] context_with
+// - [ ] message_format_string (fallback to field doc, fallback to struct doc)
+// - [ ] error name (struct name, variant name)
+// - [ ] enum error name
+// - [ ] ignore #[from] in context
+// - [ ] #[from] #[view_error]
+// - [ ] core_client::Error (another PR?)
+
 #[derive(Debug, FromDeriveInput)]
 #[darling(
     attributes(view_error),
