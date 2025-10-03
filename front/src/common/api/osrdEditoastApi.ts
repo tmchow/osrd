@@ -1,11 +1,6 @@
 import { isNil, sortBy } from 'lodash';
-import type { ThunkDispatch, Action } from '@reduxjs/toolkit';
-import type {
-  ApiEndpointQuery,
-  QueryDefinition,
-  EndpointDefinitions,
-  BaseQueryFn,
-} from '@reduxjs/toolkit/query/react';
+import type { ThunkDispatch, ThunkAction, Action } from '@reduxjs/toolkit';
+import type { StartQueryActionCreatorOptions } from '@reduxjs/toolkit/query';
 
 import type { TimetableItem, TimetableItemId, TrainId } from 'reducers/osrdconf/types';
 import {
@@ -32,52 +27,28 @@ import {
 const formatPathPropertiesProps = (props: Property[]) =>
   props.map((prop) => `props[]=${prop}`).join('&');
 
-type EndpointQueryArgs<E> =
-  E extends ApiEndpointQuery<
-    QueryDefinition<infer QueryArgs, infer _BaseQuery, infer _TagTypes, infer _ResultType>,
-    EndpointDefinitions
-  >
-    ? QueryArgs
-    : never;
-
-type EndpointQueryResult<E> =
-  E extends ApiEndpointQuery<
-    QueryDefinition<infer _QueryArgs, infer _BaseQuery, infer _TagTypes, infer ResultType>,
-    EndpointDefinitions
-  >
-    ? ResultType
-    : never;
-
-type PaginatedEndpointQueryArgs<E> =
-  EndpointQueryArgs<E> extends {
+const fetchAllPages = async <
+  QueryArgs extends {
     page?: number;
     pageSize?: number | null;
-  }
-    ? EndpointQueryArgs<E>
-    : never;
-
-type PaginatedEndpointQueryResultItem<E> =
-  EndpointQueryResult<E> extends { results: (infer Item)[] } & PaginationStats ? Item : never;
-
-const fetchAllPages = async <
-  QueryArgs,
-  BaseQuery extends BaseQueryFn,
-  TagTypes extends string,
-  ResultItem,
-  ResultType,
-  Definitions extends EndpointDefinitions,
-  Endpoint extends ApiEndpointQuery<
-    QueryDefinition<QueryArgs, BaseQuery, TagTypes, ResultType>,
-    Definitions
-  >,
+  },
+  Result extends { results: unknown[] } & PaginationStats,
+  Endpoint extends {
+    initiate: (
+      arg: QueryArgs,
+      options: StartQueryActionCreatorOptions
+    ) => ThunkAction<{ unwrap: () => Promise<Result> }, unknown, unknown, Action>;
+  },
+  //ResultItems = Awaited<ReturnType<ReturnType<Endpoint['initiate']>>['unwrap']>['results']
+  ResultItems = ReturnType<ReturnType<Endpoint['initiate']>>['unwrap']
 >(
   endpoint: Endpoint,
-  args: PaginatedEndpointQueryArgs<Endpoint>,
+  args: QueryArgs,
   dispatch: ThunkDispatch<unknown, unknown, Action>
-): Promise<PaginatedEndpointQueryResultItem<Endpoint>[]> => {
+): Promise<ResultItems> => {
   let page = 1;
   let reachEnd = false;
-  const results: PaginatedEndpointQueryResultItem<Endpoint>[] = [];
+  const results: ResultItems = [];
   while (!reachEnd) {
     const promise = dispatch(
       endpoint.initiate(
@@ -88,7 +59,7 @@ const fetchAllPages = async <
         { subscribe: false }
       )
     );
-    const { data } = await promise;
+    const data = await promise.unwrap();
     if (data) results.push(...data.results);
     reachEnd = isNil(data?.next);
     page += 1;
@@ -103,13 +74,12 @@ const osrdEditoastApi = generatedEditoastApi
         TrainScheduleResponse[],
         { timetableId: number }
       >({
-        queryFn: async ({ timetableId }, { dispatch }) => {
-          const data: TrainScheduleResponse[] = await fetchAllPages(
+        queryFn: async ({ timetableId }, { dispatch }): Promise<{ data: TrainScheduleResponse[] }> => {
+          const data = await fetchAllPages(
             osrdEditoastApi.endpoints.getTimetableByIdTrainSchedules,
             { id: timetableId, pageSize: 200 },
             dispatch
           );
-          //return { data: [] as TrainScheduleResponse[] }; // TODO: ehhhhhhhh
           return { data };
         },
         providesTags: ['timetable'],
