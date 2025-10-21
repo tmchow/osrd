@@ -3,8 +3,11 @@ package fr.sncf.osrd.path.interfaces
 import fr.sncf.osrd.sim_infra.api.Block
 import fr.sncf.osrd.sim_infra.api.Route
 import fr.sncf.osrd.sim_infra.api.TrackChunk
+import fr.sncf.osrd.sim_infra.api.Zone
+import fr.sncf.osrd.sim_infra.api.ZonePath
 import fr.sncf.osrd.utils.indexing.DirStaticIdx
 import fr.sncf.osrd.utils.indexing.StaticIdx
+import fr.sncf.osrd.utils.units.Length
 import fr.sncf.osrd.utils.units.Offset
 import fr.sncf.osrd.utils.units.Offset.Companion.max
 import fr.sncf.osrd.utils.units.Offset.Companion.min
@@ -78,6 +81,18 @@ data class GenericLinearRange<ValueType, OffsetType>(
         }
         return res
     }
+
+    fun <T, NewOffsetType> mapValue(value: T): GenericLinearRange<T, NewOffsetType> {
+        return GenericLinearRange(value, objectBegin.cast(), objectEnd.cast(), pathBegin, pathEnd)
+    }
+
+    // Where the object begins on the path, not just the range. May be negative.
+    fun getObjectAbsolutePathStart() = pathBegin - objectBegin.distance
+
+    // Where the object ends on the path, not just the range. May be larger than path length.
+    fun getObjectAbsolutePathEnd(objectLength: Length<OffsetType>): Offset<TrainPath> {
+        return getObjectAbsolutePathStart() + objectLength.distance
+    }
 }
 
 typealias LinearObjectRange<T> = GenericLinearRange<StaticIdx<T>, T>
@@ -87,6 +102,10 @@ typealias LinearDirObjectRange<T> = GenericLinearRange<DirStaticIdx<T>, T>
 typealias RouteRange = LinearObjectRange<Route>
 
 typealias BlockRange = LinearObjectRange<Block>
+
+typealias ZoneRange = LinearObjectRange<Zone>
+
+typealias ZonePathRange = LinearObjectRange<ZonePath>
 
 typealias DirChunkRange = LinearDirObjectRange<TrackChunk>
 
