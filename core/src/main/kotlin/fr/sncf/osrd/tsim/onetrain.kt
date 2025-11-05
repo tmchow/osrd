@@ -76,6 +76,7 @@ fun onetrain(
                 mrsp.putLower(Range.closed(start, end), speed)
             }
         }
+        mrsp = mrsp.withStockLength(rollingStock.length)
 
         val signalingRanges = buildSignalingRanges(infra, trainPath)
         val safetySpeedRanges = makeSafetySpeedRanges(infra, trainPath, schedule, signalingRanges)
@@ -86,7 +87,6 @@ fun onetrain(
             mrsp.putLower(Range.closed(start, end), speed)
         }
     }
-    mrsp = mrsp.withStockLength(rollingStock.length)
     for ((position, _) in stops) {
         mrsp.put(Range.closed(position, position), 0.0)
     }
