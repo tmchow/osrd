@@ -310,6 +310,27 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
             yhi * (x - lo) * (x - mi) / (hi - lo) / (hi - mi)
 
     }
+
+    /**
+     * The Y value associated with the lowest X value that is strictly larger than the given [x].
+     */
+    fun firstAfter(x: Double): Double? {
+        val result = xs.binarySearch(x)
+        if (result >= 0) {
+            return if (result + 1 >= size) {
+                null
+            } else {
+                ys[result + 1]
+            }
+        } else {
+            val i = -result - 1
+            return if (i == size) {
+                null
+            } else {
+                ys[i]
+            }
+        }
+    }
 }
 
 @JvmInline
@@ -497,6 +518,8 @@ fun step(
 
 /**
  * Adjust the behavior of the rolling stock according to a given speed [constraint].
+ *
+ * The function is given a naive TODO
  */
 internal fun reactToSpeedConstraint(
     ctx: Context,
