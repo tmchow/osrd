@@ -154,6 +154,15 @@ fun onetrain(
                 },
         )
 
+    val mrspReport =
+        ReportTrain(
+            positions = baseReport.positions,
+            times = baseReport.times,
+            speeds = simplifiedPoints.map { point -> mrsp.get(point.position) ?: 500.0 },
+            energyConsumption = baseReport.energyConsumption,
+            pathItemTimes = baseReport.pathItemTimes,
+        )
+
     val completeReport =
         CompleteReportTrain(
             positions = baseReport.positions,
@@ -171,7 +180,7 @@ fun onetrain(
         ElectrificationRange.from(curvesAndConditions.conditions, electrificationMap)
 
     return SimulationSuccess(
-        base = baseReport,
+        base = mrspReport,
         provisional = baseReport, // TODO margins
         finalOutput = completeReport,
         mrsp =
