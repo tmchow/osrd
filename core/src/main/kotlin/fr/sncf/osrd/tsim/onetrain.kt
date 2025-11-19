@@ -184,7 +184,7 @@ fun onetrain(
         ElectrificationRange.from(curvesAndConditions.conditions, electrificationMap)
 
     return SimulationSuccess(
-        base = mrspReport,
+        base = baseReport,
         provisional = baseReport, // TODO margins
         finalOutput = completeReport,
         mrsp =
