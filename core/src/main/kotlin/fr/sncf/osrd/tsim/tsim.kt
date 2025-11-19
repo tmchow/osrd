@@ -403,7 +403,8 @@ internal fun reactToSpeedConstraint(
     val beforeSpeedLimit = constraint.quad(beforePos)
     val afterSpeedLimit = constraint.quad(afterPos)
 
-    if (accelerateStep.startSpeed approxEqualTo beforeSpeedLimit && (beforePos >= constraint.xs.last() || afterPos <= constraint.xs.first())) {
+    if (accelerateStep.startSpeed approxEqualTo beforeSpeedLimit &&
+        ((beforePos >= constraint.xs.last() && constraint.ys.last() != 0.0) || afterPos <= constraint.xs.first())) {
         // The stock is on the part of the constraint that is flat
         val s = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.MAINTAIN)
         assert(!(s.timeDelta approxEqualTo 0.0))
