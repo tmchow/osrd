@@ -94,8 +94,10 @@ fun onetrain(
         }
     }
 
+    val ltv = TreeRangeMap.create<Meters, MetersPerSecond>()
+
     val stopConstraint = TreeRangeMap.create<Meters, MetersPerSecond>()
-    val speedConstraints = OverlayingSpeedLimits(mutableListOf(mrsp, stopConstraint))
+    val speedConstraints = OverlayingSpeedLimits(mutableListOf(mrsp, stopConstraint, ltv))
 
     val instructions = Instructions(speedConstraints)
 
@@ -118,6 +120,10 @@ fun onetrain(
             position += s.positionDelta
             speed = s.endSpeed
             envelopePoints.add(EnvelopePoint(time, speed, position))
+
+            if (time >= 2934.0) {
+                ltv.put(Range.all(), 200/3.6)
+            }
         }
 
         if (!(stopPosition approxEqualTo position)) {
