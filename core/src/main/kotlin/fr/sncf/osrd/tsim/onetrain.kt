@@ -97,8 +97,7 @@ fun onetrain(
     val stopConstraint = TreeRangeMap.create<Meters, MetersPerSecond>()
     val speedConstraints = OverlayingSpeedLimits(mutableListOf(mrsp, stopConstraint))
 
-    val neutralZones = NeutralZonesWithPantographs() // TODO
-    val instructions = Instructions(speedConstraints, neutralZones)
+    val instructions = Instructions(speedConstraints)
 
     var time = 0.0
     var position = 0.0

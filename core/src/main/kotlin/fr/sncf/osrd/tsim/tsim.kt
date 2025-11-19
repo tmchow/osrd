@@ -8,7 +8,6 @@ import fr.sncf.osrd.envelope_sim.*
 import fr.sncf.osrd.envelope_sim.etcs.BrakingType
 import fr.sncf.osrd.path.interfaces.PhysicsPath
 import fr.sncf.osrd.train.RollingStock
-import java.util.function.BiFunction
 import kotlin.math.abs
 
 typealias Seconds = Double
@@ -16,8 +15,6 @@ typealias Seconds = Double
 typealias Meters = Double
 
 typealias MetersPerSecond = Double
-
-typealias SecondArray = DoubleArray
 
 typealias MeterArray = DoubleArray
 
@@ -98,84 +95,6 @@ class OverlayingSpeedLimits(val overlays: List<RangeMap<Meters, MetersPerSecond>
 
 }
 
-/**
- * A [RangeMap] of neutral zones accounting for the positions of the pantographs on the rolling
- * stock.
- *
- * This class will report, for given positions of its head, ranges on the path where the rolling
- * stock isn't electrified.
- *
- * This is meant to be immutable (but isn't because [ImmutableRangeMap] inherits from [RangeMap] and
- * not the other way around)
- */
-class NeutralZonesWithPantographs(
-    /** ranges on the path with neutral zones */
-    private val inner: RangeMap<Meters, Boolean>,
-
-    /**
-     * list of positions of pantographs, where 0.0 is the head of the stock and `stock.length` is
-     * its tail
-     */
-    vararg pantographPositions: Meters,
-) : RangeMap<Meters, Boolean> {
-    private val frontPantograph: Meters = pantographPositions.maxOrNull()!!
-    private val rearPantograph: Meters = pantographPositions.minOrNull()!!
-
-    constructor() : this(inner = ImmutableRangeMap.of(), 0.0)
-
-    override fun get(head: Meters): Boolean? = getEntry(head)?.value
-
-    override fun getEntry(head: Meters): Map.Entry<Range<Meters>?, Boolean>? =
-        inner
-            .subRangeMap(Range.closed(head - frontPantograph, head - rearPantograph))
-            .asMapOfRanges()
-            .maxByOrNull { entry -> entry.value }
-
-    override fun span(): Range<Meters> = inner.span()
-
-    override fun put(range: Range<Meters>, value: Boolean): Unit =
-        throw UnsupportedOperationException()
-
-    override fun putCoalescing(range: Range<Meters>, value: Boolean): Unit =
-        throw UnsupportedOperationException()
-
-    override fun putAll(rangeMap: RangeMap<Meters, out Boolean>): Unit =
-        throw UnsupportedOperationException()
-
-    override fun clear() = inner.clear()
-
-    override fun remove(range: Range<Meters>): Unit = throw UnsupportedOperationException()
-
-    override fun merge(
-        range: Range<Meters>,
-        value: Boolean?,
-        remappingFunction: BiFunction<in Boolean, in Boolean?, out Boolean?>,
-    ): Unit = throw UnsupportedOperationException()
-
-    override fun asMapOfRanges(): Map<Range<Meters>?, Boolean> {
-        TODO("Not yet implemented")
-    }
-
-    override fun asDescendingMapOfRanges(): Map<Range<Meters>?, Boolean> {
-        TODO("Not yet implemented")
-    }
-
-    override fun subRangeMap(range: Range<Meters>): RangeMap<Meters, Boolean> =
-        NeutralZonesWithPantographs(inner.subRangeMap(range), frontPantograph, rearPantograph)
-}
-
-/**
- * Update a [RangeMap] representing neutral zones along a path, to account for the position of the
- * pantographs on the rolling stock.
- *
- * This is needed to account for neutral zones that require lowering pantographs: they must be
- * lowered before going TODO: can they be lowered last minute, eg the pantograph is on the back, the
- * train head is in the neutral zone and the pantograph is lowered right before it goes in too?
- */
-fun RangeMap<Meters, Boolean>.withPantographPositions(
-    vararg positions: Meters
-): NeutralZonesWithPantographs = NeutralZonesWithPantographs(this, *positions)
-
 internal class DecelerationTarget(
     /** Target position where [speed] must be reached. */
     val position: Meters,
@@ -186,28 +105,6 @@ internal class DecelerationTarget(
     /** Target speed to reach at [position] */
     val speed: MetersPerSecond,
 )
-
-/**
- * Given two lines, return the X coordinate where they intersect, or `null` if there is no or an
- * infinite amount of interesection points.
- *
- * The first line is defined as passing through points `(x1,a1)` and `(x2,a2)`. The second line is
- * defined as passing through points `(x1,b1)` and `(x2,b2)`.
- */
-private fun intersectAt(
-    x1: Double,
-    x2: Double,
-    a1: Double,
-    a2: Double,
-    b1: Double,
-    b2: Double,
-): Double? {
-    if (a1 - a2 == b1 - b2) {
-        // The two lines are parallel
-        return null
-    }
-    return x1 + (x2 - x1) * (a1 - b1) / (b2 - b1 + a1 - a2)
-}
 
 /**
  * A 2D curve.
@@ -310,33 +207,10 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
             yhi * (x - lo) * (x - mi) / (hi - lo) / (hi - mi)
 
     }
-
-    /**
-     * The Y value associated with the lowest X value that is strictly larger than the given [x].
-     */
-    fun firstAfter(x: Double): Double? {
-        val result = xs.binarySearch(x)
-        if (result >= 0) {
-            return if (result + 1 >= size) {
-                null
-            } else {
-                ys[result + 1]
-            }
-        } else {
-            val i = -result - 1
-            return if (i == size) {
-                null
-            } else {
-                ys[i]
-            }
-        }
-    }
 }
 
-@JvmInline
-value class SpeedLimitedZone(val vmax: Curve) {
-    val range: Range<Meters>
-        get() = Range.closed(vmax.xs.first(), vmax.xs.last())
+interface NeutralZoneConstraint {
+
 }
 
 data class Instructions(
@@ -352,7 +226,7 @@ data class Instructions(
      *
      * Maps ranges of the path to whether the neutral zone requires lowering the pantograph.
      */
-    val neutralZones: NeutralZonesWithPantographs = NeutralZonesWithPantographs(),
+    val neutralZones: NeutralZoneConstraint? = null,
 
     // TODO Stop?
 )
@@ -455,20 +329,17 @@ fun step(
 
     val currentSpeedLimit = instructions.maxSpeed.at(position)
 
-    if (!(speed approxLowerThan currentSpeedLimit)) {
-        return ctx.step(dt, position, speed, Action.BRAKE)
-    }
-
-    val action = if (speed approxEqualTo currentSpeedLimit) {
-        // TODO compute the time when the current speed limit expires and we can accelerate again
-        Action.MAINTAIN
+    val action = if (!(speed approxLowerThan currentSpeedLimit)) {
+        Action.BRAKE
     } else {
-        assert(speed < currentSpeedLimit)
         Action.ACCELERATE
     }
 
+    val maxSpeedChanges = instructions.maxSpeed.changes(position) +
+        sequenceOf(MaxSpeedConstraint.MaxSpeedChange(position, currentSpeedLimit))
+
     val naiveStep = ctx.step(dt, position, speed, action)
-    val reactions = instructions.maxSpeed.changes(position)
+    val reactions = maxSpeedChanges
         .map { change ->
             val target = DecelerationTarget(
                 position = change.position,
@@ -481,8 +352,6 @@ fun step(
                 constraint,
                 naiveStep.timeDelta,
                 position,
-                speed,
-                position + naiveStep.positionDelta,
                 naiveStep,
             )
         }
@@ -500,8 +369,13 @@ fun step(
             // makes the stock brake until a speed limit but another one makes
             // it brake the full step, we can have the stock brake for the full
             // step.
+            // Finally, amongst steps that have the minimal acceleration and end
+            // speed, we want to pick those that have the lowest timeDelta. This
+            // differentiation only makes sense for steps that have 0.0
+            // acceleration.
             compareBy<IntegrationStep> { step -> step.acceleration }
                 .thenBy { step -> step.endSpeed }
+                .thenBy { step -> step.timeDelta }
         )!!
 
     // Assert the stock doesn't go above a speed limit if it wasn't above a speed limit before.
@@ -511,7 +385,10 @@ fun step(
     } else {
         println("oupsi on a dépasser à $position alant a $speed < $currentSpeedLimit vers ${step.endSpeed} > $nextSpeedLimit")
         assert(reactions.all { step -> !(step.endSpeed approxLowerThan nextSpeedLimit) })
+        //assert(false)
     }
+
+    assert(step.endSpeed approxLowerThan ctx.stock.maxSpeed)
 
     return step
 }
@@ -526,31 +403,56 @@ internal fun reactToSpeedConstraint(
     constraint: Curve,
     dt: Seconds,
     beforePos: Meters,
-    beforeSpeed: MetersPerSecond,
-    afterPos: Meters,
     accelerateStep: IntegrationStep,
 ): IntegrationStep {
+    val afterPos = beforePos + accelerateStep.positionDelta
     val beforeSpeedLimit = constraint.quad(beforePos)
     val afterSpeedLimit = constraint.quad(afterPos)
+
+    if (accelerateStep.startSpeed approxEqualTo beforeSpeedLimit && (beforePos >= constraint.xs.last() || afterPos <= constraint.xs.first())) {
+        // The stock is on the part of the constraint that is flat
+        val s = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.MAINTAIN)
+        assert(!(s.timeDelta approxEqualTo 0.0))
+        return s
+    }
+
     val truncatedStep = truncateStep(accelerateStep, beforeSpeedLimit, afterSpeedLimit)
 
-    if (truncatedStep.timeDelta approxEqualTo 0.0 || beforeSpeed > beforeSpeedLimit) {
+    if (beforeSpeedLimit approxLowerThan accelerateStep.startSpeed) {
         // The stock's speed is on (or above) the curve and the curve is going DOWN ↓
-        var brakingStep = ctx.step(dt, beforePos, beforeSpeed, Action.BRAKE)
+        var brakingStep = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.BRAKE)
 
-        val endLimit = constraint.quad(Meters.POSITIVE_INFINITY)
+        val endLimit = constraint.xs.last()
         if (!(endLimit approxLowerThan brakingStep.endSpeed)) {
             // The rolling stock doesn't have to brake during all the time step to reach the target speed
 
-            brakingStep = truncateStep(brakingStep, brakingStep.endSpeed, brakingStep.endSpeed)
+            brakingStep = truncateStep(brakingStep, endLimit, endLimit)
+        }
+
+        assert(!(brakingStep.timeDelta approxEqualTo 0.0))
+
+        val nextSpeedLimit = constraint.quad(beforePos + brakingStep.positionDelta)
+
+        if (brakingStep.startSpeed approxLowerThan beforeSpeedLimit) {
+            val acceleration = (nextSpeedLimit - brakingStep.startSpeed) / brakingStep.timeDelta
+            assert(nextSpeedLimit approxLowerThan ctx.stock.maxSpeed)
+            return IntegrationStep.fromNaiveStep(
+                brakingStep.timeDelta,
+                brakingStep.positionDelta,
+                brakingStep.startSpeed,
+                nextSpeedLimit,
+                acceleration,
+                1.0,
+            )
         }
 
         // Assert we're sticking on the constraint if we weren't above the constraint before
-        val nextSpeedLimit = constraint.quad(beforePos + brakingStep.positionDelta)
         //assert(brakingStep.endSpeed approxEqualTo nextSpeedLimit || !(brakingStep.startSpeed approxLowerThan beforeSpeedLimit))
 
         return brakingStep
     }
+
+    //assert(truncatedStep.endSpeed approxLowerThan constraint.quad(beforePos + truncatedStep.positionDelta) || !(truncatedStep.startSpeed approxLowerThan beforeSpeedLimit))
 
     return truncatedStep
 }
