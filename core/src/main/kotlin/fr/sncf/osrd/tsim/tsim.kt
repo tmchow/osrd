@@ -411,20 +411,26 @@ internal fun reactToSpeedConstraint(
         return s
     }
 
-    val truncatedStep = truncateStep(accelerateStep, beforeSpeedLimit, afterSpeedLimit)
-
     if (beforeSpeedLimit approxLowerThan accelerateStep.startSpeed) {
         // The stock's speed is on (or above) the curve and the curve is going DOWN ↓
         var brakingStep = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.BRAKE)
 
-        val endLimit = constraint.xs.last()
-        if (!(endLimit approxLowerThan brakingStep.endSpeed)) {
+        val endLimit = constraint.ys.last()
+        if (endLimit approxLowerThan brakingStep.startSpeed && !(endLimit approxLowerThan brakingStep.endSpeed)) {
             // The rolling stock doesn't have to brake during all the time step to reach the target speed
 
             brakingStep = truncateStep(brakingStep, endLimit, endLimit)
+            val acceleration = (endLimit - brakingStep.startSpeed) / brakingStep.timeDelta
+            assert(endLimit approxLowerThan ctx.stock.maxSpeed)
+            return IntegrationStep.fromNaiveStep(
+                brakingStep.timeDelta,
+                brakingStep.positionDelta,
+                brakingStep.startSpeed,
+                endLimit,
+                acceleration,
+                1.0,
+            )
         }
-
-        assert(!(brakingStep.timeDelta approxEqualTo 0.0))
 
         val nextSpeedLimit = constraint.quad(beforePos + brakingStep.positionDelta)
 
@@ -447,6 +453,7 @@ internal fun reactToSpeedConstraint(
         return brakingStep
     }
 
+    val truncatedStep = truncateStep(accelerateStep, beforeSpeedLimit, afterSpeedLimit)
     //assert(truncatedStep.endSpeed approxLowerThan constraint.quad(beforePos + truncatedStep.positionDelta) || !(truncatedStep.startSpeed approxLowerThan beforeSpeedLimit))
 
     return truncatedStep
@@ -456,7 +463,7 @@ internal fun reactToSpeedConstraint(
  * Given a speed limit defined as a line passing through the points `(0,vmax0)` and `(step.positionDelta,vmax1)`,
  * truncate the given [step] so that its speed ends up on the line.
  *
- * Assume speed and position are linear during the step.
+ * Assume speed and position are linear during the step (doesn't work very well)
  *
  * Return [step] if its speed and the speed limit are parallel.
  */
