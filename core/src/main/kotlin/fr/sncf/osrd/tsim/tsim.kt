@@ -329,16 +329,10 @@ fun step(
 
     val currentSpeedLimit = instructions.maxSpeed.at(position)
 
-    val action = if (!(speed approxLowerThan currentSpeedLimit)) {
-        Action.BRAKE
-    } else {
-        Action.ACCELERATE
-    }
-
     val maxSpeedChanges = instructions.maxSpeed.changes(position) +
         sequenceOf(MaxSpeedConstraint.MaxSpeedChange(position, currentSpeedLimit))
 
-    val naiveStep = ctx.step(dt, position, speed, action)
+    val naiveStep = ctx.step(dt, position, speed, Action.ACCELERATE)
     val reactions = maxSpeedChanges
         .map { change ->
             val target = DecelerationTarget(
