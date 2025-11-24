@@ -12,9 +12,9 @@ use queries::BatchCheckSingleResult;
 use queries::RawUser;
 use queries::UserFilter;
 pub use stores::Store;
+pub use tuples::RawTuple;
 
 use tracing::Instrument;
-use tuples::RawTuple;
 use url::Url;
 use uuid::Uuid;
 
@@ -320,6 +320,32 @@ impl Client {
             )
             .await?;
         Ok(!tuples.is_empty())
+    }
+
+    pub async fn list_all_tuples(&self) -> Result<Vec<RawTuple>, RequestFailure> {
+        let mut all_tuples = Vec::new();
+        let mut continuation_token = None;
+
+        loop {
+            let (tuples, token) = self
+                .get_stores_read(
+                    &self.store.id,
+                    None,
+                    Some(100),
+                    self.authorization_model_id.as_deref(),
+                    None,
+                    continuation_token,
+                )
+                .await?;
+            all_tuples.extend(tuples);
+
+            if token.is_empty() {
+                break;
+            }
+            continuation_token = Some(token);
+        }
+
+        Ok(all_tuples)
     }
 
     /// Writes up to `n` tuples in OpenFGA, with `n` the maximum number of tuple writes
@@ -867,6 +893,10 @@ pub struct PreparedDeletes<'a> {
 impl PreparedDeletes<'_> {
     pub fn push<R: Relation, U: AsUser<User = R::User>>(&mut self, tuple: &Tuple<'_, R, U>) {
         self.deletes.push(RawTuple::from(tuple));
+    }
+
+    pub fn push_batch(&mut self, tuples: impl IntoIterator<Item = RawTuple>) {
+        self.deletes.extend(tuples);
     }
 
     pub fn delete<R: Relation, U: AsUser<User = R::User>>(

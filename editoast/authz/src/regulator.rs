@@ -4,6 +4,7 @@ use std::future::Future;
 use fga::client::QueryError;
 use fga::client::UserList;
 use fga::model::Relation;
+use futures::TryStreamExt;
 use futures::stream;
 use itertools::Either;
 use tracing::Level;
@@ -97,6 +98,12 @@ pub trait StorageDriver: Clone {
         >,
     > + Send;
 
+    fn list_infras(
+        &self,
+    ) -> impl Future<
+        Output = Result<impl stream::TryStream<Ok = i64, Error = Self::Error>, Self::Error>,
+    > + Send;
+
     fn delete_user(&self, user_id: i64) -> impl Future<Output = Result<bool, Self::Error>> + Send;
 
     fn add_user_identities(
@@ -110,6 +117,14 @@ pub trait StorageDriver: Clone {
 
     fn infra_exists(&self, infra_id: i64)
     -> impl Future<Output = Result<bool, Self::Error>> + Send;
+}
+
+/// Check if an entity (user, group, or infra) is orphaned.
+fn is_entity_orphaned(entity_str: &str, prefix: &str, existing_ids: &HashSet<i64>) -> bool {
+    entity_str
+        .strip_prefix(prefix)
+        .and_then(|s| s.split('#').next()?.parse().ok())
+        .is_some_and(|id| !existing_ids.contains(&id))
 }
 
 impl<S: StorageDriver> Regulator<S> {
@@ -816,6 +831,68 @@ impl<S: StorageDriver> Regulator<S> {
         delete.execute().await?;
         Ok(())
     }
+
+    async fn load_existing_entities_ids(
+        &self,
+    ) -> Result<(HashSet<i64>, HashSet<i64>, HashSet<i64>), Error<S::Error>> {
+        let existing_users = self
+            .driver
+            .list_users()
+            .await
+            .map_err(Error::Storage)?
+            .map_ok(|(id, _)| id)
+            .try_collect()
+            .await
+            .map_err(Error::Storage)?;
+
+        let existing_groups = self
+            .driver
+            .list_groups()
+            .await
+            .map_err(Error::Storage)?
+            .map_ok(|(id, _)| id)
+            .try_collect()
+            .await
+            .map_err(Error::Storage)?;
+
+        let existing_infras = self
+            .driver
+            .list_infras()
+            .await
+            .map_err(Error::Storage)?
+            .try_collect()
+            .await
+            .map_err(Error::Storage)?;
+
+        Ok((existing_users, existing_groups, existing_infras))
+    }
+
+    #[tracing::instrument(skip(self), ret(level = Level::DEBUG), err)]
+    pub async fn clean_orphaned_tuples(&self) -> Result<usize, Error<S::Error>> {
+        let (existing_users, existing_groups, existing_infra_ids) =
+            self.load_existing_entities_ids().await?;
+
+        let all_tuples = self.openfga.list_all_tuples().await?;
+
+        let orphaned: Vec<_> = all_tuples
+            .into_iter()
+            .filter(|raw| {
+                is_entity_orphaned(&raw.user, "user:", &existing_users)
+                    || is_entity_orphaned(&raw.user, "group:", &existing_groups)
+                    || is_entity_orphaned(&raw.object, "user:", &existing_users)
+                    || is_entity_orphaned(&raw.object, "group:", &existing_groups)
+                    || is_entity_orphaned(&raw.object, "infra:", &existing_infra_ids)
+            })
+            .collect();
+
+        let count = orphaned.len();
+        if count > 0 {
+            let mut deletes = self.openfga.prepare_deletes();
+            deletes.push_batch(orphaned);
+            deletes.execute().await?;
+        }
+        Ok(count)
+    }
 }
 
 #[cfg(test)]
@@ -830,7 +907,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn admin_cannot_demote_last_owner() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let walter = regulator.walter().await;
 
@@ -852,7 +929,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn admin_can_promote_and_demote_anyone() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
         let walter = regulator.walter().await;
@@ -890,7 +967,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn last_owner_cannot_demote_themself() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
 
         regulator
@@ -911,7 +988,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn owner_can_promote_and_demote_anyone() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
 
@@ -948,7 +1025,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn user_can_demote_themself() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
 
         regulator
@@ -969,7 +1046,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn user_cannot_promote_themself() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
 
         regulator
@@ -990,7 +1067,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn user_can_promote_up_to_own_level() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
 
@@ -1015,7 +1092,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn user_cannot_promote_above_own_level() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
 
@@ -1042,7 +1119,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn only_owners_can_revoke() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
 
@@ -1067,7 +1144,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn admins_can_revoke() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let walter = regulator.walter().await;
 
@@ -1087,7 +1164,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn last_owner_cannot_be_revoked_by_admin() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let walter = regulator.walter().await;
 
@@ -1109,7 +1186,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn owner_cannot_revoke_another_owner() {
         let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
-        let infra = Infra(1);
+        let infra = regulator.create_infra(1).await;
         let alice = regulator.alice().await;
         let bob = regulator.bob().await;
 
@@ -1129,5 +1206,79 @@ mod tests {
         regulator
             .assert_infra_grant_eq(bob, infra, Some(InfraGrant::Owner))
             .await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_is_entity_orphaned() {
+        // Setup existing entities (separate IDs for each entity type)
+        let mut existing_ids = HashSet::new();
+        existing_ids.insert(1);
+        existing_ids.insert(10);
+
+        // Valid entities
+        assert!(!is_entity_orphaned("user:1", "user:", &existing_ids));
+        assert!(!is_entity_orphaned(
+            "group:10#member",
+            "group:",
+            &existing_ids
+        ));
+        assert!(!is_entity_orphaned("group:10", "group:", &existing_ids));
+        assert!(!is_entity_orphaned("infra:1", "infra:", &existing_ids));
+
+        // Not orphaned (prefix not matching entity)
+        assert!(!is_entity_orphaned("group:99", "user:", &existing_ids));
+        assert!(!is_entity_orphaned("user:99", "group:", &existing_ids));
+        assert!(!is_entity_orphaned("infra:99", "user:", &existing_ids));
+
+        // Orphaned entities
+        assert!(is_entity_orphaned("user:99", "user:", &existing_ids));
+        assert!(is_entity_orphaned("group:99", "group:", &existing_ids));
+        assert!(is_entity_orphaned(
+            "group:99#member",
+            "group:",
+            &existing_ids
+        ));
+        assert!(is_entity_orphaned("infra:99", "infra:", &existing_ids));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_clean_orphaned_tuples() {
+        let regulator = Regulator::new(crate::authz_client!(), MockAuthDriver::default());
+
+        // Create infra and users
+        let infra = regulator.create_infra(1).await;
+        let alice = regulator.alice().await;
+        let bob = regulator.bob().await;
+
+        // Create grants
+        regulator
+            .set_infra_grant(alice, infra, InfraGrant::Owner)
+            .await;
+        regulator
+            .set_infra_grant(bob, infra, InfraGrant::Reader)
+            .await;
+
+        // Delete bob
+        regulator.delete_user(bob).await;
+
+        // Clean orphaned
+        let deleted_count = regulator
+            .clean_orphaned_tuples()
+            .await
+            .expect("GC should succeed");
+
+        assert_eq!(deleted_count, 1);
+        regulator
+            .assert_infra_grant_eq(alice, infra, Some(InfraGrant::Owner))
+            .await;
+
+        // Verify bob's tuple was deleted
+        assert!(
+            !regulator
+                .openfga
+                .tuple_exists(Infra::reader().tuple(&bob, &infra))
+                .await
+                .unwrap()
+        );
     }
 }

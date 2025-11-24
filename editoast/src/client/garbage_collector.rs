@@ -1,12 +1,17 @@
+use crate::client::OpenfgaConfig;
 use database::DbConnectionPoolV2;
 use editoast_models::timetable::Timetable;
 use std::sync::Arc;
 
 use crate::models::train_schedule_set::TrainScheduleSet;
 
-pub async fn run_garbage_collector(db_pool: Arc<DbConnectionPoolV2>) -> anyhow::Result<()> {
+pub async fn run_garbage_collector(
+    db_pool: Arc<DbConnectionPoolV2>,
+    openfga_config: OpenfgaConfig,
+) -> anyhow::Result<()> {
     clean_orphaned_timetables(&db_pool).await?;
     clean_orphaned_train_schedule_sets(&db_pool).await?;
+    clean_orphaned_openfga_tuples(&db_pool, openfga_config).await?;
     Ok(())
 }
 
@@ -41,6 +46,23 @@ async fn clean_orphaned_train_schedule_sets(
             "✅ {} orphaned train schedule set(s) deleted",
             deleted_count
         );
+    }
+    Ok(())
+}
+
+/// Deletes OpenFGA tuples that are not related to any existing infra, group or user
+async fn clean_orphaned_openfga_tuples(
+    db_pool: &Arc<DbConnectionPoolV2>,
+    openfga_config: OpenfgaConfig,
+) -> anyhow::Result<()> {
+    println!("🧹 Removing orphaned openfga tuples...");
+    let regulator = openfga_config.into_regulator(db_pool.clone()).await?;
+    let deleted_count = regulator.clean_orphaned_tuples().await?;
+
+    if deleted_count == 0 {
+        println!("✨ No orphaned openfga tuples found");
+    } else {
+        println!("✅ {} orphaned openfga tuple(s) deleted", deleted_count);
     }
     Ok(())
 }

@@ -10,10 +10,10 @@ use super::Consistency;
 use super::RequestFailure;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub(super) struct RawTuple {
-    pub(super) user: String,
-    pub(super) relation: String,
-    pub(super) object: String,
+pub struct RawTuple {
+    pub user: String,
+    pub relation: String,
+    pub object: String,
 }
 
 impl<'a, R: Relation, U: AsUser<User = R::User>> From<&Tuple<'a, R, U>> for RawTuple {

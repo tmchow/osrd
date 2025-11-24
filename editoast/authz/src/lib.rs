@@ -154,6 +154,7 @@ mod mock_driver {
         counter: Arc<RwLock<i64>>,
         pub users: Arc<Mutex<HashMap<UserIdentity, i64>>>,
         groups: Arc<Mutex<HashMap<GroupName, i64>>>,
+        infras: Arc<Mutex<HashSet<i64>>>,
     }
 
     // Concise test utilities
@@ -166,6 +167,19 @@ mod mock_driver {
                     .expect("user creation should succeed")
                     .id,
             )
+        }
+
+        /// Test helper: registers an infra in the mock driver (real infras are created via the infra API).
+        pub async fn create_infra(&self, infra_id: i64) -> model::Infra {
+            self.driver.infras.lock().unwrap().insert(infra_id);
+            model::Infra(infra_id)
+        }
+
+        pub async fn delete_user(&self, user: model::User) {
+            self.driver
+                .delete_user(user.0)
+                .await
+                .expect("user deletion should succeed");
         }
 
         pub async fn set_role(&self, user: model::User, role: Role) {
@@ -346,9 +360,16 @@ mod mock_driver {
             ))
         }
 
-        async fn infra_exists(&self, _infra_id: i64) -> Result<bool, Self::Error> {
-            // Mock implementation, always return true
-            Ok(true)
+        async fn list_infras(
+            &self,
+        ) -> Result<impl stream::TryStream<Ok = i64, Error = Self::Error>, Self::Error> {
+            Ok(stream::iter(
+                self.infras.lock().unwrap().clone().into_iter().map(Ok),
+            ))
+        }
+
+        async fn infra_exists(&self, infra_id: i64) -> Result<bool, Self::Error> {
+            Ok(self.infras.lock().unwrap().contains(&infra_id))
         }
 
         async fn add_user_identities(
@@ -377,34 +398,17 @@ mod mock_driver {
         }
 
         async fn delete_user(&self, user_id: i64) -> Result<bool, Self::Error> {
-            let map = self.users.lock().unwrap();
-            let user_identity = map
-                .iter()
-                .find_map(|(k, &v)| if v == user_id { Some(k) } else { None });
-
             let mut map = self.users.lock().unwrap();
-            if let Some(identity) = user_identity {
-                map.remove(identity);
-                Ok(true)
-            } else {
-                Ok(false)
-            }
+            let initial_len = map.len();
+            map.retain(|_, &mut id| id != user_id);
+            Ok(map.len() < initial_len)
         }
 
         async fn delete_group(&self, group_id: i64) -> Result<bool, Self::Error> {
-            let groups = self.groups.lock().unwrap();
-
-            let group_name = groups
-                .iter()
-                .find_map(|(k, &v)| if v == group_id { Some(k) } else { None });
-
-            if let Some(name) = group_name {
-                let mut groups = self.groups.lock().unwrap();
-                groups.remove(name);
-                Ok(true)
-            } else {
-                Ok(false)
-            }
+            let mut groups = self.groups.lock().unwrap();
+            let initial_len = groups.len();
+            groups.retain(|_, &mut id| id != group_id);
+            Ok(groups.len() < initial_len)
         }
     }
 }

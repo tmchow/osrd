@@ -265,6 +265,21 @@ impl StorageDriver for PgAuthDriver {
         Ok(groups)
     }
 
+    async fn list_infras(
+        &self,
+    ) -> Result<impl futures::stream::TryStream<Ok = i64, Error = Self::Error>, Self::Error> {
+        let conn = self.pool.get().await?;
+        let infras = infra::table
+            .select(infra::id)
+            .load_stream::<i64>(&mut conn.write().await)
+            .await?
+            .map(|res| match res {
+                Ok(id) => Ok(id),
+                Err(e) => Err(e.into()),
+            });
+        Ok(infras)
+    }
+
     #[tracing::instrument(skip_all, fields(%user_id), ret(level = Level::DEBUG), err)]
     async fn delete_user(&self, user_id: i64) -> Result<bool, Self::Error> {
         let conn = self.pool.get().await?;
