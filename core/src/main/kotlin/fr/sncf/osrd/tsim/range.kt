@@ -12,7 +12,7 @@ internal fun Range<Double>.lowerEndpointOrInf(): Double =
     if (hasLowerBound()) lowerEndpoint() else Double.NEGATIVE_INFINITY
 
 internal fun Range<Double>.upperEndpointOrInf(): Double =
-    if (hasLowerBound()) lowerEndpoint() else Double.POSITIVE_INFINITY
+    if (hasUpperBound()) upperEndpoint() else Double.POSITIVE_INFINITY
 
 /**
  * Make it so the [RangeMap] associates keys in the given [range] with the given [value], while
