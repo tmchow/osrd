@@ -114,7 +114,6 @@ fun onetrain(
         stopConstraint.put(Range.atLeast(stopPosition), 0.0)
         while (!(stopPosition approxLowerThan position) || speed != 0.0) {
             val s = step(ctx, instructions, timeStep, position, speed)
-            assert(s.positionDelta > 1e-6) { "le train c stopper.... ${s.positionDelta}" }
             time += s.timeDelta
             position += s.positionDelta
             speed = s.endSpeed

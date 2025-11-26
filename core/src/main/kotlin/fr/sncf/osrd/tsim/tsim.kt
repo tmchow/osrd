@@ -9,6 +9,8 @@ import fr.sncf.osrd.envelope_sim.etcs.BrakingType
 import fr.sncf.osrd.path.interfaces.PhysicsPath
 import fr.sncf.osrd.train.RollingStock
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 typealias Seconds = Double
 
@@ -106,6 +108,8 @@ internal class DecelerationTarget(
     val speed: MetersPerSecond,
 )
 
+class Vec2(val x: Double, val y: Double)
+
 /**
  * A 2D curve.
  *
@@ -152,60 +156,91 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
     }
 
     /**
-     * QUADratic interpolation of the Y value of the curve at the given [x] position
-     *
-     * If [x] is out of bounds, returns the first or the last value of [ys].
+     * The index of the first point in [xs];[ys] whose X coordinate is strictly
+     * higher than the given [x], or a negative value if [x] is out of bounds.
      */
-    fun quad(x: Double): Double {
-        if (x <= xs.first()) {
-            return ys.first()
-        }
-        if (x >= xs.last()) {
-            return ys.last()
-        }
-        if (size < 3) {
-            return lerp(x)
+    fun firstAfterStrict(x: Double): Int {
+        if (x < xs.first() || xs[xs.size - 1] <= x) {
+            return -1
         }
 
         val result = xs.binarySearch(x)
-        if (result >= 0) {
-            // Landed right on a point of the curve
-            return ys[result]
-        }
 
-        // Index where `x` should be inserted in `xs` to preserve order. It is
-        // ensured to be higher than 1 and lower than `size-1`, otherwise `x`
-        // is lower than `x.first()` or higher than `xs.last()` and these cases
-        // are handled above.
-        val i = -result - 1
-
-        val lo: Double
-        val mi: Double
-        val hi: Double
-        val ylo: Double
-        val ymi: Double
-        val yhi: Double
-        if (i == size-1) {
-            lo = xs[i - 2]
-            mi = xs[i - 1]
-            hi = xs[i]
-            ylo = ys[i - 2]
-            ymi = ys[i - 1]
-            yhi = ys[i]
+        return if (result >= 0) {
+            result + 1
         } else {
-            lo = xs[i - 1]
-            mi = xs[i]
-            hi = xs[i + 1]
-            ylo = ys[i - 1]
-            ymi = ys[i]
-            yhi = ys[i + 1]
+            -result - 1
+        }
+    }
+
+    fun intersectsAt(x1: Double, y1: Double, x2: Double, y2: Double): Vec2? {
+        require(x1 < x2)
+
+        val r1 = xs.binarySearch(x1)
+
+        // points is the sequence of points from [xs];[ys] that start with the
+        // one just before [x1] (or -inf if none) and ends with +inf;[ys.last()]
+        var points = sequenceOf<Vec2>()
+        val i1: Int
+        if (r1 >= 0) {
+            i1 = r1
+        } else if (r1 == -1) {
+            i1 = 0
+            points += sequenceOf(Vec2(Double.NEGATIVE_INFINITY, ys.first()))
+        } else {
+            i1 = -r1 - 2
         }
 
-        // ref: https://en.wikipedia.org/wiki/Polynomial_interpolation#Lagrange_interpolation
-        return ylo * (x - mi) * (x - hi) / (lo - mi) / (lo - hi) +
-            ymi * (x - lo) * (x - hi) / (mi - lo) / (mi - hi) +
-            yhi * (x - lo) * (x - mi) / (hi - lo) / (hi - mi)
+        points += generateSequence(i1) { i -> i + 1 }
+            .takeWhile { i -> i < size }
+            .map { i -> Vec2(xs[i], ys[i]) }
+        points += sequenceOf(Vec2(Double.POSITIVE_INFINITY, ys.last()))
 
+        return points
+            .windowed(2)
+            .takeWhile { window -> window[0].x < x2 }
+            .mapNotNull { window ->
+                val vA = window[0]
+                val vB = window[1]
+
+                val xlo = max(x1, vA.x)
+                val xhi = min(x2, vB.x)
+
+                val y1lo = y1 + (y2 - y1) * (xlo - x1) / (x2 - x1)
+                val y1hi = y1 + (y2 - y1) * (xhi - x1) / (x2 - x1)
+                val yAlo = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * (xlo - vA.x) / (vB.x - vA.x)
+                val yAhi = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * (xhi - vA.x) / (vB.x - vA.x)
+
+                val mix = intersectAt(yAlo, yAhi, y1lo, y1hi)
+                    ?: return@mapNotNull null
+
+                val xmid = xlo + (xhi - xlo) * mix
+                val ymid = y1lo + (y1hi - y1lo) * mix
+
+                Vec2(xmid, ymid)
+            }
+            .firstOrNull()
+    }
+}
+
+/**
+ * The X coordinate where the following segments intersect
+ *
+ * - the segment from `(0.0;`[yAlo]`)` to `(1.0;`[yAhi]`)`
+ * - the segment from `(0.0;`[yBlo]`)` to `(1.0;`[yBhi]`)`
+ */
+private fun intersectAt(yAlo: Double, yAhi: Double, yBlo: Double, yBhi: Double): Double? {
+    if ((yAlo < yBlo) == (yAhi < yBhi)) {
+        return null
+    }
+
+    val ymid = (yAhi * yBlo - yAlo * yBhi) / (yAhi - yAlo + yBlo - yBhi)
+
+    return if (yAhi != yAlo) {
+        (ymid - yAlo) / (yAhi - yAlo)
+    } else {
+        // yBhi != yBlo, or else we would have returned null above
+        (ymid - yBlo) / (yBhi - yBlo)
     }
 }
 
@@ -295,7 +330,7 @@ class Context(
                     target.brake,
                 )
             positions[i] = positions[i + 1] + s.positionDelta
-            speeds[i] = s.endSpeed
+            speeds[i] = min(s.endSpeed, stock.maxSpeed)
         }
 
         curve = Curve(positions, speeds)
@@ -341,13 +376,21 @@ fun step(
                 speed = change.speed,
             )
             val constraint = ctx.decelerationCurve(target, dt)
-            reactToSpeedConstraint(
+            val step = reactToSpeedConstraint(
                 ctx,
                 constraint,
                 naiveStep.timeDelta,
                 position,
                 naiveStep,
             )
+
+            assert(!(step.positionDelta approxEqualTo 0.0))
+            assert(step.endSpeed approxLowerThan ctx.stock.maxSpeed)
+            val nextSpeedLimit = constraint.lerp(step.startSpeed + step.positionDelta)
+            assert(!(step.startSpeed approxLowerThan currentSpeedLimit) || step.endSpeed approxLowerThan nextSpeedLimit)
+            assert(!(step.timeDelta approxEqualTo 0.0))
+
+            step
         }
 
     val step = reactions
@@ -382,8 +425,6 @@ fun step(
         //assert(false)
     }
 
-    assert(step.endSpeed approxLowerThan ctx.stock.maxSpeed)
-
     return step
 }
 
@@ -396,95 +437,99 @@ internal fun reactToSpeedConstraint(
     ctx: Context,
     constraint: Curve,
     dt: Seconds,
-    beforePos: Meters,
+    startPos: Meters,
     accelerateStep: IntegrationStep,
 ): IntegrationStep {
-    val afterPos = beforePos + accelerateStep.positionDelta
-    val beforeSpeedLimit = constraint.quad(beforePos)
-    val afterSpeedLimit = constraint.quad(afterPos)
+    val startSpeedLimit = constraint.lerp(startPos)
 
-    if (accelerateStep.startSpeed approxEqualTo beforeSpeedLimit &&
-        ((beforePos >= constraint.xs.last() && constraint.ys.last() != 0.0) || afterPos <= constraint.xs.first())) {
-        // The stock is on the part of the constraint that is flat
-        val s = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.MAINTAIN)
-        assert(!(s.timeDelta approxEqualTo 0.0))
-        return s
-    }
+    if (accelerateStep.startSpeed approxEqualTo startSpeedLimit) {
+        // The stock is on the curve, so we return the next point on the curve.
 
-    if (beforeSpeedLimit approxLowerThan accelerateStep.startSpeed) {
-        // The stock's speed is on (or above) the curve and the curve is going DOWN ↓
-        var brakingStep = ctx.step(dt, beforePos, accelerateStep.startSpeed, Action.BRAKE)
+        // Snap on the curve
+        val startSpeed = startSpeedLimit
 
-        val endLimit = constraint.ys.last()
-        if (endLimit approxLowerThan brakingStep.startSpeed && !(endLimit approxLowerThan brakingStep.endSpeed)) {
-            // The rolling stock doesn't have to brake during all the time step to reach the target speed
-
-            brakingStep = truncateStep(brakingStep, endLimit, endLimit)
-            val acceleration = (endLimit - brakingStep.startSpeed) / brakingStep.timeDelta
-            assert(endLimit approxLowerThan ctx.stock.maxSpeed)
+        if (startPos < constraint.xs.first()) {
+            val positionDelta = min(accelerateStep.positionDelta, constraint.xs.first() - startPos)
+            val timeDelta = positionDelta / startSpeed
             return IntegrationStep.fromNaiveStep(
-                brakingStep.timeDelta,
-                brakingStep.positionDelta,
-                brakingStep.startSpeed,
-                endLimit,
-                acceleration,
-                1.0,
+                timeDelta,
+                positionDelta,
+                startSpeed,
+                startSpeed,
+                0.0,
+                +1.0,
             )
         }
 
-        val nextSpeedLimit = constraint.quad(beforePos + brakingStep.positionDelta)
-
-        if (brakingStep.startSpeed approxLowerThan beforeSpeedLimit) {
-            val acceleration = (nextSpeedLimit - brakingStep.startSpeed) / brakingStep.timeDelta
-            assert(nextSpeedLimit approxLowerThan ctx.stock.maxSpeed)
+        if (startPos < constraint.xs.last()) {
+            val nextPointIndex = constraint.firstAfterStrict(startPos)
+            val endPos = constraint.xs[nextPointIndex]
+            val endSpeed = constraint.ys[nextPointIndex]
+            val positionDelta = endPos - startPos
+            val timeDelta = if (endSpeed + startSpeed == 0.0) {
+                dt
+            } else {
+                2.0 * positionDelta / (endSpeed + startSpeed)
+            }
+            val acceleration = if (timeDelta == 0.0) 0.0 else (endSpeed - startSpeed) / timeDelta
             return IntegrationStep.fromNaiveStep(
-                brakingStep.timeDelta,
-                brakingStep.positionDelta,
-                brakingStep.startSpeed,
-                nextSpeedLimit,
+                timeDelta,
+                positionDelta,
+                startSpeed,
+                endSpeed,
                 acceleration,
-                1.0,
+                +1.0,
             )
         }
 
-        // Assert we're sticking on the constraint if we weren't above the constraint before
-        //assert(brakingStep.endSpeed approxEqualTo nextSpeedLimit || !(brakingStep.startSpeed approxLowerThan beforeSpeedLimit))
-
-        return brakingStep
+        // Here, startPos >= constraint.xs.last()
+        val positionDelta = accelerateStep.positionDelta
+        val timeDelta = positionDelta / startSpeed
+        return IntegrationStep.fromNaiveStep(
+            timeDelta,
+            positionDelta,
+            startSpeed,
+            startSpeed,
+            0.0,
+            +1.0,
+        )
     }
 
-    val truncatedStep = truncateStep(accelerateStep, beforeSpeedLimit, afterSpeedLimit)
-    //assert(truncatedStep.endSpeed approxLowerThan constraint.quad(beforePos + truncatedStep.positionDelta) || !(truncatedStep.startSpeed approxLowerThan beforeSpeedLimit))
+    if (accelerateStep.startSpeed < startSpeedLimit) {
+        // The stock is below the curve, so we truncate accelerateStep to land
+        // on the curve.
 
-    return truncatedStep
+        return truncateStep(accelerateStep, startPos, constraint)
+    }
+
+    // The stock is above the curve, so we brake. We might still need to
+    // truncate the braking step if its endSpeed is lower than constraint.ys.last()
+
+    val brakingStep = ctx.step(dt, startPos, accelerateStep.startSpeed, Action.BRAKE)
+    return truncateStep(brakingStep, startPos, constraint)
 }
 
-/**
- * Given a speed limit defined as a line passing through the points `(0,vmax0)` and `(step.positionDelta,vmax1)`,
- * truncate the given [step] so that its speed ends up on the line.
- *
- * Assume speed and position are linear during the step (doesn't work very well)
- *
- * Return [step] if its speed and the speed limit are parallel.
- */
-private fun truncateStep(step: IntegrationStep, vmax0: Double, vmax1: Double): IntegrationStep {
-    val v0 = step.startSpeed
-    val v1 = step.endSpeed
+private fun truncateStep(step: IntegrationStep, startPos: Meters, constraint: Curve): IntegrationStep {
+    val endPos = startPos + step.positionDelta
+    val point = constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed)
+        ?: return step
 
-    if ((v0 < vmax0) == (v1 < vmax1)) {
-        return step
+    val newEndPos = point.x
+    val newEndSpeed = point.y
+    val newPositionDelta = newEndPos - startPos
+    val timeDelta = if (newEndSpeed + step.startSpeed == 0.0) {
+        step.timeDelta
+    } else {
+        2.0 * newPositionDelta / (newEndSpeed + step.startSpeed)
     }
-
-    val vmid = (v1 * vmax0 - v0 * vmax1) / (v1 - v0 + vmax0 - vmax1)
-    val mix = ((vmid - v0) / (v1 - v0)).coerceIn(0.0, 1.0) // float errors
-
+    val acceleration = if (timeDelta == 0.0) 0.0 else (newEndSpeed - step.startSpeed) / timeDelta
     return IntegrationStep.fromNaiveStep(
-        step.timeDelta * mix,
-        step.positionDelta * mix,
+        timeDelta,
+        newPositionDelta,
         step.startSpeed,
-        vmid,
-        step.acceleration,
-        1.0,
+        newEndSpeed,
+        acceleration,
+        +1.0,
     )
 }
 
