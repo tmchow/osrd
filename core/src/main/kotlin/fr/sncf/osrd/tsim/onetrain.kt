@@ -75,11 +75,11 @@ fun onetrain(
     if (useSpeedLimits) {
         val props = trainPath.getSpeedLimitProperties(speedLimitTag, null)
         for (prop in props) {
-            val start = prop.lower.meters
-            val end = prop.upper.meters
+            val lower = prop.lower.meters
+            val upper = prop.upper.meters
             val speed = prop.value.speed.metersPerSecond
             if (speed != 0.0) {
-                mrsp.putLower(Range.closed(start, end), speed)
+                mrsp.putLower(Range.closed(lower, upper), speed)
             }
         }
         mrsp = mrsp.withStockLength(rollingStock.length)
@@ -87,10 +87,10 @@ fun onetrain(
         val signalingRanges = buildSignalingRanges(infra, trainPath)
         val safetySpeedRanges = makeSafetySpeedRanges(infra, trainPath, schedule, signalingRanges)
         for (range in safetySpeedRanges) {
-            val start = range.lower.meters
-            val end = range.upper.meters
+            val lower = range.lower.meters
+            val upper = range.upper.meters
             val speed = range.value.metersPerSecond
-            mrsp.putLower(Range.closed(start, end), speed)
+            mrsp.putLower(Range.closed(lower, upper), speed)
         }
     }
 
