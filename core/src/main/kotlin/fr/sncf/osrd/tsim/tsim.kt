@@ -12,15 +12,57 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-typealias Seconds = Double
+typealias Microseconds = Long
 
 typealias Meters = Double
+typealias Micrometers = Long
 
-typealias MetersPerSecond = Double
+typealias MicrometersPerSecond = Long
 
-typealias MeterArray = DoubleArray
+typealias MicrometersPerSecond2 = Long
 
-typealias MeterPerSecondArray = DoubleArray
+typealias MicrometerArray = LongArray
+
+typealias MicrometerPerSecondArray = LongArray
+
+fun Double.toMicros(): Long = (this * 1e6).toLong()
+fun Long.toSI(): Double = this.toDouble() / 1e6
+
+class NanoIntegrationStep(
+    val timeDelta: Microseconds,
+    val positionDelta: Micrometers,
+    val startSpeed: MicrometersPerSecond,
+    val endSpeed: MicrometersPerSecond,
+    val acceleration: MicrometersPerSecond2,
+) {
+    companion object {
+        fun fromNaiveStep(
+            timeDelta: Microseconds,
+            positionDelta: Micrometers,
+            startSpeed: MicrometersPerSecond,
+            endSpeed: MicrometersPerSecond,
+            acceleration: MicrometersPerSecond2,
+            directionSign: Double,
+        ): NanoIntegrationStep =
+            IntegrationStep.fromNaiveStep(
+                timeDelta.toSI(),
+                positionDelta.toSI(),
+                startSpeed.toSI(),
+                endSpeed.toSI(),
+                acceleration.toSI(),
+                directionSign,
+            ).toMicros()
+    }
+}
+
+fun IntegrationStep.toMicros(): NanoIntegrationStep =
+    NanoIntegrationStep(
+        timeDelta = timeDelta.toMicros(),
+        positionDelta = positionDelta.toMicros(),
+        startSpeed = startSpeed.toMicros(),
+        endSpeed = endSpeed.toMicros(),
+        acceleration = acceleration.toMicros(),
+    )
 
 /**
  * Update a [RangeMap] representing a Speed Profile, accounting for the length of the rolling stock.
@@ -30,16 +72,16 @@ typealias MeterPerSecondArray = DoubleArray
  * ranges on the path where the rolling stock cannot exceed a certain speed limit, because even if
  * pass the sign, as long as its tail is behind the sign the speed limit is still enforced.
  */
-fun RangeMap<Meters, MetersPerSecond>.withStockLength(
-    stockLength: Meters
-): RangeMap<Meters, MetersPerSecond> {
-    val map = TreeRangeMap.create<Meters, MetersPerSecond>()
+fun RangeMap<Micrometers, MicrometersPerSecond>.withStockLength(
+    stockLength: Micrometers
+): RangeMap<Micrometers, MicrometersPerSecond> {
+    val map = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
     for (entry in asMapOfRanges()) {
         val range = entry.key
         val speedLimit = entry.value
 
         val extendedRange =
-            Range.closed(range.lowerEndpointOrInf(), range.upperEndpointOrInf() + stockLength)
+            Range.closed(range.lowerEndpointOrMin(), range.upperEndpointOrMax() saturatingAdd stockLength)
         map.putLower(extendedRange, speedLimit)
     }
     return map
@@ -47,30 +89,30 @@ fun RangeMap<Meters, MetersPerSecond>.withStockLength(
 
 interface MaxSpeedConstraint {
     /** The speed limit at the given [position]. */
-    fun at(position: Meters): MetersPerSecond
+    fun at(position: Micrometers): MicrometersPerSecond
 
-    data class MaxSpeedChange(val position: Meters, val speed: MetersPerSecond)
+    data class MaxSpeedChange(val position: Micrometers, val speed: MicrometersPerSecond)
 
     /** Unordered speed limit changes starting from (and excluding) the given position [from]. */
-    fun changes(from: Meters = 0.0): Sequence<MaxSpeedChange>
+    fun changes(from: Micrometers = 0): Sequence<MaxSpeedChange>
 }
 
 /**
  * A max speed constraint implemented as a single [RangeMap].
  */
 @JvmInline
-value class SpeedLimit(val map: RangeMap<Meters, MetersPerSecond> = ImmutableRangeMap.of()): MaxSpeedConstraint {
-    override fun at(position: Meters): MetersPerSecond =
-        map.get(position) ?: MetersPerSecond.POSITIVE_INFINITY
+value class SpeedLimit(val map: RangeMap<Micrometers, MicrometersPerSecond> = ImmutableRangeMap.of()): MaxSpeedConstraint {
+    override fun at(position: Micrometers): MicrometersPerSecond =
+        map.get(position) ?: MicrometersPerSecond.MAX_VALUE
 
-    override fun changes(from: Meters): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
+    override fun changes(from: Micrometers): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
         map
             .asDescendingMapOfRanges()
             .asSequence()
             .map { entry ->
                 val range = entry.key
                 MaxSpeedConstraint.MaxSpeedChange(
-                    position = range.lowerEndpointOrInf(),
+                    position = range.lowerEndpointOrMin(),
                     speed = entry.value
                 )
             }
@@ -82,40 +124,39 @@ value class SpeedLimit(val map: RangeMap<Meters, MetersPerSecond> = ImmutableRan
  *
  * The speed limit at a given position is taken from the minimum of all speed limits.
  */
-class OverlayingSpeedLimits(val overlays: List<RangeMap<Meters, MetersPerSecond>>): MaxSpeedConstraint {
-    override fun at(position: Meters): MetersPerSecond =
+class OverlayingSpeedLimits(val overlays: List<RangeMap<Micrometers, MicrometersPerSecond>>): MaxSpeedConstraint {
+    override fun at(position: Micrometers): MicrometersPerSecond =
         overlays
             .asSequence()
             .mapNotNull { overlay -> overlay.get(position) }
             .minOrNull()
-            ?: MetersPerSecond.POSITIVE_INFINITY
+            ?: MicrometersPerSecond.MAX_VALUE
 
-    override fun changes(from: Meters): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
+    override fun changes(from: Micrometers): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
         overlays
             .asSequence()
             .flatMap { overlay -> SpeedLimit(overlay).changes(from) }
-
 }
 
 internal class DecelerationTarget(
     /** Target position where [speed] must be reached. */
-    val position: Meters,
+    val position: Micrometers,
 
     /** Braking type used to achieve the target [speed], or `null` if coasting */
     val brake: BrakingType?,
 
     /** Target speed to reach at [position] */
-    val speed: MetersPerSecond,
+    val speed: MicrometersPerSecond,
 )
 
-class Vec2(val x: Double, val y: Double)
+class Vec2(val x: Long, val y: Long)
 
 /**
  * A 2D curve.
  *
  * This class represents a list of 2D points `(xs[i],ys[i])`. [xs] and [ys] must have the same size. [xs] isn't supposed to be empty, and its elements are expected to be strictly increasing.
  */
-class Curve(val xs: DoubleArray, val ys: DoubleArray) {
+class Curve(val xs: LongArray, val ys: LongArray) {
     init {
         require(xs.size == ys.size) { "xs and ys must be the same size" }
         require(xs.isNotEmpty()) { "curve must have at least one point" }
@@ -129,7 +170,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
      *
      * If [x] is out of bounds, returns the first or the last value of [ys].
      */
-    fun lerp(x: Double): Double {
+    fun lerp(x: Long): Long {
         // Edge cases where we don't have two points to interpolate
         if (x >= xs.last()) {
             return ys.last()
@@ -159,7 +200,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
      * The index of the first point in [xs];[ys] whose X coordinate is strictly
      * higher than the given [x], or a negative value if [x] is out of bounds.
      */
-    fun firstAfterStrict(x: Double): Int {
+    fun firstAfterStrict(x: Long): Int {
         if (x < xs.first() || xs[xs.size - 1] <= x) {
             return -1
         }
@@ -173,7 +214,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
         }
     }
 
-    fun intersectsAt(x1: Double, y1: Double, x2: Double, y2: Double): Vec2? {
+    fun intersectsAt(x1: Long, y1: Long, x2: Long, y2: Long): Vec2? {
         require(x1 < x2)
 
         val r1 = xs.binarySearch(x1)
@@ -186,7 +227,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
             i1 = r1
         } else if (r1 == -1) {
             i1 = 0
-            points += sequenceOf(Vec2(Double.NEGATIVE_INFINITY, ys.first()))
+            points += sequenceOf(Vec2(x1, ys.first()))
         } else {
             i1 = -r1 - 2
         }
@@ -194,7 +235,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
         points += generateSequence(i1) { i -> i + 1 }
             .takeWhile { i -> i < size }
             .map { i -> Vec2(xs[i], ys[i]) }
-        points += sequenceOf(Vec2(Double.POSITIVE_INFINITY, ys.last()))
+        points += sequenceOf(Vec2(x2, ys.last()))
 
         return points
             .windowed(2)
@@ -206,10 +247,10 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
                 val xlo = max(x1, vA.x)
                 val xhi = min(x2, vB.x)
 
-                val y1lo = y1 + (y2 - y1) * (xlo - x1) / (x2 - x1)
-                val y1hi = y1 + (y2 - y1) * (xhi - x1) / (x2 - x1)
-                val yAlo = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * (xlo - vA.x) / (vB.x - vA.x)
-                val yAhi = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * (xhi - vA.x) / (vB.x - vA.x)
+                val y1lo = y1 + (y2 - y1) * ((xlo - x1) / (x2 - x1))
+                val y1hi = y1 + (y2 - y1) * ((xhi - x1) / (x2 - x1))
+                val yAlo = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * ((xlo - vA.x) / (vB.x - vA.x))
+                val yAhi = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * ((xhi - vA.x) / (vB.x - vA.x))
 
                 val mix = intersectAt(yAlo, yAhi, y1lo, y1hi)
                     ?: return@mapNotNull null
@@ -229,7 +270,7 @@ class Curve(val xs: DoubleArray, val ys: DoubleArray) {
  * - the segment from `(0.0;`[yAlo]`)` to `(1.0;`[yAhi]`)`
  * - the segment from `(0.0;`[yBlo]`)` to `(1.0;`[yBhi]`)`
  */
-private fun intersectAt(yAlo: Double, yAhi: Double, yBlo: Double, yBhi: Double): Double? {
+private fun intersectAt(yAlo: Long, yAhi: Long, yBlo: Long, yBhi: Long): Long? {
     if ((yAlo < yBlo) == (yAhi < yBhi)) {
         return null
     }
@@ -275,10 +316,12 @@ class Context(
     val stock: RollingStock,
     val effortCurveMap: RangeMap<Meters, Array<PhysicsRollingStock.TractiveEffortPoint>>,
 ) {
-    internal fun step(dt: Seconds, position: Meters, speed: MetersPerSecond, action: Action): IntegrationStep {
-        val evsimCtx = EnvelopeSimContext(stock, path, dt, effortCurveMap)
-        val s = TrainPhysicsIntegrator.step(evsimCtx, position, speed, action, 1.0)
-        return s
+    val stockMaxSpeed: MicrometersPerSecond = stock.maxSpeed.toMicros()
+
+    internal fun step(dt: Microseconds, position: Micrometers, speed: MicrometersPerSecond, action: Action): NanoIntegrationStep {
+        val evsimCtx = EnvelopeSimContext(stock, path, dt.toSI(), effortCurveMap)
+        val s = TrainPhysicsIntegrator.step(evsimCtx, position.toSI(), speed.toSI(), action, 1.0)
+        return s.toMicros()
     }
 
     /**
@@ -290,30 +333,39 @@ class Context(
      */
     private val decelerationCurves = mutableMapOf<DecelerationTarget, Curve>()
 
-    internal fun decelerationCurve(target: DecelerationTarget, dt: Seconds): Curve {
+    internal fun decelerationCurve(target: DecelerationTarget, dt: Microseconds): Curve {
         var curve = decelerationCurves[target]
         if (curve != null) {
             return curve
         }
 
-        val evsimCtx = EnvelopeSimContext(stock, path, dt, effortCurveMap)
+        val dtSI = dt.toSI()
+
+        val evsimCtx = EnvelopeSimContext(stock, path, dtSI, effortCurveMap)
         val action = if (target.brake != null) Action.BRAKE else Action.COAST
 
         var position = target.position
         var speed = target.speed
         var stepCount = 0
         stepCount++ // count the step (target.position, target.speed)
-        while (speed < stock.maxSpeed && position > 0.0) {
+        while (speed < stockMaxSpeed && position > 0) {
             val s =
-                TrainPhysicsIntegrator.step(evsimCtx, position, speed, action, -1.0, target.brake)
+                TrainPhysicsIntegrator.step(
+                    evsimCtx,
+                    position.toSI(),
+                    speed.toSI(),
+                    action,
+                    -1.0,
+                    target.brake,
+                ).toMicros()
             assert(s.timeDelta == dt)
             position += s.positionDelta
             speed = s.endSpeed
             stepCount++
         }
 
-        val positions = MeterArray(stepCount)
-        val speeds = MeterPerSecondArray(stepCount)
+        val positions = MicrometerArray(stepCount)
+        val speeds = MicrometerPerSecondArray(stepCount)
 
         var i = stepCount - 1
         positions[i] = target.position
@@ -323,14 +375,14 @@ class Context(
             val s =
                 TrainPhysicsIntegrator.step(
                     evsimCtx,
-                    positions[i + 1],
-                    speeds[i + 1],
+                    positions[i + 1].toSI(),
+                    speeds[i + 1].toSI(),
                     action,
                     -1.0,
                     target.brake,
-                )
+                ).toMicros()
             positions[i] = positions[i + 1] + s.positionDelta
-            speeds[i] = min(s.endSpeed, stock.maxSpeed)
+            speeds[i] = min(s.endSpeed, stockMaxSpeed)
         }
 
         curve = Curve(positions, speeds)
@@ -350,17 +402,17 @@ fun step(
     instructions: Instructions,
 
     /** Must be strictly positive */
-    dt: Seconds,
+    dt: Microseconds,
 
     /** Must be positive */
-    position: Meters,
+    position: Micrometers,
 
     /** Must be positive */
-    speed: MetersPerSecond,
-): IntegrationStep {
-    require(dt > 0.0) { "dt must be strictly positive" }
-    require(position >= 0.0) { "position must be positive" }
-    require(speed >= 0.0) { "speed must be positive" }
+    speed: MicrometersPerSecond,
+): NanoIntegrationStep {
+    require(dt > 0) { "dt must be strictly positive" }
+    require(position >= 0) { "position must be positive" }
+    require(speed >= 0) { "speed must be positive" }
 
     val currentSpeedLimit = instructions.maxSpeed.at(position)
 
@@ -384,11 +436,11 @@ fun step(
                 naiveStep,
             )
 
-            assert(!(step.positionDelta approxEqualTo 0.0))
-            assert(step.endSpeed approxLowerThan ctx.stock.maxSpeed)
+            assert(step.positionDelta > 0)
+            assert(step.endSpeed <= ctx.stockMaxSpeed)
             val nextSpeedLimit = constraint.lerp(step.startSpeed + step.positionDelta)
-            assert(!(step.startSpeed approxLowerThan currentSpeedLimit) || step.endSpeed approxLowerThan nextSpeedLimit)
-            assert(!(step.timeDelta approxEqualTo 0.0))
+            assert(step.startSpeed > currentSpeedLimit || step.endSpeed <= nextSpeedLimit)
+            assert(step.timeDelta > 0)
 
             step
         }
@@ -410,18 +462,18 @@ fun step(
             // speed, we want to pick those that have the lowest timeDelta. This
             // differentiation only makes sense for steps that have 0.0
             // acceleration.
-            compareBy<IntegrationStep> { step -> step.acceleration }
+            compareBy<NanoIntegrationStep> { step -> step.acceleration }
                 .thenBy { step -> step.endSpeed }
                 .thenBy { step -> step.timeDelta }
         )!!
 
     // Assert the stock doesn't go above a speed limit if it wasn't above a speed limit before.
     val nextSpeedLimit = instructions.maxSpeed.at(position + step.positionDelta)
-    if (step.endSpeed approxLowerThan nextSpeedLimit || !(step.startSpeed approxLowerThan currentSpeedLimit)) {
+    if (step.endSpeed <= nextSpeedLimit || step.startSpeed > currentSpeedLimit) {
         // TODO change this to an assert
     } else {
         println("oupsi on a dépasser à $position alant a $speed < $currentSpeedLimit vers ${step.endSpeed} > $nextSpeedLimit")
-        assert(reactions.all { step -> !(step.endSpeed approxLowerThan nextSpeedLimit) })
+        assert(reactions.all { step -> step.endSpeed > nextSpeedLimit })
         //assert(false)
     }
 
@@ -436,13 +488,13 @@ fun step(
 internal fun reactToSpeedConstraint(
     ctx: Context,
     constraint: Curve,
-    dt: Seconds,
-    startPos: Meters,
-    accelerateStep: IntegrationStep,
-): IntegrationStep {
+    dt: Microseconds,
+    startPos: Micrometers,
+    accelerateStep: NanoIntegrationStep,
+): NanoIntegrationStep {
     val startSpeedLimit = constraint.lerp(startPos)
 
-    if (accelerateStep.startSpeed approxEqualTo startSpeedLimit) {
+    if (accelerateStep.startSpeed == startSpeedLimit) {
         // The stock is on the curve, so we return the next point on the curve.
 
         // Snap on the curve
@@ -451,12 +503,12 @@ internal fun reactToSpeedConstraint(
         if (startPos < constraint.xs.first()) {
             val positionDelta = min(accelerateStep.positionDelta, constraint.xs.first() - startPos)
             val timeDelta = positionDelta / startSpeed
-            return IntegrationStep.fromNaiveStep(
+            return NanoIntegrationStep.fromNaiveStep(
                 timeDelta,
                 positionDelta,
                 startSpeed,
                 startSpeed,
-                0.0,
+                0,
                 +1.0,
             )
         }
@@ -466,13 +518,13 @@ internal fun reactToSpeedConstraint(
             val endPos = constraint.xs[nextPointIndex]
             val endSpeed = constraint.ys[nextPointIndex]
             val positionDelta = endPos - startPos
-            val timeDelta = if (endSpeed + startSpeed == 0.0) {
+            val timeDelta = if (endSpeed + startSpeed == 0L) {
                 dt
             } else {
-                2.0 * positionDelta / (endSpeed + startSpeed)
+                2 * positionDelta / (endSpeed + startSpeed)
             }
-            val acceleration = if (timeDelta == 0.0) 0.0 else (endSpeed - startSpeed) / timeDelta
-            return IntegrationStep.fromNaiveStep(
+            val acceleration = if (timeDelta == 0L) 0 else (endSpeed - startSpeed) / timeDelta
+            return NanoIntegrationStep.fromNaiveStep(
                 timeDelta,
                 positionDelta,
                 startSpeed,
@@ -485,12 +537,12 @@ internal fun reactToSpeedConstraint(
         // Here, startPos >= constraint.xs.last()
         val positionDelta = accelerateStep.positionDelta
         val timeDelta = positionDelta / startSpeed
-        return IntegrationStep.fromNaiveStep(
+        return NanoIntegrationStep.fromNaiveStep(
             timeDelta,
             positionDelta,
             startSpeed,
             startSpeed,
-            0.0,
+            0,
             +1.0,
         )
     }
@@ -509,7 +561,7 @@ internal fun reactToSpeedConstraint(
     return truncateStep(brakingStep, startPos, constraint)
 }
 
-private fun truncateStep(step: IntegrationStep, startPos: Meters, constraint: Curve): IntegrationStep {
+private fun truncateStep(step: NanoIntegrationStep, startPos: Micrometers, constraint: Curve): NanoIntegrationStep {
     val endPos = startPos + step.positionDelta
     val point = constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed)
         ?: return step
@@ -517,13 +569,13 @@ private fun truncateStep(step: IntegrationStep, startPos: Meters, constraint: Cu
     val newEndPos = point.x
     val newEndSpeed = point.y
     val newPositionDelta = newEndPos - startPos
-    val timeDelta = if (newEndSpeed + step.startSpeed == 0.0) {
+    val timeDelta = if (newEndSpeed + step.startSpeed == 0L) {
         step.timeDelta
     } else {
-        2.0 * newPositionDelta / (newEndSpeed + step.startSpeed)
+        2 * newPositionDelta / (newEndSpeed + step.startSpeed)
     }
-    val acceleration = if (timeDelta == 0.0) 0.0 else (newEndSpeed - step.startSpeed) / timeDelta
-    return IntegrationStep.fromNaiveStep(
+    val acceleration = if (timeDelta == 0L) 0 else (newEndSpeed - step.startSpeed) / timeDelta
+    return NanoIntegrationStep.fromNaiveStep(
         timeDelta,
         newPositionDelta,
         step.startSpeed,
@@ -532,9 +584,3 @@ private fun truncateStep(step: IntegrationStep, startPos: Meters, constraint: Cu
         +1.0,
     )
 }
-
-/** Whether [this] and [that] are sufficiently close to each other. */
-internal infix fun Double.approxEqualTo(that: Double): Boolean = abs(this - that) < 1e-4
-
-/** Whether [this] is lower, equal or slightly larger than [that]. */
-internal infix fun Double.approxLowerThan(that: Double): Boolean = this - that < 1e-4

@@ -5,14 +5,13 @@ import com.google.common.collect.RangeMap
 import fr.sncf.osrd.api.RangeValues
 import fr.sncf.osrd.path.interfaces.TrainPath
 import fr.sncf.osrd.utils.units.Offset
-import fr.sncf.osrd.utils.units.meters
 import kotlin.math.min
 
-internal fun Range<Double>.lowerEndpointOrInf(): Double =
-    if (hasLowerBound()) lowerEndpoint() else Double.NEGATIVE_INFINITY
+internal fun Range<Long>.lowerEndpointOrMin(): Long =
+    if (hasLowerBound()) lowerEndpoint() else Long.MIN_VALUE
 
-internal fun Range<Double>.upperEndpointOrInf(): Double =
-    if (hasUpperBound()) upperEndpoint() else Double.POSITIVE_INFINITY
+internal fun Range<Long>.upperEndpointOrMax(): Long =
+    if (hasUpperBound()) upperEndpoint() else Long.MAX_VALUE
 
 /**
  * Make it so the [RangeMap] associates keys in the given [range] with the given [value], while
@@ -29,7 +28,7 @@ internal fun Range<Double>.upperEndpointOrInf(): Double =
  * assert(map.get(0.0) == 69.0)
  * ```
  */
-internal fun RangeMap<Double, Double>.putLower(range: Range<Double>, value: Double) {
+internal fun RangeMap<Long, Long>.putLower(range: Range<Long>, value: Long) {
     merge(range, value) { old, new -> min(old, new!!) }
 }
 
@@ -42,7 +41,7 @@ internal fun RangeMap<Double, Double>.putLower(range: Range<Double>, value: Doub
  * When the given ranges aren't connected, this function fills the gaps in between. In this case,
  * [transform] is given a `null` argument.
  */
-internal fun <T: Any, U> RangeMap<Meters, T>.toRangeValues(transform: (T?) -> U): RangeValues<U> {
+internal fun <T: Any, U> RangeMap<Micrometers, T>.toRangeValues(transform: (T?) -> U): RangeValues<U> {
     val internalBoundaries = mutableListOf<Offset<TrainPath>>()
     val values = mutableListOf<U>()
 
@@ -52,7 +51,7 @@ internal fun <T: Any, U> RangeMap<Meters, T>.toRangeValues(transform: (T?) -> U)
     }
 
     val first = iter.next()
-    var lastBoundary = first.key.upperEndpointOrInf()
+    var lastBoundary = first.key.upperEndpointOrMax()
     values.add(transform(first.value))
 
     while (iter.hasNext()) {
@@ -60,16 +59,16 @@ internal fun <T: Any, U> RangeMap<Meters, T>.toRangeValues(transform: (T?) -> U)
         val range = e.key
         val value = e.value
 
-        if (lastBoundary < range.lowerEndpointOrInf()) {
+        if (lastBoundary < range.lowerEndpointOrMin()) {
             // This range isn't connected to the last one, add the gap
-            internalBoundaries.add(Offset(lastBoundary.meters))
+            internalBoundaries.add(Offset(lastBoundary.micrometers))
             values.add(transform(null))
-            lastBoundary = range.lowerEndpointOrInf()
+            lastBoundary = range.lowerEndpointOrMin()
         }
 
-        internalBoundaries.add(Offset(lastBoundary.meters))
+        internalBoundaries.add(Offset(lastBoundary.micrometers))
         values.add(transform(value))
-        lastBoundary = range.upperEndpointOrInf()
+        lastBoundary = range.upperEndpointOrMax()
     }
 
     return RangeValues(internalBoundaries, values)

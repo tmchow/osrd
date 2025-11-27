@@ -59,51 +59,52 @@ fun onetrain(
 
     var stopSeq =
         schedule.asSequence().mapNotNull { item ->
-            val stopFor = item.stopFor?.seconds ?: return@mapNotNull null
-            if (stopFor == 0.0) {
+            val stopFor = item.stopFor?.microseconds ?: return@mapNotNull null
+            if (stopFor == 0L) {
                 return@mapNotNull null
             }
-            Pair(item.pathOffset.meters, stopFor)
+            Pair(item.pathOffset.micrometers, stopFor)
         }
     schedule.lastOrNull()
         ?.takeUnless { item -> item.stopFor?.seconds != 0.0 }
-        ?.let { item -> stopSeq += sequenceOf(Pair(item.pathOffset.meters, 0.0)) }
+        ?.let { item -> stopSeq += sequenceOf(Pair(item.pathOffset.micrometers, 0)) }
     val stops = stopSeq.toList()
 
-    var mrsp: RangeMap<Meters, MetersPerSecond> = TreeRangeMap.create()
-    mrsp.put(Range.all(), rollingStock.maxSpeed)
+    var mrsp: RangeMap<Micrometers, MicrometersPerSecond> = TreeRangeMap.create()
+    mrsp.put(Range.all(), rollingStock.maxSpeed.toMicros())
     if (useSpeedLimits) {
         val props = trainPath.getSpeedLimitProperties(speedLimitTag, null)
         for (prop in props) {
-            val lower = prop.lower.meters
-            val upper = prop.upper.meters
-            val speed = prop.value.speed.metersPerSecond
-            if (speed != 0.0) {
+            val lower = prop.lower.micrometers
+            val upper = prop.upper.micrometers
+            val speed = prop.value.speed.micrometersPerSecond.toLong()
+            if (speed != 0L) {
                 mrsp.putLower(Range.closed(lower, upper), speed)
             }
         }
-        mrsp = mrsp.withStockLength(rollingStock.length)
+        mrsp = mrsp.withStockLength(rollingStock.length.toMicros())
 
         val signalingRanges = buildSignalingRanges(infra, trainPath)
         val safetySpeedRanges = makeSafetySpeedRanges(infra, trainPath, schedule, signalingRanges)
         for (range in safetySpeedRanges) {
-            val lower = range.lower.meters
-            val upper = range.upper.meters
-            val speed = range.value.metersPerSecond
+            val lower = range.lower.micrometers
+            val upper = range.upper.micrometers
+            val speed = range.value.micrometersPerSecond.toLong()
             mrsp.putLower(Range.closed(lower, upper), speed)
         }
     }
 
-    val ltv = TreeRangeMap.create<Meters, MetersPerSecond>()
+    val ltv = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
 
-    val stopConstraint = TreeRangeMap.create<Meters, MetersPerSecond>()
+    val stopConstraint = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
     val speedConstraints = OverlayingSpeedLimits(mutableListOf(mrsp, stopConstraint, ltv))
 
     val instructions = Instructions(speedConstraints)
 
-    var time = 0.0
-    var position = 0.0
-    var speed = initialSpeed
+    val dt = timeStep.toMicros()
+    var time = 0L
+    var position = 0L
+    var speed = initialSpeed.toMicros()
     val envelopePoints = mutableListOf(EnvelopePoint(time, speed, position))
     for ((stopPosition, stopDuration) in stops) {
         if (stopPosition < position) {
@@ -113,20 +114,20 @@ fun onetrain(
             continue
         }
 
-        stopConstraint.put(Range.atLeast(stopPosition), 0.0)
-        while (!(stopPosition approxLowerThan position) || speed != 0.0) {
-            val s = step(ctx, instructions, timeStep, position, speed)
+        stopConstraint.put(Range.atLeast(stopPosition), 0)
+        while (position < stopPosition || speed != 0L) {
+            val s = step(ctx, instructions, dt, position, speed)
             time += s.timeDelta
             position += s.positionDelta
             speed = s.endSpeed
             envelopePoints.add(EnvelopePoint(time, speed, position))
 
             if (time >= 2934.0) {
-                ltv.put(Range.all(), 200/3.6)
+                ltv.put(Range.all(), (200/3.6).toMicros())
             }
         }
 
-        if (!(stopPosition approxEqualTo position)) {
+        if (stopPosition != position) {
             println("le train a depasser la position d'arrêt!!! D:")
         }
 
@@ -162,7 +163,7 @@ fun onetrain(
         ReportTrain(
             positions = baseReport.positions,
             times = baseReport.times,
-            speeds = simplifiedPoints.map { point -> mrsp.get(point.position) ?: 500.0 },
+            speeds = simplifiedPoints.map { point -> mrsp.get(point.position.toMicros())?.toSI() ?: 500.0 },
             energyConsumption = baseReport.energyConsumption,
             pathItemTimes = baseReport.pathItemTimes,
         )
@@ -188,9 +189,9 @@ fun onetrain(
         provisional = baseReport, // TODO margins
         finalOutput = completeReport,
         mrsp =
-            mrsp.subRangeMap(Range.closed(0.0, trainPath.length)).toRangeValues { speed ->
+            mrsp.subRangeMap(Range.closed(0, trainPath.length.toMicros())).toRangeValues { speed ->
                 SpeedLimitProperty(
-                    speed = (speed ?: MetersPerSecond.POSITIVE_INFINITY).metersPerSecond,
+                    speed = (speed?.toSI() ?: Double.POSITIVE_INFINITY).metersPerSecond,
                     source = null,
                 )
             },
@@ -209,7 +210,7 @@ private fun trimPoints(
         val i = -result - 1
         val t = envelopePoints.getOrNull(i)?.time
             ?: (envelopePoints.getOrNull(i - 1)?.time?.let { time -> time + 2.0 })
-            ?: Seconds.POSITIVE_INFINITY
+            ?: Double.POSITIVE_INFINITY
         envelopePoints.slice(0..<i) + EnvelopePoint(t, 0.0, length)
     }
 }
