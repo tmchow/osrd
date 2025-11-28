@@ -247,16 +247,24 @@ class Curve(val xs: LongArray, val ys: LongArray) {
                 val xlo = max(x1, vA.x)
                 val xhi = min(x2, vB.x)
 
-                val y1lo = y1 addX ((y2 subX y1) mulX ((xlo subX x1) divX (x2 subX x1)))
-                val y1hi = y1 addX ((y2 subX y1) mulX ((xhi subX x1) divX (x2 subX x1)))
-                val yAlo = if (vA.y == vB.y) vA.y else vA.y addX ((vB.y subX vA.y) mulX ((xlo subX vA.x) divX (vB.x subX vA.x)))
-                val yAhi = if (vA.y == vB.y) vA.y else vA.y addX ((vB.y subX vA.y) mulX ((xhi subX vA.x) divX (vB.x subX vA.x)))
+                // TODO utiliser SignalingLong à la place pour éviter les parenthèses
+                val y1lo = y1 addX (((y2 subX y1) mulX (xlo subX x1)) divX (x2 subX x1))
+                val y1hi = y1 addX (((y2 subX y1) mulX (xhi subX x1)) divX (x2 subX x1))
+                val yAlo = if (vA.y == vB.y) vA.y else vA.y addX (((vB.y subX vA.y) mulX (xlo subX vA.x)) divX (vB.x subX vA.x))
+                val yAhi = if (vA.y == vB.y) vA.y else vA.y addX (((vB.y subX vA.y) mulX (xhi subX vA.x)) divX (vB.x subX vA.x))
 
-                val mix = intersectAt(yAlo, yAhi, y1lo, y1hi)
-                    ?: return@mapNotNull null
+                if ((yAlo < y1lo) == (yAhi < y1hi)) {
+                    return@mapNotNull null
+                }
 
-                val xmid = xlo addX ((xhi subX xlo) mulX mix)
-                val ymid = y1lo addX ((y1hi subX y1lo) mulX mix)
+                val ymid = ((yAhi mulX y1lo) subX (yAlo mulX y1hi)) divX ((yAhi subX yAlo) addX (y1lo subX y1hi))
+
+                val xmid = if (yAhi != yAlo) {
+                    xlo addX (((xhi subX xlo) mulX (ymid subX yAlo)) divX (yAhi subX yAlo))
+                } else {
+                    // yBhi != yBlo, or else we would have returned null above
+                    xlo addX (((xhi subX xlo) mulX (ymid subX y1lo)) divX (y1hi subX y1lo))
+                }
 
                 Vec2(xmid, ymid)
             }
@@ -501,8 +509,8 @@ internal fun reactToSpeedConstraint(
         val startSpeed = startSpeedLimit
 
         if (startPos < constraint.xs.first()) {
-            val positionDelta = min(accelerateStep.positionDelta, constraint.xs.first() - startPos)
-            val timeDelta = positionDelta / startSpeed
+            val positionDelta = min(accelerateStep.positionDelta, constraint.xs.first() subX startPos)
+            val timeDelta = positionDelta divX startSpeed
             return NanoIntegrationStep.fromNaiveStep(
                 timeDelta,
                 positionDelta,
@@ -517,13 +525,13 @@ internal fun reactToSpeedConstraint(
             val nextPointIndex = constraint.firstAfterStrict(startPos)
             val endPos = constraint.xs[nextPointIndex]
             val endSpeed = constraint.ys[nextPointIndex]
-            val positionDelta = endPos - startPos
-            val timeDelta = if (endSpeed + startSpeed == 0L) {
+            val positionDelta = endPos subX startPos
+            val timeDelta = if (endSpeed addX startSpeed == 0L) {
                 dt
             } else {
-                2 * positionDelta / (endSpeed + startSpeed)
+                (2L mulX positionDelta) divX (endSpeed addX startSpeed)
             }
-            val acceleration = if (timeDelta == 0L) 0 else (endSpeed - startSpeed) / timeDelta
+            val acceleration = if (timeDelta == 0L) 0 else (endSpeed subX startSpeed) divX timeDelta
             return NanoIntegrationStep.fromNaiveStep(
                 timeDelta,
                 positionDelta,
@@ -536,7 +544,7 @@ internal fun reactToSpeedConstraint(
 
         // Here, startPos >= constraint.xs.last()
         val positionDelta = accelerateStep.positionDelta
-        val timeDelta = positionDelta / startSpeed
+        val timeDelta = positionDelta divX startSpeed
         return NanoIntegrationStep.fromNaiveStep(
             timeDelta,
             positionDelta,
@@ -563,18 +571,29 @@ internal fun reactToSpeedConstraint(
 
 private fun truncateStep(step: NanoIntegrationStep, startPos: Micrometers, constraint: Curve): NanoIntegrationStep {
     val endPos = startPos + step.positionDelta
+
+    if ((step.startSpeed < constraint.lerp(startPos)) == (step.endSpeed > constraint.lerp(endPos))) {
+        print("break")
+    }
+
     val point = constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed)
         ?: return step
 
     val newEndPos = point.x
     val newEndSpeed = point.y
-    val newPositionDelta = newEndPos - startPos
-    val timeDelta = if (newEndSpeed + step.startSpeed == 0L) {
+    // TODO calculer timeDelta à partir de newEndPos et startPos
+    val newPositionDelta = newEndPos subX startPos
+    val timeDelta = if (newEndSpeed addX step.startSpeed == 0L) {
         step.timeDelta
     } else {
-        2 * newPositionDelta / (newEndSpeed + step.startSpeed)
+        (2L mulX newPositionDelta) divX (newEndSpeed addX step.startSpeed)
     }
-    val acceleration = if (timeDelta == 0L) 0 else (newEndSpeed - step.startSpeed) / timeDelta
+    val acceleration = if (timeDelta == 0L) 0 else (newEndSpeed subX step.startSpeed) divX timeDelta
+
+    if (point.x < startPos) {
+        println(constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed))
+    }
+
     return NanoIntegrationStep.fromNaiveStep(
         timeDelta,
         newPositionDelta,
