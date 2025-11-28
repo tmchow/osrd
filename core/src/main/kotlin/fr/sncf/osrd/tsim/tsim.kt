@@ -149,7 +149,7 @@ internal class DecelerationTarget(
     val speed: MicrometersPerSecond,
 )
 
-class Vec2(val x: Long, val y: Long)
+data class Vec2(val x: Long, val y: Long)
 
 /**
  * A 2D curve.
@@ -247,16 +247,16 @@ class Curve(val xs: LongArray, val ys: LongArray) {
                 val xlo = max(x1, vA.x)
                 val xhi = min(x2, vB.x)
 
-                val y1lo = y1 + (y2 - y1) * ((xlo - x1) / (x2 - x1))
-                val y1hi = y1 + (y2 - y1) * ((xhi - x1) / (x2 - x1))
-                val yAlo = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * ((xlo - vA.x) / (vB.x - vA.x))
-                val yAhi = if (vA.y == vB.y) vA.y else vA.y + (vB.y - vA.y) * ((xhi - vA.x) / (vB.x - vA.x))
+                val y1lo = y1 addX ((y2 subX y1) mulX ((xlo subX x1) divX (x2 subX x1)))
+                val y1hi = y1 addX ((y2 subX y1) mulX ((xhi subX x1) divX (x2 subX x1)))
+                val yAlo = if (vA.y == vB.y) vA.y else vA.y addX ((vB.y subX vA.y) mulX ((xlo subX vA.x) divX (vB.x subX vA.x)))
+                val yAhi = if (vA.y == vB.y) vA.y else vA.y addX ((vB.y subX vA.y) mulX ((xhi subX vA.x) divX (vB.x subX vA.x)))
 
                 val mix = intersectAt(yAlo, yAhi, y1lo, y1hi)
                     ?: return@mapNotNull null
 
-                val xmid = xlo + (xhi - xlo) * mix
-                val ymid = y1lo + (y1hi - y1lo) * mix
+                val xmid = xlo addX ((xhi subX xlo) mulX mix)
+                val ymid = y1lo addX ((y1hi subX y1lo) mulX mix)
 
                 Vec2(xmid, ymid)
             }
@@ -275,13 +275,13 @@ private fun intersectAt(yAlo: Long, yAhi: Long, yBlo: Long, yBhi: Long): Long? {
         return null
     }
 
-    val ymid = (yAhi * yBlo - yAlo * yBhi) / (yAhi - yAlo + yBlo - yBhi)
+    val ymid = ((yAhi mulX yBlo) subX (yAlo mulX yBhi)) divX ((yAhi subX yAlo) addX (yBlo subX yBhi))
 
     return if (yAhi != yAlo) {
-        (ymid - yAlo) / (yAhi - yAlo)
+        (ymid subX yAlo) divX (yAhi subX yAlo)
     } else {
         // yBhi != yBlo, or else we would have returned null above
-        (ymid - yBlo) / (yBhi - yBlo)
+        (ymid subX yBlo) divX (yBhi subX yBlo)
     }
 }
 
