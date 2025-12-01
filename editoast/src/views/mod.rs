@@ -1,6 +1,7 @@
 mod authz;
 mod documents;
 pub mod electrical_profiles;
+mod error;
 pub mod fonts;
 pub mod infra;
 mod layers;

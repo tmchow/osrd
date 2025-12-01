@@ -2415,7 +2415,7 @@ export type PostTimetableByIdStdcmApiArg = {
   body: {
     /** Set of authorized track section ids for the current loading gauge,
         None value means no zone restriction. */
-    allowed_track_sections?: string[] | null;
+    allowed_track_sections?: string[];
     comfort: Comfort;
     electrical_profile_set_id?: number | null;
     loading_gauge_type?: null | LoadingGaugeType;
@@ -2930,7 +2930,7 @@ export type SpeedSection = {
     };
   };
   id: string;
-  on_routes?: string[] | null;
+  on_routes?: string[];
   speed_limit?: null | number;
   speed_limit_by_tag: {
     [key: string]: number;
@@ -3094,7 +3094,7 @@ export type AddOperation = {
     within the target document where the operation is performed. */
   path: string;
   /** Value to add to the target location. */
-  value: unknown;
+  value: any;
 };
 export type RemoveOperation = {
   /** JSON-Pointer value [RFC6901](https://tools.ietf.org/html/rfc6901) that references a location
@@ -3106,7 +3106,7 @@ export type ReplaceOperation = {
     within the target document where the operation is performed. */
   path: string;
   /** Value to replace with. */
-  value: unknown;
+  value: any;
 };
 export type MoveOperation = {
   /** JSON-Pointer value [RFC6901](https://tools.ietf.org/html/rfc6901) that references a location
@@ -3129,7 +3129,7 @@ export type TestOperation = {
     within the target document where the operation is performed. */
   path: string;
   /** Value to test against. */
-  value: unknown;
+  value: any;
 };
 export type PatchOperation =
   | (AddOperation & {
@@ -3525,7 +3525,7 @@ export type PathfindingNotFound =
     };
 export type InternalError = {
   context: {
-    [key: string]: unknown;
+    [key: string]: any;
   };
   message: string;
   status?: number;
@@ -4553,20 +4553,16 @@ export type SpeedLimits = {
 export type StdcmSearchEnvironmentResponse = {
   /** Map of a gauge with their authorized track section ids.
     None means no zones restrictions. */
-  allowed_tracks:
-    | {
-        [key: string]: string[];
-      }
-    | {
-        [key: string]: string[];
-      };
+  allowed_tracks: {
+    [key: string]: string[];
+  };
   electrical_profile_set_id?: number | null;
   enabled_from: string;
   enabled_until: string;
   id: number;
   infra_id: number;
-  operational_points?: number[] | null;
-  operational_points_id_filtered?: string[] | null;
+  operational_points?: number[];
+  operational_points_id_filtered?: string[];
   search_window_begin: string;
   search_window_end: string;
   speed_limits?: null | SpeedLimits;
@@ -4576,13 +4572,9 @@ export type StdcmSearchEnvironmentResponse = {
 };
 export type StdcmSearchEnvironment = {
   /** Map of a key (ex. loading gauge) with their allowed track section ids. */
-  allowed_tracks:
-    | {
-        [key: string]: string[];
-      }
-    | {
-        [key: string]: string[];
-      };
+  allowed_tracks: {
+    [key: string]: string[];
+  };
   default_speed_limit_tag?: string | null;
   electrical_profile_set_id?: number;
   /** The time window start point where the environment is enabled. */
@@ -4608,19 +4600,15 @@ export type StdcmSearchEnvironment = {
   work_schedule_group_id?: number;
 };
 export type StdcmSearchEnvironmentCreateForm = {
-  allowed_tracks?:
-    | {
-        [key: string]: string[];
-      }
-    | {
-        [key: string]: string[];
-      };
+  allowed_tracks?: {
+    [key: string]: string[];
+  };
   electrical_profile_set_id?: number | null;
   enabled_from: string;
   enabled_until: string;
   infra_id: number;
-  operational_points?: number[] | null;
-  operational_points_id_filtered?: string[] | null;
+  operational_points?: number[];
+  operational_points_id_filtered?: string[];
   search_window_begin: string;
   search_window_end: string;
   speed_limits?: null | SpeedLimits;
@@ -4736,7 +4724,7 @@ export type WorkSchedule = {
 };
 export type StdcmRequest = {
   /** Set of authorized track section ids for the current request */
-  allowed_track_sections?: string[] | null;
+  allowed_track_sections?: string[];
   /** The comfort of the train */
   comfort: Comfort;
   /** Infrastructure expected version */
