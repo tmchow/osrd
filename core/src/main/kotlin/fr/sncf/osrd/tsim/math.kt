@@ -1,34 +1,22 @@
 package fr.sncf.osrd.tsim
 
 @JvmInline
-internal value class SignalingLong(val n: Long) : Comparable<SignalingLong> {
+internal value class SignalingLong(val raw: Long) : Comparable<SignalingLong> {
     operator fun plus(other: SignalingLong): SignalingLong =
-        SignalingLong(Math.addExact(this.n, other.n))
+        SignalingLong(Math.addExact(this.raw, other.raw))
 
     operator fun minus(other: SignalingLong): SignalingLong =
-        SignalingLong(Math.subtractExact(this.n, other.n))
+        SignalingLong(Math.subtractExact(this.raw, other.raw))
 
     operator fun times(other: SignalingLong): SignalingLong =
-        SignalingLong(Math.multiplyExact(this.n, other.n))
+        SignalingLong(Math.multiplyExact(this.raw, other.raw))
 
     operator fun div(other: SignalingLong): SignalingLong =
-        SignalingLong(Math.divideExact(this.n, other.n))
+        SignalingLong(Math.divideExact(this.raw, other.raw))
 
     override fun compareTo(other: SignalingLong): Int =
-        this.n compareTo other.n
+        this.raw compareTo other.raw
 }
-
-internal infix fun Long.addX(that: Long): Long =
-    Math.addExact(this, that)
-
-internal infix fun Long.subX(that: Long): Long =
-    Math.subtractExact(this, that)
-
-internal infix fun Long.mulX(that: Long): Long =
-    Math.multiplyExact(this, that)
-
-internal infix fun Long.divX(that: Long): Long =
-    Math.divideExact(this, that)
 
 /**
  * Compute the addition of [this] and [that], returning [Long.MAX_VALUE] if it
