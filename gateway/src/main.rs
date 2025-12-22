@@ -22,6 +22,7 @@ use actix_auth::AuthMiddleware;
 
 mod config;
 mod config_parser;
+mod csp;
 mod request_modifier;
 
 #[actix_web::main]
@@ -86,13 +87,10 @@ async fn main() -> std::io::Result<()> {
             actix_cors::Cors::default()
         };
 
-        let default_headers = actix_web::middleware::DefaultHeaders::new().add((
-            "Content-Security-Policy",
-            "default-src 'self'; connect-src 'self' https://icons.app.sbb.ch; frame-ancestors 'self'; form-action 'self'; img-src 'self' data:; font-src 'self' https://cdn.app.sbb.ch/fonts/ data:; style-src 'self' 'unsafe-inline';",
-        ));
+        let csp = csp::Csp;
 
         let mut app = App::new()
-            .wrap(default_headers)
+            .wrap(csp)
             .wrap(cors)
             .wrap(RequestTracing::new())
             .wrap(Compress::default()) // enable compress
