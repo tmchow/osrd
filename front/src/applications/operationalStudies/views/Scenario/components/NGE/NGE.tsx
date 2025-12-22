@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-/* eslint-disable import/extensions */
-import ngeMain from '@osrd-project/netzgrafik-frontend/dist/netzgrafik-frontend/main.js?url';
-import ngePolyfills from '@osrd-project/netzgrafik-frontend/dist/netzgrafik-frontend/polyfills.js?url';
-import ngeRuntime from '@osrd-project/netzgrafik-frontend/dist/netzgrafik-frontend/runtime.js?url';
-import ngeStyles from '@osrd-project/netzgrafik-frontend/dist/netzgrafik-frontend/styles.css?url';
-import ngeVendor from '@osrd-project/netzgrafik-frontend/dist/netzgrafik-frontend/vendor.js?url';
-/* eslint-enable import/extensions */
 import { useTranslation } from 'react-i18next';
 
 import { EMPTY_DTO } from './consts';
@@ -22,21 +15,6 @@ type NGEProps = {
   onOperation?: (op: NGEEvent, netzgrafikDto: NetzgrafikDto) => void;
   onLoad?: () => void;
 };
-
-const frameSrc = `
-<!DOCTYPE html>
-<html class="sbb-lean sbb-light">
-  <head>
-    <base href="/netzgrafik-frontend/">
-    <link rel="stylesheet" href="${ngeStyles}"></link>
-    <script type="module" src="${ngeRuntime}"></script>
-    <script type="module" src="${ngePolyfills}"></script>
-    <script type="module" src="${ngeVendor}"></script>
-    <script type="module" src="${ngeMain}"></script>
-  </head>
-  <body></body>
-</html>
-`;
 
 /**
  * Standalone NetzGraphik Editor component.
@@ -99,7 +77,14 @@ const NGE = ({ dto, onOperation, onLoad }: NGEProps) => {
     return () => {};
   }, [onOperation, ngeRootElement]);
 
-  return <iframe ref={frameRef} srcDoc={frameSrc} title="NGE" className="nge-iframe-container" />;
+  return (
+    <iframe
+      ref={frameRef}
+      src="/netzgrafik-frontend/index.html"
+      title="NGE"
+      className="nge-iframe-container"
+    />
+  );
 };
 
 export default NGE;
