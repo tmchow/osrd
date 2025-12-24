@@ -117,13 +117,16 @@ const useScenarioData = (scenario: ScenarioWithDetails, infraId: number) => {
     },
   });
 
+  const isReadyToFetchConflicts =
+    allTrainsSimulated && projectionPath?.pathfindingStatus === 'succeeded';
+
   // TODO Paced trains : adapt this to handle paced trains in the conflicts issue
   const {
     data: conflicts,
     isLoading,
     isFetching,
   } = osrdEditoastApi.endpoints.getTimetableByIdConflicts.useQuery(
-    allTrainsSimulated ? { id: scenario.timetable_id, infraId: scenario.infra_id } : skipToken
+    isReadyToFetchConflicts ? { id: scenario.timetable_id, infraId: scenario.infra_id } : skipToken
   );
 
   const isConflictsLoading = isLoading || isFetching;
