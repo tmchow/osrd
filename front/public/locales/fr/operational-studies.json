@@ -259,7 +259,13 @@
       "pacedTrainAdded": "Mission ajoutée",
       "pacedTrainDeleted": "La mission {{name}} a bien été supprimée",
       "packages": {
-        "sandbox": "Bac à sable"
+        "duplicate": "Dupliquer le paquet",
+        "edit": "Modifier le paquet",
+        "editName": "Modifier le nom du paquet",
+        "publishToCatalog": "Publier au catalogue",
+        "removeFromScenario": "Retirer du scénario",
+        "sandbox": "Bac à sable",
+        "transformToLocalCopy": "Transformer en copie locale"
       },
       "punctuality": "Ponctualité",
       "resetAllExceptions": "Confirmez-vous la réinitialisation des exceptions de cette mission ?",

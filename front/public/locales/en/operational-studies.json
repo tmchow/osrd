@@ -259,7 +259,13 @@
       "pacedTrainAdded": "Service added",
       "pacedTrainDeleted": "The service {{name}} has been deleted",
       "packages": {
-        "sandbox": "Sandbox"
+        "duplicate": "Duplicate package",
+        "edit": "Edit package",
+        "editName": "Edit package name",
+        "publishToCatalog": "Publish to groups catalog",
+        "removeFromScenario": "Remove from scenario",
+        "sandbox": "Sandbox",
+        "transformToLocalCopy": "Transform to local copy"
       },
       "punctuality": "Punctuality",
       "resetAllExceptions": "Do you confirm the reset of the exceptions of this service?",

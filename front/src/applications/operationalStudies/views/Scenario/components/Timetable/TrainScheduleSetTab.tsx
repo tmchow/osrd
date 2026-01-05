@@ -1,18 +1,25 @@
-import type { PropsWithChildren } from 'react';
+import { useMemo, type PropsWithChildren } from 'react';
 
 import { Checkbox } from '@osrd-project/ui-core';
 import {
   Beaker,
   Broadcast,
+  DesktopDownload,
   DeviceDesktop,
+  Duplicate,
+  LinkExternal,
+  NoEntry,
+  Pencil,
   TriangleDown,
   TriangleRight,
+  Verified,
 } from '@osrd-project/ui-icons';
 import cx from 'classnames';
+import { noop } from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import type { TrainScheduleSet } from 'common/api/osrdEditoastApi';
-import MenuTriggerButton from 'common/MenuTriggerButton';
+import MenuTriggerButton, { type MenuProps } from 'common/MenuTriggerButton';
 
 import { computeTimetablePackageName, isSandbox } from './utils';
 
@@ -39,6 +46,52 @@ const TrainScheduleSetTab = ({
   children,
 }: TrainScheduleSetTabProps) => {
   const { t } = useTranslation('operational-studies', { keyPrefix: 'main.timetable.packages' });
+
+  const menuProps: MenuProps = useMemo(
+    () => ({
+      items: [
+        trainScheduleSet.published
+          ? {
+              title: t('transformToLocalCopy'),
+              icon: <DesktopDownload />,
+              onClick: noop,
+              disabled: true,
+            }
+          : {
+              title: t('publishToCatalog'),
+              icon: <Verified />,
+              onClick: noop,
+              disabled: true,
+            },
+        trainScheduleSet.published
+          ? {
+              title: t('edit'),
+              icon: <LinkExternal />,
+              onClick: noop,
+              disabled: true,
+            }
+          : {
+              title: t('editName'),
+              icon: <Pencil />,
+              onClick: noop,
+              disabled: true,
+            },
+        {
+          title: t('duplicate'),
+          icon: <Duplicate />,
+          onClick: () => noop,
+          disabled: true,
+        },
+        {
+          title: t('removeFromScenario'),
+          icon: <NoEntry />,
+          onClick: noop,
+          disabled: true,
+        },
+      ],
+    }),
+    [trainScheduleSet]
+  );
 
   return (
     <>
@@ -78,12 +131,9 @@ const TrainScheduleSetTab = ({
         </div>
         <MenuTriggerButton
           buttonProps={{
-            // TODO Package : adapt when back ready
-            disabled: isSandbox(trainScheduleSet) || true,
+            disabled: isSandbox(trainScheduleSet),
           }}
-          menuProps={{
-            items: [],
-          }}
+          menuProps={menuProps}
         />
       </div>
       {isTrainListOpen && children}
