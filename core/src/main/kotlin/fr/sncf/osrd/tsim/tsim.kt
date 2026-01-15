@@ -197,11 +197,11 @@ class Curve(val xs: LongArray, val ys: LongArray) {
 
     /**
      * The index of the first point in [xs];[ys] whose X coordinate is strictly
-     * higher than the given [x], or a negative value if [x] is out of bounds.
+     * higher than the given [x], or `null` if [x] is out of bounds.
      */
-    fun firstAfterStrict(x: Long): Int {
+    fun firstAfterStrict(x: Long): Int? {
         if (x < xs.first() || xs[xs.size - 1] <= x) {
-            return -1
+            return null
         }
 
         val result = xs.binarySearch(x)
@@ -508,7 +508,7 @@ internal fun reactToSpeedConstraint(
         }
 
         if (startPos < constraint.xs.last()) {
-            val nextPointIndex = constraint.firstAfterStrict(startPos)
+            val nextPointIndex = constraint.firstAfterStrict(startPos)!!
             val endPos = constraint.xs[nextPointIndex]
             val endSpeed = constraint.ys[nextPointIndex]
             val positionDelta = endPos - startPos
