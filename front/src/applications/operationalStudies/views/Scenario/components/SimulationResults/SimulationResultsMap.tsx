@@ -246,6 +246,7 @@ const SimulationResultMap = ({
         cursor="pointer"
         infraId={infraId}
         interactiveLayerIds={interactiveLayerIds}
+        scrollZoomOnShift
         onClick={() => {
           dispatch(removeMapSearchMarker());
         }}

@@ -1,4 +1,4 @@
-import { type MutableRefObject, type PropsWithChildren, useEffect, useState } from 'react';
+import { type PropsWithChildren, type RefObject, useEffect, useState } from 'react';
 
 import type { Geometry } from 'geojson';
 import type { MapLayerMouseEvent, MapLibreEvent } from 'maplibre-gl';
@@ -20,11 +20,12 @@ import { LAYER_GROUPS_ORDER, LAYERS } from 'config/layerOrder';
 import type { MapSettings, Viewport } from 'reducers/commonMap/types';
 
 import { CUSTOM_ATTRIBUTION } from './const';
+import useScrollZoomOnShift from './useScrollZoomOnShift';
 
 type MapProps = {
   mapSettings: MapSettings;
   mapId: string;
-  mapRef: MutableRefObject<MapRef | null>;
+  mapRef: RefObject<MapRef | null>;
   interactiveLayerIds: string[];
   infraId?: number;
   updatePartialViewPort: (newPartialViewPort: Partial<Viewport>) => void;
@@ -42,6 +43,7 @@ type MapProps = {
    * - OP & tracks are full displayed, but elements ouside the area are muted
    */
   highlightedArea?: Geometry;
+  scrollZoomOnShift?: boolean;
 };
 
 const BaseMap = ({
@@ -61,6 +63,7 @@ const BaseMap = ({
   onIdle,
   onIdleRouterSync,
   highlightedArea,
+  scrollZoomOnShift = false,
 }: PropsWithChildren<MapProps>) => {
   const mapBlankStyle = useMapBlankStyle();
 
@@ -91,6 +94,8 @@ const BaseMap = ({
       });
     }
   }, []);
+
+  useScrollZoomOnShift({ enabled: scrollZoomOnShift, mapIsLoaded, mapRef });
 
   return (
     <ReactMapGL
@@ -129,7 +134,7 @@ const BaseMap = ({
       attributionControl={false} // Defined below
       dragPan
       maxPitch={85}
-      scrollZoom
+      scrollZoom={!scrollZoomOnShift}
       style={{ width: '100%', height: '100%' }}
       touchZoomRotate
     >
