@@ -14,6 +14,7 @@ import kotlin.math.min
 typealias Microseconds = Long
 
 typealias Meters = Double
+
 typealias Micrometers = Long
 
 typealias MicrometersPerSecond = Long
@@ -25,6 +26,7 @@ typealias MicrometerArray = LongArray
 typealias MicrometerPerSecondArray = LongArray
 
 fun Double.toMicros(): Long = (this * 1e6).toLong()
+
 fun Long.toSI(): Double = this.toDouble() / 1e6
 
 class NanoIntegrationStep(
@@ -44,13 +46,14 @@ class NanoIntegrationStep(
             directionSign: Double,
         ): NanoIntegrationStep =
             IntegrationStep.fromNaiveStep(
-                timeDelta.toSI(),
-                positionDelta.toSI(),
-                startSpeed.toSI(),
-                endSpeed.toSI(),
-                acceleration.toSI(),
-                directionSign,
-            ).toMicros()
+                    timeDelta.toSI(),
+                    positionDelta.toSI(),
+                    startSpeed.toSI(),
+                    endSpeed.toSI(),
+                    acceleration.toSI(),
+                    directionSign,
+                )
+                .toMicros()
     }
 }
 
@@ -80,7 +83,10 @@ fun RangeMap<Micrometers, MicrometersPerSecond>.withStockLength(
         val speedLimit = entry.value
 
         val extendedRange =
-            Range.closed(range.lowerEndpointOrMin(), range.upperEndpointOrMax() saturatingAdd stockLength)
+            Range.closed(
+                range.lowerEndpointOrMin(),
+                range.upperEndpointOrMax() saturatingAdd stockLength,
+            )
         map.putLower(extendedRange, speedLimit)
     }
     return map
@@ -96,45 +102,41 @@ interface MaxSpeedConstraint {
     fun changes(from: Micrometers = 0): Sequence<MaxSpeedChange>
 }
 
-/**
- * A max speed constraint implemented as a single [RangeMap].
- */
+/** A max speed constraint implemented as a single [RangeMap]. */
 @JvmInline
-value class SpeedLimit(val map: RangeMap<Micrometers, MicrometersPerSecond> = ImmutableRangeMap.of()): MaxSpeedConstraint {
+value class SpeedLimit(
+    val map: RangeMap<Micrometers, MicrometersPerSecond> = ImmutableRangeMap.of()
+) : MaxSpeedConstraint {
     override fun at(position: Micrometers): MicrometersPerSecond =
         map.get(position) ?: MicrometersPerSecond.MAX_VALUE
 
     override fun changes(from: Micrometers): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
-        map
-            .asDescendingMapOfRanges()
+        map.asDescendingMapOfRanges()
             .asSequence()
             .map { entry ->
                 val range = entry.key
                 MaxSpeedConstraint.MaxSpeedChange(
                     position = range.lowerEndpointOrMin(),
-                    speed = entry.value
+                    speed = entry.value,
                 )
             }
             .takeWhile { change -> change.position > from }
 }
 
 /**
- * A max speed constraint implemented as multiple [RangeMap]s, whose ranges may overlap each other's.
+ * A max speed constraint implemented as multiple [RangeMap]s, whose ranges may overlap each
+ * other's.
  *
  * The speed limit at a given position is taken from the minimum of all speed limits.
  */
-class OverlayingSpeedLimits(val overlays: List<RangeMap<Micrometers, MicrometersPerSecond>>): MaxSpeedConstraint {
+class OverlayingSpeedLimits(val overlays: List<RangeMap<Micrometers, MicrometersPerSecond>>) :
+    MaxSpeedConstraint {
     override fun at(position: Micrometers): MicrometersPerSecond =
-        overlays
-            .asSequence()
-            .mapNotNull { overlay -> overlay.get(position) }
-            .minOrNull()
+        overlays.asSequence().mapNotNull { overlay -> overlay.get(position) }.minOrNull()
             ?: MicrometersPerSecond.MAX_VALUE
 
     override fun changes(from: Micrometers): Sequence<MaxSpeedConstraint.MaxSpeedChange> =
-        overlays
-            .asSequence()
-            .flatMap { overlay -> SpeedLimit(overlay).changes(from) }
+        overlays.asSequence().flatMap { overlay -> SpeedLimit(overlay).changes(from) }
 }
 
 internal class DecelerationTarget(
@@ -153,7 +155,8 @@ data class Vec2(val x: Long, val y: Long)
 /**
  * A 2D curve.
  *
- * This class represents a list of 2D points `(xs[i],ys[i])`. [xs] and [ys] must have the same size. [xs] isn't supposed to be empty, and its elements are expected to be strictly increasing.
+ * This class represents a list of 2D points `(xs[i],ys[i])`. [xs] and [ys] must have the same size.
+ * [xs] isn't supposed to be empty, and its elements are expected to be strictly increasing.
  */
 class Curve(val xs: LongArray, val ys: LongArray) {
     init {
@@ -196,8 +199,8 @@ class Curve(val xs: LongArray, val ys: LongArray) {
     }
 
     /**
-     * The index of the first point in [xs];[ys] whose X coordinate is strictly
-     * higher than the given [x], or `null` if [x] is out of bounds.
+     * The index of the first point in [xs];[ys] whose X coordinate is strictly higher than the
+     * given [x], or `null` if [x] is out of bounds.
      */
     fun firstAfterStrict(x: Long): Int? {
         if (x < xs.first() || xs[xs.size - 1] <= x) {
@@ -231,9 +234,10 @@ class Curve(val xs: LongArray, val ys: LongArray) {
             i1 = -r1 - 2
         }
 
-        points += generateSequence(i1) { i -> i + 1 }
-            .takeWhile { i -> i < size }
-            .map { i -> Vec2(xs[i], ys[i]) }
+        points +=
+            generateSequence(i1) { i -> i + 1 }
+                .takeWhile { i -> i < size }
+                .map { i -> Vec2(xs[i], ys[i]) }
         points += sequenceOf(Vec2(x2, ys.last()))
 
         return points
@@ -266,12 +270,13 @@ class Curve(val xs: LongArray, val ys: LongArray) {
 
                 val ymid = (yAhi * y1lo - yAlo * y1hi) / ((yAhi - yAlo) + (y1lo - y1hi))
 
-                val xmid = if (yAhi != yAlo) {
-                    xlo + (xhi - xlo) * (ymid - yAlo) / (yAhi - yAlo)
-                } else {
-                    // yBhi != yBlo, or else we would have returned null above
-                    xlo + (xhi - xlo) * (ymid - y1lo) / (y1hi - y1lo)
-                }
+                val xmid =
+                    if (yAhi != yAlo) {
+                        xlo + (xhi - xlo) * (ymid - yAlo) / (yAhi - yAlo)
+                    } else {
+                        // yBhi != yBlo, or else we would have returned null above
+                        xlo + (xhi - xlo) * (ymid - y1lo) / (y1hi - y1lo)
+                    }
 
                 Vec2(xmid.raw, ymid.raw)
             }
@@ -279,9 +284,7 @@ class Curve(val xs: LongArray, val ys: LongArray) {
     }
 }
 
-interface NeutralZoneConstraint {
-
-}
+interface NeutralZoneConstraint {}
 
 data class Instructions(
     /**
@@ -312,7 +315,12 @@ class Context(
 ) {
     val stockMaxSpeed: MicrometersPerSecond = stock.maxSpeed.toMicros()
 
-    internal fun step(dt: Microseconds, position: Micrometers, speed: MicrometersPerSecond, action: Action): NanoIntegrationStep {
+    internal fun step(
+        dt: Microseconds,
+        position: Micrometers,
+        speed: MicrometersPerSecond,
+        action: Action,
+    ): NanoIntegrationStep {
         val evsimCtx = EnvelopeSimContext(stock, path, dt.toSI(), effortCurveMap)
         val s = TrainPhysicsIntegrator.step(evsimCtx, position.toSI(), speed.toSI(), action, 1.0)
         return s.toMicros()
@@ -345,13 +353,14 @@ class Context(
         while (speed < stockMaxSpeed && position > 0) {
             val s =
                 TrainPhysicsIntegrator.step(
-                    evsimCtx,
-                    position.toSI(),
-                    speed.toSI(),
-                    action,
-                    -1.0,
-                    target.brake,
-                ).toMicros()
+                        evsimCtx,
+                        position.toSI(),
+                        speed.toSI(),
+                        action,
+                        -1.0,
+                        target.brake,
+                    )
+                    .toMicros()
             assert(s.timeDelta == dt)
             position += s.positionDelta
             speed = s.endSpeed
@@ -368,13 +377,14 @@ class Context(
             i--
             val s =
                 TrainPhysicsIntegrator.step(
-                    evsimCtx,
-                    positions[i + 1].toSI(),
-                    speeds[i + 1].toSI(),
-                    action,
-                    -1.0,
-                    target.brake,
-                ).toMicros()
+                        evsimCtx,
+                        positions[i + 1].toSI(),
+                        speeds[i + 1].toSI(),
+                        action,
+                        -1.0,
+                        target.brake,
+                    )
+                    .toMicros()
             positions[i] = positions[i + 1] + s.positionDelta
             speeds[i] = min(s.endSpeed, stockMaxSpeed)
         }
@@ -410,25 +420,22 @@ fun step(
 
     val currentSpeedLimit = instructions.maxSpeed.at(position)
 
-    val maxSpeedChanges = instructions.maxSpeed.changes(position) +
-        sequenceOf(MaxSpeedConstraint.MaxSpeedChange(position, currentSpeedLimit))
+    val maxSpeedChanges =
+        instructions.maxSpeed.changes(position) +
+            sequenceOf(MaxSpeedConstraint.MaxSpeedChange(position, currentSpeedLimit))
 
     val naiveStep = ctx.step(dt, position, speed, Action.ACCELERATE)
-    val reactions = maxSpeedChanges
-        .map { change ->
-            val target = DecelerationTarget(
-                position = change.position,
-                brake = BrakingType.CONSTANT,
-                speed = change.speed,
-            )
+    val reactions =
+        maxSpeedChanges.map { change ->
+            val target =
+                DecelerationTarget(
+                    position = change.position,
+                    brake = BrakingType.CONSTANT,
+                    speed = change.speed,
+                )
             val constraint = ctx.decelerationCurve(target, dt)
-            val step = reactToSpeedConstraint(
-                ctx,
-                constraint,
-                naiveStep.timeDelta,
-                position,
-                naiveStep,
-            )
+            val step =
+                reactToSpeedConstraint(ctx, constraint, naiveStep.timeDelta, position, naiveStep)
 
             assert(step.positionDelta > 0)
             assert(step.endSpeed <= ctx.stockMaxSpeed)
@@ -439,8 +446,8 @@ fun step(
             step
         }
 
-    val step = reactions
-        .minWithOrNull(
+    val step =
+        reactions.minWithOrNull(
             // Take the most restrictive reaction. First, we pick those with the
             // the lowest acceleration: if a constraint requires the rolling
             // stock to brake (e.g. a signal, or a speed limit), the rolling
@@ -466,9 +473,11 @@ fun step(
     if (step.endSpeed <= nextSpeedLimit || step.startSpeed > currentSpeedLimit) {
         // TODO change this to an assert
     } else {
-        println("oupsi on a dépasser à $position alant a $speed < $currentSpeedLimit vers ${step.endSpeed} > $nextSpeedLimit")
+        println(
+            "oupsi on a dépasser à $position alant a $speed < $currentSpeedLimit vers ${step.endSpeed} > $nextSpeedLimit"
+        )
         assert(reactions.all { step -> step.endSpeed > nextSpeedLimit })
-        //assert(false)
+        // assert(false)
     }
 
     return step
@@ -512,11 +521,12 @@ internal fun reactToSpeedConstraint(
             val endPos = constraint.xs[nextPointIndex]
             val endSpeed = constraint.ys[nextPointIndex]
             val positionDelta = endPos - startPos
-            val timeDelta = if (endSpeed + startSpeed == 0L) {
-                dt
-            } else {
-                (2L * positionDelta) / (endSpeed + startSpeed)
-            }
+            val timeDelta =
+                if (endSpeed + startSpeed == 0L) {
+                    dt
+                } else {
+                    (2L * positionDelta) / (endSpeed + startSpeed)
+                }
             val acceleration = if (timeDelta == 0L) 0 else (endSpeed - startSpeed) / timeDelta
             return NanoIntegrationStep.fromNaiveStep(
                 timeDelta,
@@ -555,23 +565,28 @@ internal fun reactToSpeedConstraint(
     return truncateStep(brakingStep, startPos, constraint)
 }
 
-private fun truncateStep(step: NanoIntegrationStep, startPos: Micrometers, constraint: Curve): NanoIntegrationStep {
+private fun truncateStep(
+    step: NanoIntegrationStep,
+    startPos: Micrometers,
+    constraint: Curve,
+): NanoIntegrationStep {
     val endPos = startPos + step.positionDelta
 
-    val point = constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed)
-        ?: return step
+    val point =
+        constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed) ?: return step
 
     val newEndPos = point.x
     val newEndSpeed = point.y
     val newPositionDelta = newEndPos - startPos
-    val timeDelta = if (newEndSpeed + step.startSpeed == 0L) {
-        step.timeDelta
-    } else {
-        // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
-        // but with less likeliness of timeDelta becoming zero.
-        (2L * newEndPos) / (newEndSpeed + step.startSpeed) -
-            (2L * startPos) / (newEndSpeed + step.startSpeed)
-    }
+    val timeDelta =
+        if (newEndSpeed + step.startSpeed == 0L) {
+            step.timeDelta
+        } else {
+            // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
+            // but with less likeliness of timeDelta becoming zero.
+            (2L * newEndPos) / (newEndSpeed + step.startSpeed) -
+                (2L * startPos) / (newEndSpeed + step.startSpeed)
+        }
     val acceleration = if (timeDelta == 0L) 0 else (newEndSpeed - step.startSpeed) / timeDelta
 
     if (point.x < startPos) {

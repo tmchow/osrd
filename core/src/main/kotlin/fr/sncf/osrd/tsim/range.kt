@@ -41,7 +41,9 @@ internal fun RangeMap<Long, Long>.putLower(range: Range<Long>, value: Long) {
  * When the given ranges aren't connected, this function fills the gaps in between. In this case,
  * [transform] is given a `null` argument.
  */
-internal fun <T: Any, U> RangeMap<Micrometers, T>.toRangeValues(transform: (T?) -> U): RangeValues<U> {
+internal fun <T : Any, U> RangeMap<Micrometers, T>.toRangeValues(
+    transform: (T?) -> U
+): RangeValues<U> {
     val internalBoundaries = mutableListOf<Offset<TrainPath>>()
     val values = mutableListOf<U>()
 

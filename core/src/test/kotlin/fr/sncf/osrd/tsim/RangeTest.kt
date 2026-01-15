@@ -82,16 +82,8 @@ class RangeTest {
 
     @Test
     fun testIntersectsAt() {
-        val constraint = Curve(
-            xs = longArrayOf(42_000_000),
-            ys = longArrayOf(69_000_000),
-        )
-        val p = constraint.intersectsAt(
-            x1 = 0,
-            y1 = 64_000_000,
-            x2 = 1_000_000,
-            y2 = 70_000_000,
-        )
+        val constraint = Curve(xs = longArrayOf(42_000_000), ys = longArrayOf(69_000_000))
+        val p = constraint.intersectsAt(x1 = 0, y1 = 64_000_000, x2 = 1_000_000, y2 = 70_000_000)
 
         Assertions.assertEquals(Vec2(833_333, 69_000_000), p)
     }

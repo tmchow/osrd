@@ -14,14 +14,10 @@ internal value class SignalingLong(val raw: Long) : Comparable<SignalingLong> {
     operator fun div(other: SignalingLong): SignalingLong =
         SignalingLong(Math.divideExact(this.raw, other.raw))
 
-    override fun compareTo(other: SignalingLong): Int =
-        this.raw compareTo other.raw
+    override fun compareTo(other: SignalingLong): Int = this.raw compareTo other.raw
 }
 
-/**
- * Compute the addition of [this] and [that], returning [Long.MAX_VALUE] if it
- * overflows.
- */
+/** Compute the addition of [this] and [that], returning [Long.MAX_VALUE] if it overflows. */
 internal infix fun Long.saturatingAdd(that: Long): Long {
     val sum = this + that
     return if ((sum < this) == (that < 0)) {

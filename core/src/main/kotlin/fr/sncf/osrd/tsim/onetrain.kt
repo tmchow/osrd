@@ -65,7 +65,8 @@ fun onetrain(
             }
             Pair(item.pathOffset.micrometers, stopFor)
         }
-    schedule.lastOrNull()
+    schedule
+        .lastOrNull()
         ?.takeUnless { item -> item.stopFor?.seconds != 0.0 }
         ?.let { item -> stopSeq += sequenceOf(Pair(item.pathOffset.micrometers, 0)) }
     val stops = stopSeq.toList()
@@ -123,7 +124,7 @@ fun onetrain(
             envelopePoints.add(EnvelopePoint(time, speed, position))
 
             if (time >= 2934.0) {
-                ltv.put(Range.all(), (200/3.6).toMicros())
+                ltv.put(Range.all(), (200 / 3.6).toMicros())
             }
         }
 
@@ -163,7 +164,10 @@ fun onetrain(
         ReportTrain(
             positions = baseReport.positions,
             times = baseReport.times,
-            speeds = simplifiedPoints.map { point -> mrsp.get(point.position.toMicros())?.toSI() ?: 500.0 },
+            speeds =
+                simplifiedPoints.map { point ->
+                    mrsp.get(point.position.toMicros())?.toSI() ?: 500.0
+                },
             energyConsumption = baseReport.energyConsumption,
             pathItemTimes = baseReport.pathItemTimes,
         )
@@ -199,18 +203,16 @@ fun onetrain(
     )
 }
 
-private fun trimPoints(
-    envelopePoints: List<EnvelopePoint>,
-    length: Meters,
-): List<EnvelopePoint> {
+private fun trimPoints(envelopePoints: List<EnvelopePoint>, length: Meters): List<EnvelopePoint> {
     val result = envelopePoints.binarySearchBy(length) { point -> point.position }
     return if (result >= 0) {
         envelopePoints.slice(0..result)
     } else {
         val i = -result - 1
-        val t = envelopePoints.getOrNull(i)?.time
-            ?: (envelopePoints.getOrNull(i - 1)?.time?.let { time -> time + 2.0 })
-            ?: Double.POSITIVE_INFINITY
+        val t =
+            envelopePoints.getOrNull(i)?.time
+                ?: (envelopePoints.getOrNull(i - 1)?.time?.let { time -> time + 2.0 })
+                ?: Double.POSITIVE_INFINITY
         envelopePoints.slice(0..<i) + EnvelopePoint(t, 0.0, length)
     }
 }

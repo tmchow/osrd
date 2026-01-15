@@ -8,8 +8,11 @@ import fr.sncf.osrd.utils.units.Speed
 
 // Extension methods for types in core that are specific to tsim
 
-internal fun EnvelopePoint(time: Microseconds, speed: MicrometersPerSecond, position: Micrometers): EnvelopePoint =
-    EnvelopePoint(time.toSI(), speed.toSI(), position.toSI())
+internal fun EnvelopePoint(
+    time: Microseconds,
+    speed: MicrometersPerSecond,
+    position: Micrometers,
+): EnvelopePoint = EnvelopePoint(time.toSI(), speed.toSI(), position.toSI())
 
 internal val Distance.micrometers
     get() = millimeters * 1000
