@@ -20,7 +20,7 @@ import { LAYER_GROUPS_ORDER, LAYERS } from 'config/layerOrder';
 import type { MapSettings, Viewport } from 'reducers/commonMap/types';
 
 import { CUSTOM_ATTRIBUTION } from './const';
-import useScrollZoomOnShift from './useScrollZoomOnShift';
+import useMapScrollZoomOnShift from './useMapScrollZoomOnShift';
 
 type MapProps = {
   mapSettings: MapSettings;
@@ -95,7 +95,7 @@ const BaseMap = ({
     }
   }, []);
 
-  useScrollZoomOnShift({ enabled: scrollZoomOnShift, mapIsLoaded, mapRef });
+  useMapScrollZoomOnShift({ enabled: scrollZoomOnShift, mapIsLoaded, mapRef });
 
   return (
     <ReactMapGL
