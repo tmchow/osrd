@@ -2,6 +2,7 @@ import { type PropsWithChildren, type RefObject, useEffect, useState } from 'rea
 
 import type { Geometry } from 'geojson';
 import type { MapLayerMouseEvent, MapLibreEvent } from 'maplibre-gl';
+import { useTranslation } from 'react-i18next';
 import type { MapRef } from 'react-map-gl/maplibre';
 import ReactMapGL, { AttributionControl, ScaleControl } from 'react-map-gl/maplibre';
 import { useParams } from 'react-router-dom';
@@ -21,6 +22,7 @@ import type { MapSettings, Viewport } from 'reducers/commonMap/types';
 
 import { CUSTOM_ATTRIBUTION } from './const';
 import useMapScrollZoomOnShift from './useMapScrollZoomOnShift';
+import useMapScrollZoomTooltip from './useMapScrollZoomTooltip';
 
 type MapProps = {
   mapSettings: MapSettings;
@@ -65,6 +67,7 @@ const BaseMap = ({
   highlightedArea,
   scrollZoomOnShift = false,
 }: PropsWithChildren<MapProps>) => {
+  const { t } = useTranslation('translation');
   const mapBlankStyle = useMapBlankStyle();
 
   const [mapIsLoaded, setMapIsLoaded] = useState(false);
@@ -96,6 +99,8 @@ const BaseMap = ({
   }, []);
 
   useMapScrollZoomOnShift({ enabled: scrollZoomOnShift, mapIsLoaded, mapRef });
+  const { isVisible: isScrollZoomTooltipVisible, isFading: isScrollZoomTooltipFading } =
+    useMapScrollZoomTooltip({ enabled: scrollZoomOnShift, mapIsLoaded, mapRef });
 
   return (
     <ReactMapGL
@@ -138,6 +143,11 @@ const BaseMap = ({
       style={{ width: '100%', height: '100%' }}
       touchZoomRotate
     >
+      {scrollZoomOnShift && isScrollZoomTooltipVisible && (
+        <div className={`map-scroll-zoom-tooltip${isScrollZoomTooltipFading ? ' is-fading' : ''}`}>
+          {t('map-scroll-zoom-tooltip')}
+        </div>
+      )}
       <VirtualLayers />
       {!hideAttribution && (
         <AttributionControl position="bottom-right" customAttribution={CUSTOM_ATTRIBUTION} />

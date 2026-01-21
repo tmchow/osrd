@@ -589,6 +589,7 @@
       "toggle-layers": "Choisir les types d'éléments à afficher"
     }
   },
+  "map-scroll-zoom-tooltip": "Appuyez sur la touche Maj pour zoomer tout en faisant défiler",
   "mapKey": {
     "alternatingCurrent": "Alternatif",
     "directCurrent": "Continu",

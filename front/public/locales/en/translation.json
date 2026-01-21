@@ -589,6 +589,7 @@
       "toggle-layers": "Choose the types of elements to display"
     }
   },
+  "map-scroll-zoom-tooltip": "Press the shift key to zoom while scrolling",
   "mapKey": {
     "alternatingCurrent": "AC",
     "directCurrent": "DC",

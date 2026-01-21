@@ -124,6 +124,8 @@
     "translate": "Übersetzen",
     "value": "Wert"
   },
+  "map": "Karte",
+  "map-scroll-zoom-tooltip": "Drücken Sie die Umschalttaste, um beim Scrollen zu zoomen",
   "nav-bar": {
     "about": "Über OSRD",
     "disconnect": "Abmelden",
