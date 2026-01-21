@@ -33,7 +33,7 @@ class Curve(val xs: LongArray, val ys: LongArray) {
         get() = xs.size
 
     operator fun plus(point: Vec2): Curve =
-        Curve(xs.asSequence().zip(ys.asSequence()).map { Vec2(it) })
+        Curve(xs.asSequence().zip(ys.asSequence()).map { Vec2(it) } + sequenceOf(point))
 
     /**
      * Linear intERPolation of the Y value of the curve at the given [x] position

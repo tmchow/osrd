@@ -90,20 +90,121 @@ internal fun raisePantograph(position: Double, raiseTime: Microseconds, dt: Micr
     }
 }
 
+sealed interface PantographState {
+    class Up : PantographState
+
+    class Down : PantographState
+
+    class GoingUp(
+        /** time until the pantograph is fully raised */
+        val remainingTime: Microseconds
+    ) : PantographState
+
+    class GoingDown(
+        /** time until the pantograph is fully lowered */
+        val remainingTime: Microseconds
+    ) : PantographState
+
+    fun merge(other: PantographState): PantographState =
+        when (this) {
+            is Down -> this
+            is GoingDown -> when (other) {
+                is Down -> other
+                is GoingDown -> if (remainingTime < other.remainingTime) {
+                    this
+                } else {
+                    other
+                }
+                is GoingUp -> this
+                is Up -> this
+            }
+            is GoingUp -> when (other) {
+                is Down -> other
+                is GoingDown -> other
+                is GoingUp -> if (remainingTime < other.remainingTime) {
+                    other
+                } else {
+                    this
+                }
+                is Up -> this
+            }
+            is Up -> other
+        }
+}
+
+interface Decision {
+    val time: Microseconds?
+    val position: Micrometers?
+
+    fun merge(current: TrainState, mostConstrained: TrainState): TrainState
+}
+
 class TrainState(
-    val time: Microseconds,
-    val position: Micrometers,
+    override val time: Microseconds,
+    override val position: Micrometers,
     val speed: MicrometersPerSecond,
-    /** `0.0` means fully lowered, and `1.0` means fully raised. */
-    val pantographPosition: Double,
-) {
+    val pantograph: PantographState,
+) : Decision {
     init {
         require(time >= 0) { "train time must be positive or zero" }
         require(position >= 0) { "train position must be positive or zero" }
         require(speed >= 0) { "train speed must be positive or zero" }
-        require(pantographPosition in 0.0..1.0) {
-            "pantograph position must be between 0.0 and 1.0"
+    }
+
+    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
+        val acceleration = speed - current.speed
+        val constrainedAcceleration = mostConstrained.speed - current.speed
+        if (acceleration < constrainedAcceleration) {
+            if (mostConstrained.time < time) {
+                TODO("truncate this")
+            }
+            // TODO merge pantograph states
+            return this
         }
+        // TODO merge pantograph states
+        return mostConstrained
+    }
+}
+
+/**
+ * Start raising the pantograph at [position], given a time to fully raise from its current position
+ * [lowerPantographTime]
+ */
+class RaisePantograph(override val position: Micrometers, val raisePantographTime: Microseconds) : Decision {
+    override val time: Microseconds? = null
+
+    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
+        if (mostConstrained.position < position) {
+            return mostConstrained
+        }
+        val truncated: TrainState = TODO("truncate mostConstrained to this.position")
+        return TrainState(
+            time = truncated.time,
+            position = truncated.position,
+            speed = truncated.speed,
+            pantograph = PantographState.GoingUp(raisePantographTime),
+        )
+    }
+}
+
+/**
+ * Start lowering the pantograph at [position], given a time to fully lower from its current
+ * position [lowerPantographTime]
+ */
+class LowerPantograph(override val position: Micrometers, val lowerPantographTime: Microseconds) : Decision {
+    override val time: Microseconds? = null
+
+    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
+        if (mostConstrained.position < position) {
+            return mostConstrained
+        }
+        val truncated: TrainState = TODO("truncate mostConstrained to this.position")
+        return TrainState(
+            time = truncated.time,
+            position = truncated.position,
+            speed = truncated.speed,
+            pantograph = PantographState.GoingDown(lowerPantographTime),
+        )
     }
 }
 
@@ -161,7 +262,7 @@ interface Constraint {
      * Apply the constraint given the [currentState] of the train and return the state of the train
      * after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
-    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState
+    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): Decision?
 
     /**
      * Apply the constraint given the [currentState] of the train and return the state of the train
@@ -218,7 +319,7 @@ interface SpeedConstraint : Constraint {
                     time = currentState.time + timeDelta,
                     position = currentState.position + positionDelta,
                     speed = startSpeed,
-                    pantographPosition = currentState.pantographPosition,
+                    pantograph = currentState.pantograph,
                 )
             }
 
@@ -237,7 +338,7 @@ interface SpeedConstraint : Constraint {
                     time = currentState.time + timeDelta,
                     position = currentState.position + positionDelta,
                     speed = endSpeed,
-                    pantographPosition = currentState.pantographPosition,
+                    pantograph = currentState.pantograph,
                 )
             }
 
@@ -248,7 +349,7 @@ interface SpeedConstraint : Constraint {
                 time = currentState.time + timeDelta,
                 position = currentState.position + positionDelta,
                 speed = startSpeed,
-                pantographPosition = currentState.pantographPosition,
+                pantograph = currentState.pantograph,
             )
         }
 
@@ -261,7 +362,7 @@ interface SpeedConstraint : Constraint {
                 time = currentState.time + s.timeDelta,
                 position = currentState.position + s.positionDelta,
                 speed = s.endSpeed,
-                pantographPosition = currentState.pantographPosition,
+                pantograph = currentState.pantograph,
             )
         }
 
@@ -283,7 +384,7 @@ interface SpeedConstraint : Constraint {
             time = currentState.time + s.timeDelta,
             position = currentState.position + s.positionDelta,
             speed = s.endSpeed,
-            pantographPosition = currentState.pantographPosition,
+            pantograph = currentState.pantograph,
         )
     }
 
@@ -371,29 +472,85 @@ class TemporarySpeedLimit(
 /**
  * Start of a neutral zone
  *
- * From [signalPosition] on, the train has no access to electricity. If [lowerPantograph] is `true`,
- * the pantograph must begin to lower no further than [signalPosition].
+ * From [start] on, the train has no access to electricity. If [lowerPantograph] is `true`, the
+ * pantograph must begin to lower no further than [signalPosition].
  */
-class NeutralZone(
-    override val signalPosition: Micrometers,
+class NeutralSection(
+    val start: Micrometers,
+    val end: Micrometers,
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
-) : Constraint {}
+) : Constraint {
+    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): Decision? {
+        if (currentState.position < start) {
+            if (lowerPantograph) {
+                val time =
+                    when (currentState.pantograph) {
+                        is PantographState.Down -> 0
+                        is PantographState.GoingDown -> currentState.pantograph.remainingTime
+                        is PantographState.GoingUp ->
+                            (context.rollingStock.lowerPantographTime *
+                                (1.0 -
+                                    currentState.pantograph.remainingTime.toSI() /
+                                    context.rollingStock.raisePantographTime))
+                                .toMicros()
+                        is PantographState.Up -> context.rollingStock.lowerPantographTime.toMicros()
+                    }
+                return LowerPantograph(start, time)
+            } else {
+                return null
+            }
+        } else if (currentState.position < end) {
+            val step =
+                TrainPhysicsIntegrator.step(
+                        context = context,
+                        initialLocation = currentState.position.toSI(),
+                        initialSpeed = currentState.speed.toSI(),
+                        action = Action.COAST,
+                        directionSign = +1.0,
+                    )
+                    .toMicros()
+            if (step.positionDelta + currentState.position > end) {
+                val ratio = (end - currentState.position).toDouble() / step.positionDelta.toDouble()
+                val speedDelta = step.endSpeed - step.startSpeed
+                val pantograph = when(currentState.pantograph) {
+                    is PantographState.Down -> PantographState.GoingUp(context.rollingStock.raisePantographTime.toMicros())
+                    is PantographState.GoingDown -> PantographState.GoingUp(
+                        (context.rollingStock.raisePantographTime *
+                            (1.0 -
+                                currentState.pantograph.remainingTime.toSI() /
+                                context.rollingStock.lowerPantographTime))
+                            .toMicros()
+                    )
+                    is PantographState.GoingUp -> currentState.pantograph
+                    is PantographState.Up -> currentState.pantograph
+                }
+                return TrainState(
+                    time = currentState.time + (step.timeDelta * ratio).toLong(),
+                    position = end,
+                    speed = currentState.speed + (speedDelta * ratio).toLong(),
+                    pantograph = pantograph,
+                )
+            }
+            return TrainState(
+                time = currentState.time + step.timeDelta,
+                position = currentState.position + step.positionDelta,
+                speed = step.endSpeed,
+                pantograph = currentState.pantograph,
+            )
+        } else {
+            return null
+        }
+    }
 
-/**
- * Start of an electrified zone
- *
- * From [signalPosition] on, the train may have access to electricity. If [reverse] is `true`, the
- * full length of the rolling stock must be pass [signalPosition] to begin raising the pantograph.
- */
-class ElectrifiedZone(
-    override val signalPosition: Micrometers,
-    /**
-     * Whether the rolling stock has to be fully inside the electrified zone before the pantograph
-     * can be raised
-     */
-    val reverse: Boolean,
-) : Constraint {}
+    override fun truncateStep(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        potentialState: TrainState,
+    ): TrainState {
+        TODO("Not yet implemented")
+    }
+}
 
 /**
  * Short-slip stop signal
@@ -477,13 +634,14 @@ fun step(
     driver: Driver,
     currentState: TrainState,
 ): TrainState {
-    for (constraint in constraints) {
-        if (
-            constraint.signalPosition != null &&
-                driver.sightDistance < constraint.signalPosition - currentState.position
-        ) {
-            // The driver doesn't see the signal
-            continue
-        }
-    }
+    val decision =
+        constraints
+            .asSequence()
+            .filter { it.doesApply(context, currentState, driver) }
+            .mapNotNull { it.enactDecision(context, currentState) }
+            .fold(naiveStep(context, currentState)) { mostConstrained, decision ->
+                decision.merge(currentState, mostConstrained)
+            }
 }
+
+fun naiveStep(context: EnvelopeSimContext, currentState: TrainState): TrainState = TODO()
