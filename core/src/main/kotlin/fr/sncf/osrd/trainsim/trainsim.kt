@@ -167,33 +167,14 @@ class TrainState(
 }
 
 /**
- * Start raising the pantograph at [position], given a time to fully raise from its current position
- * [lowerPantographTime]
- */
-class RaisePantograph(override val position: Micrometers, val raisePantographTime: Microseconds) : Decision {
-    override val time: Microseconds? = null
-
-    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
-        if (mostConstrained.position < position) {
-            return mostConstrained
-        }
-        val truncated: TrainState = TODO("truncate mostConstrained to this.position")
-        return TrainState(
-            time = truncated.time,
-            position = truncated.position,
-            speed = truncated.speed,
-            pantograph = PantographState.GoingUp(raisePantographTime),
-        )
-    }
-}
-
-/**
  * Start lowering the pantograph at [position], given a time to fully lower from its current
  * position [lowerPantographTime]
  */
 class LowerPantograph(override val position: Micrometers, val lowerPantographTime: Microseconds) : Decision {
     override val time: Microseconds? = null
 
+    // TODO  add context to this method and remove LowerPantograph.lowerPantographTime to fix the problem where NeutralSection.enactDecision cannot compute the position of the pantograph when the train is at NeutralSection.start
+    // TODO find how the "short case" can be achieved using the truncate step loop https://osrd.fr/en/docs/reference/design-docs/train-sim-v3/driver-behavior-modules/#loop
     override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
         if (mostConstrained.position < position) {
             return mostConstrained
