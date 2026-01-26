@@ -8,6 +8,28 @@ data class Vec2(val x: Long, val y: Long) {
 }
 
 /**
+ * Represents a simple segment ((x1, y1), (x2, y2))
+ *
+ * TODO: This may be removed in the future. At first I thought it would be useful, but turns out it
+ *   just wraps coordinates for now
+ */
+data class Segment(val first: Vec2, val second: Vec2) {
+    constructor(x1: Long, y1: Long, x2: Long, y2: Long) : this(Vec2(x1, y1), Vec2(x2, y2))
+
+    val x1: Long
+        get() = first.x
+
+    val y1: Long
+        get() = first.y
+
+    val x2: Long
+        get() = second.x
+
+    val y2: Long
+        get() = second.y
+}
+
+/**
  * A 2D curve.
  *
  * This class represents a list of 2D points `(xs[i],ys[i])`. [xs] and [ys] must have the same size.
@@ -34,6 +56,50 @@ class Curve(val xs: LongArray, val ys: LongArray) {
 
     operator fun plus(point: Vec2): Curve =
         Curve(xs.asSequence().zip(ys.asSequence()).map { Vec2(it) } + sequenceOf(point))
+
+    operator fun plus(points: Iterable<Vec2>): Curve =
+        Curve(xs.asSequence().zip(ys.asSequence()).map { Vec2(it) } + points.asSequence())
+
+    /**
+     * Creates a [Vec2] from the curve data at index [idx].
+     *
+     * Returns `null` if [idx] is out of bounds.
+     */
+    internal fun getPointAt(idx: Int): Vec2? {
+        if (idx !in 0..<size) {
+            return null
+        }
+
+        return Vec2(xs[idx], ys[idx])
+    }
+
+    /** Checks if the curve is below a given [point] */
+    internal fun isBelow(point: Vec2): Boolean {
+        val index = xs.binarySearch(point.x)
+
+        if (index < 0) {
+            // Exact match not found. Let's check with the segment from the previous to the next
+            // point
+            val nextPointIdx = -index - 1
+            val previousPointIdx = nextPointIdx - 1
+            val nextPoint = getPointAt(nextPointIdx)
+            val previousPoint = getPointAt(previousPointIdx)
+
+            // TODO: This might be wrong
+            if (nextPoint == null || previousPoint == null) {
+                return true
+            }
+
+            val v1 = Vec2(nextPoint.x - previousPoint.x, nextPoint.y - previousPoint.y)
+            val v2 = Vec2(nextPoint.x - point.x, nextPoint.y - point.y)
+            val xp = (v1.x * v2.y) - (v1.y * v2.x)
+
+            return xp < 0
+        }
+
+        // Direct match, just compare the y values
+        return ys[index] < point.y
+    }
 
     /**
      * Linear intERPolation of the Y value of the curve at the given [x] position
@@ -84,7 +150,26 @@ class Curve(val xs: LongArray, val ys: LongArray) {
         }
     }
 
-    internal fun intersectsAt(x1: Long, y1: Long, x2: Long, y2: Long): Vec2? {
+    /**
+     * Returns the last point on the curve, optionally offset by [n], as a [Vec2]. For example,
+     * `curve.last()` returns the last point on the curve whereas `curve.last(1)` returns the second
+     * to last point.
+     *
+     * Returns `null` if [n] is out of bounds
+     */
+    internal fun last(n: Int = 0): Vec2? {
+        if (n !in 0..<size) {
+            return null
+        }
+
+        return Vec2(xs[size - n - 1], ys[size - n - 1])
+    }
+
+    internal fun intersectsAt(segment: Segment): Vec2? {
+        val x1 = segment.x1
+        val y1 = segment.y1
+        val x2 = segment.x2
+        val y2 = segment.y2
         require(x1 < x2)
 
         val r1 = xs.binarySearch(x1)

@@ -7,6 +7,8 @@ import fr.sncf.osrd.envelope_sim.TrainPhysicsIntegrator
 import fr.sncf.osrd.envelope_sim.etcs.BrakingType
 import fr.sncf.osrd.tsim.MicrometerArray
 import fr.sncf.osrd.tsim.MicrometerPerSecondArray
+import kotlin.collections.windowed
+import kotlin.math.absoluteValue
 import kotlin.math.min
 
 typealias Microseconds = Long
@@ -24,6 +26,12 @@ typealias MicrometerArray = LongArray
 typealias MicrometerPerSecondArray = LongArray
 
 fun Double.toMicros(): Long = (this * 1e6).toLong()
+
+/**
+ * Convert a speed in kilometers per hour, as a [Double], into a speed in micrometers per second, as
+ * a [Long].
+ */
+fun Double.fromKphToUph(): Long = (this / 3.6e-6).toLong()
 
 fun Long.toSI(): Double = this.toDouble() / 1e6
 
@@ -108,26 +116,34 @@ sealed interface PantographState {
     fun merge(other: PantographState): PantographState =
         when (this) {
             is Down -> this
-            is GoingDown -> when (other) {
-                is Down -> other
-                is GoingDown -> if (remainingTime < other.remainingTime) {
-                    this
-                } else {
-                    other
+            is GoingDown ->
+                when (other) {
+                    is Down -> other
+                    is GoingDown ->
+                        if (remainingTime < other.remainingTime) {
+                            this
+                        } else {
+                            other
+                        }
+
+                    is GoingUp -> this
+                    is Up -> this
                 }
-                is GoingUp -> this
-                is Up -> this
-            }
-            is GoingUp -> when (other) {
-                is Down -> other
-                is GoingDown -> other
-                is GoingUp -> if (remainingTime < other.remainingTime) {
-                    other
-                } else {
-                    this
+
+            is GoingUp ->
+                when (other) {
+                    is Down -> other
+                    is GoingDown -> other
+                    is GoingUp ->
+                        if (remainingTime < other.remainingTime) {
+                            other
+                        } else {
+                            this
+                        }
+
+                    is Up -> this
                 }
-                is Up -> this
-            }
+
             is Up -> other
         }
 }
@@ -166,11 +182,13 @@ class TrainState(
     }
 }
 
+
 /**
  * Start lowering the pantograph at [position], given a time to fully lower from its current
  * position [lowerPantographTime]
  */
-class LowerPantograph(override val position: Micrometers, val lowerPantographTime: Microseconds) : Decision {
+class LowerPantograph(override val position: Micrometers, val lowerPantographTime: Microseconds) :
+    Decision {
     override val time: Microseconds? = null
 
     // TODO  add context to this method and remove LowerPantograph.lowerPantographTime to fix the problem where NeutralSection.enactDecision cannot compute the position of the pantograph when the train is at NeutralSection.start
@@ -385,8 +403,8 @@ interface SpeedConstraint : Constraint {
     ): NanoIntegrationStep {
         val endPos = startPos + step.positionDelta
 
-        val point =
-            constraint.intersectsAt(startPos, step.startSpeed, endPos, step.endSpeed) ?: return step
+        val segment = Segment(startPos, step.startSpeed, endPos, step.endSpeed)
+        val point = constraint.intersectsAt(segment) ?: return step
 
         val newEndPos = point.x
         val newEndSpeed = point.y
@@ -471,10 +489,11 @@ class NeutralSection(
                         is PantographState.GoingDown -> currentState.pantograph.remainingTime
                         is PantographState.GoingUp ->
                             (context.rollingStock.lowerPantographTime *
-                                (1.0 -
-                                    currentState.pantograph.remainingTime.toSI() /
-                                    context.rollingStock.raisePantographTime))
+                                    (1.0 -
+                                        currentState.pantograph.remainingTime.toSI() /
+                                            context.rollingStock.raisePantographTime))
                                 .toMicros()
+
                         is PantographState.Up -> context.rollingStock.lowerPantographTime.toMicros()
                     }
                 return LowerPantograph(start, time)
@@ -494,18 +513,25 @@ class NeutralSection(
             if (step.positionDelta + currentState.position > end) {
                 val ratio = (end - currentState.position).toDouble() / step.positionDelta.toDouble()
                 val speedDelta = step.endSpeed - step.startSpeed
-                val pantograph = when(currentState.pantograph) {
-                    is PantographState.Down -> PantographState.GoingUp(context.rollingStock.raisePantographTime.toMicros())
-                    is PantographState.GoingDown -> PantographState.GoingUp(
-                        (context.rollingStock.raisePantographTime *
-                            (1.0 -
-                                currentState.pantograph.remainingTime.toSI() /
-                                context.rollingStock.lowerPantographTime))
-                            .toMicros()
-                    )
-                    is PantographState.GoingUp -> currentState.pantograph
-                    is PantographState.Up -> currentState.pantograph
-                }
+                val pantograph =
+                    when (currentState.pantograph) {
+                        is PantographState.Down ->
+                            PantographState.GoingUp(
+                                context.rollingStock.raisePantographTime.toMicros()
+                            )
+
+                        is PantographState.GoingDown ->
+                            PantographState.GoingUp(
+                                (context.rollingStock.raisePantographTime *
+                                        (1.0 -
+                                            currentState.pantograph.remainingTime.toSI() /
+                                                context.rollingStock.lowerPantographTime))
+                                    .toMicros()
+                            )
+
+                        is PantographState.GoingUp -> currentState.pantograph
+                        is PantographState.Up -> currentState.pantograph
+                    }
                 return TrainState(
                     time = currentState.time + (step.timeDelta * ratio).toLong(),
                     position = end,
@@ -539,9 +565,16 @@ class NeutralSection(
  * When closer than 300 meters from this signal, the train must go no higher than 27kph. When closer
  * than 100 meters from this signal, the train must go no higher than 10kph.
  */
-class ShortSlipStop(override val signalPosition: Micrometers) : SpeedConstraint {
+sealed class ShortSlipStop(val position: Micrometers) : SpeedConstraint {
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
-        TODO("Return curve")
+        val stopStart27 = position - 300.0.toMicros()
+        val stopStart10 = position - 100.0.toMicros()
+
+        return makeCurve(
+            context,
+            Pair(stopStart27, 27.0.fromKphToUph()),
+            Pair(stopStart10, 10.0.fromKphToUph()),
+        )
     }
 }
 
@@ -550,11 +583,131 @@ class ShortSlipStop(override val signalPosition: Micrometers) : SpeedConstraint 
  *
  * The train must stop at [signalPosition] for the duration of [duration].
  */
-class Stop(override val signalPosition: Micrometers, val duration: Microseconds) : SpeedConstraint {
+class Stop(/*override val signalPosition: Micrometers, */ val duration: Microseconds) :
+    SpeedConstraint {
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
         val point = Vec2(TODO(), 0)
         return Curve(point)
     }
+}
+
+/**
+ * Computes the deceleration curves of several [points].
+ *
+ * Returns a list of [Curve]s matching the given points, in the same order.
+ */
+private fun computeDecelerationCurves(
+    context: EnvelopeSimContext,
+    points: Iterable<Pair<Micrometers, MicrometersPerSecond>>,
+): List<Curve> {
+    val curveEndPosition = points.last().first
+    return points.map {
+        var curve = decelerationCurve(context, it.first, it.second)
+        if (it.first != curveEndPosition) {
+            // We only need to fill the deceleration curves that end before the end of the points' x
+            // coordinates range
+            curve += Vec2(curveEndPosition, it.second)
+        }
+        curve
+    }
+}
+
+/**
+ * Computes and gathers all valid candidates for the merging of the deceleration [curves].
+ *
+ * A point is valid if it is below all the other curves.
+ *
+ * Returns a sorted list (on the x coordinate of each point) of [Pair] containing both the valid
+ * point and the curve from which it stems. This will be useful in future processing to determine
+ * the intersection between the curves.
+ */
+private fun computeCandidatePoints(curves: List<Curve>): List<Pair<Vec2, Curve>> {
+    val belows = arrayListOf<Pair<Vec2, Curve>>()
+
+    for (curve in curves) {
+        for (i in 0..<curve.size) {
+            // We can not possibly be out of bounds here since we iterate strictly in bounds
+            val point = curve.getPointAt(i)!!
+            var underAllOtherCurves = true
+
+            for (otherCurve in curves) {
+                if (curve == otherCurve) continue
+                if (otherCurve.isBelow(point)) {
+                    underAllOtherCurves = false
+                    break
+                }
+            }
+
+            if (underAllOtherCurves) belows += Pair(point, curve)
+        }
+    }
+
+    return belows.sortedBy { it.first.x }
+}
+
+/**
+ * Retains the valid candidates from a list of potentially wrong [candidates].
+ *
+ * If two consecutive points are on the same curve, the first one is valid. Otherwise, the first one
+ * is valid, and we need to add a new point at the intersection of both curves.
+ *
+ * Returns a list of [Vec2] representing all the valid points.
+ */
+private fun retainValidCandidates(candidates: List<Pair<Vec2, Curve>>): List<Vec2> {
+    val retainedPoints = arrayListOf<Vec2>()
+
+    candidates.windowed(2).forEach {
+        val curr = it[0]
+        val next = it[1]
+
+        if (curr.second == next.second) {
+            /* We are on the same curve, keep the point */
+            retainedPoints += curr.first
+            return@forEach
+        }
+
+        /**
+         * We change curve between two consecutive points. Add the current point AND the point at
+         * the intersection of the curves
+         */
+        retainedPoints += curr.first
+
+        var segmentStart = curr.second.last(1)
+        // This is safe because a `Curve` always has at least one point
+        val segmentEnd = curr.second.last()!!
+
+        if (segmentStart == null) {
+            // Extend the segment to be constant: [(0, y2), (x2, y2)]
+            segmentStart = Vec2(0, segmentEnd.y)
+        }
+
+        val segment = Segment(segmentStart, segmentEnd)
+        val intersection = next.second.intersectsAt(segment)
+
+        if (intersection != null) {
+            retainedPoints += intersection
+        }
+    }
+
+    // Add the very last point as it will always be the lowest one, and it is skipped during the
+    // "windowed" iteration
+    retainedPoints += candidates.last().first
+    return retainedPoints
+}
+
+/**
+ * Creates a deceleration curve passing through all the provided (position, speed) [points].
+ *
+ * Returns the deceleration [Curve]
+ */
+internal fun makeCurve(
+    context: EnvelopeSimContext,
+    vararg points: Pair<Micrometers, MicrometersPerSecond>,
+): Curve {
+    val curves = computeDecelerationCurves(context, points.asIterable())
+    val belows = computeCandidatePoints(curves)
+    val validCandidates = retainValidCandidates(belows)
+    return Curve(validCandidates)
 }
 
 internal fun decelerationCurve(
@@ -606,7 +759,16 @@ internal fun decelerationCurve(
         speeds[i] = min(s.endSpeed, maxSpeed)
     }
 
-    return Curve(positions, speeds)
+    // Clamp at x = 0 in case the integration step goes out of the curve
+    val curve = Curve(positions, speeds)
+    val positionDiff = (positions[0] - positions[1]).absoluteValue
+    val speedDiff = (speeds[0] - speeds[1]).absoluteValue
+    val speedToZero = (positions[1] * speedDiff) / positionDiff
+    val speedAtZero = speeds[1] + speedToZero
+    curve.xs[0] = 0
+    curve.ys[0] = speedAtZero
+
+    return curve
 }
 
 fun step(
@@ -623,6 +785,9 @@ fun step(
             .fold(naiveStep(context, currentState)) { mostConstrained, decision ->
                 decision.merge(currentState, mostConstrained)
             }
+
+    // TODO: Do
+    return currentState
 }
 
 fun naiveStep(context: EnvelopeSimContext, currentState: TrainState): TrainState = TODO()
