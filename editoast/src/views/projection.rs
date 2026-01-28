@@ -539,16 +539,16 @@ impl TrainToProjectOnOperationalPoint {
                     .map(|stop_for| (&schedule.at, stop_for.num_milliseconds() as u64))
             })
             .collect();
-        let space_time_curve = Some(extract_curve_for_invalid_train_with_sim(
+        let space_time_curve = extract_curve_for_invalid_train_with_sim(
             ts,
             &sim,
             &pathfinding,
-        ));
+        );
         let refs = ts
             .path()
             .iter()
-            .zip(sim.final_output.report_train.path_item_times)
-            .flat_map(|(path_item, arrival_time)| match &path_item.location {
+            .zip(&space_time_curve.times)
+            .flat_map(|(path_item, &arrival_time)| match &path_item.location {
                 PathItemLocation::OperationalPointPartReference(op_ref) => {
                     Some(OperationalPointRefAndTime {
                         arrival_time,
@@ -560,7 +560,7 @@ impl TrainToProjectOnOperationalPoint {
             })
             .collect();
         Self {
-            space_time_curve,
+            space_time_curve: Some(space_time_curve),
             refs,
         }
     }
