@@ -2,7 +2,6 @@ use crate::error::Result;
 use core_client::CoreClient;
 use core_client::pathfinding::PathfindingResultSuccess;
 use core_client::pathfinding::TrackRange;
-use core_client::simulation::CompleteReportTrain;
 use core_client::simulation::ReportTrain;
 use database::DbConnection;
 use editoast_derive::EditoastError;
@@ -519,9 +518,15 @@ impl TrainToProjectOnOperationalPoint {
         }
     }
 
-    fn new_from_simulation<T: TrainScheduleLike>(ts: &T, sim: simulation::Response) -> Self {
-        let simulation::Response::Success(SimulationResponseSuccess { final_output, .. }) = sim
-        else {
+    fn new_from_simulation<T: TrainScheduleLike>(
+        ts: &T,
+        sim: simulation::Response,
+        pathfinding: PathfindingResult,
+    ) -> Self {
+        let simulation::Response::Success(sim) = sim else {
+            return TrainToProjectOnOperationalPoint::new(ts);
+        };
+        let PathfindingResult::Success(pathfinding) = pathfinding else {
             return TrainToProjectOnOperationalPoint::new(ts);
         };
         let stops_input: HashMap<_, _> = ts
@@ -534,15 +539,15 @@ impl TrainToProjectOnOperationalPoint {
                     .map(|stop_for| (&schedule.at, stop_for.num_milliseconds() as u64))
             })
             .collect();
-        let CompleteReportTrain { report_train, .. } = final_output;
-        let space_time_curve = Some(SpaceTimeCurve {
-            positions: report_train.positions,
-            times: report_train.times,
-        });
+        let space_time_curve = Some(extract_curve_for_invalid_train_with_sim(
+            ts,
+            &sim,
+            &pathfinding,
+        ));
         let refs = ts
             .path()
             .iter()
-            .zip(report_train.path_item_times)
+            .zip(sim.final_output.report_train.path_item_times)
             .flat_map(|(path_item, arrival_time)| match &path_item.location {
                 PathItemLocation::OperationalPointPartReference(op_ref) => {
                     Some(OperationalPointRefAndTime {
@@ -662,10 +667,11 @@ pub async fn compute_projected_train_path_op<T: TrainScheduleLike>(
         indexes: Vec<usize>,
         train_schedule: &'a T,
         simulation: simulation::Response,
+        pathfinding: PathfindingResult,
     }
 
     let mut to_compute = HashMap::new();
-    for ((idx, train_schedule), (simulation, _)) in train_schedules
+    for ((idx, train_schedule), (simulation, pathfinding)) in train_schedules
         .iter()
         .enumerate()
         .zip(simulations.into_iter())
@@ -676,6 +682,7 @@ pub async fn compute_projected_train_path_op<T: TrainScheduleLike>(
                 indexes: vec![],
                 train_schedule,
                 simulation: Arc::unwrap_or_clone(simulation),
+                pathfinding: Arc::unwrap_or_clone(pathfinding),
             })
             .indexes
             .push(idx);
@@ -683,8 +690,11 @@ pub async fn compute_projected_train_path_op<T: TrainScheduleLike>(
 
     let mut results = vec![Arc::default(); train_schedules.len()];
     for e in to_compute.into_values() {
-        let train_to_project =
-            TrainToProjectOnOperationalPoint::new_from_simulation(e.train_schedule, e.simulation);
+        let train_to_project = TrainToProjectOnOperationalPoint::new_from_simulation(
+            e.train_schedule,
+            e.simulation,
+            e.pathfinding,
+        );
         let curves = Arc::new(project_train_path_op(
             &train_to_project,
             path_item_cache,
