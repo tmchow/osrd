@@ -358,7 +358,7 @@ class Context(
                         speed.toSI(),
                         action,
                         -1.0,
-                        target.brake,
+                        target.brake!!,
                     )
                     .toMicros()
             assert(s.timeDelta == dt)
@@ -382,7 +382,7 @@ class Context(
                         speeds[i + 1].toSI(),
                         action,
                         -1.0,
-                        target.brake,
+                        target.brake!!,
                     )
                     .toMicros()
             positions[i] = positions[i + 1] + s.positionDelta

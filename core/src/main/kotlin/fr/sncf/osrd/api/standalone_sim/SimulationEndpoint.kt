@@ -9,7 +9,7 @@ import fr.sncf.osrd.cli.RsWithBody
 import fr.sncf.osrd.cli.RsWithStatus
 import fr.sncf.osrd.cli.Take
 import fr.sncf.osrd.reporting.exceptions.OSRDError
-import fr.sncf.osrd.tsim.onetrain
+import fr.sncf.osrd.trainsim.runSimulation
 import fr.sncf.osrd.utils.*
 import io.opentelemetry.api.trace.Span
 import java.io.File
@@ -57,7 +57,7 @@ class SimulationEndpoint(
                 request.path.toTrainPath(infra.rawInfra, infra.blockInfra, electricalProfileMap)
 
             val res =
-                onetrain(
+                runSimulation(
                     infra,
                     trainPath,
                     rollingStock,

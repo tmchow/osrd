@@ -3,7 +3,7 @@ package fr.sncf.osrd.tsim
 import com.google.common.collect.Range
 import com.google.common.collect.RangeMap
 import fr.sncf.osrd.api.RangeValues
-import fr.sncf.osrd.path.interfaces.TrainPath
+import fr.sncf.osrd.path.interfaces.PhysicsPath
 import fr.sncf.osrd.utils.units.Offset
 import kotlin.math.min
 
@@ -44,7 +44,7 @@ internal fun RangeMap<Long, Long>.putLower(range: Range<Long>, value: Long) {
 internal fun <T : Any, U> RangeMap<Micrometers, T>.toRangeValues(
     transform: (T?) -> U
 ): RangeValues<U> {
-    val internalBoundaries = mutableListOf<Offset<TrainPath>>()
+    val internalBoundaries = mutableListOf<Offset<PhysicsPath>>()
     val values = mutableListOf<U>()
 
     val iter = asDescendingMapOfRanges().iterator()

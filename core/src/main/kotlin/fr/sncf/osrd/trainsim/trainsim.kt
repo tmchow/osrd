@@ -1,5 +1,6 @@
 package fr.sncf.osrd.trainsim
 
+import fr.sncf.osrd.envelope.EnvelopeTimeInterpolate
 import fr.sncf.osrd.envelope_sim.Action
 import fr.sncf.osrd.envelope_sim.EnvelopeSimContext
 import fr.sncf.osrd.envelope_sim.IntegrationStep
@@ -31,7 +32,7 @@ fun Double.toMicros(): Long = (this * 1e6).toLong()
  * Convert a speed in kilometers per hour, as a [Double], into a speed in micrometers per second, as
  * a [Long].
  */
-fun Double.fromKphToUph(): Long = (this / 3.6e-6).toLong()
+fun Double.fromKphToUps(): Long = (this / 3.6e-6).toLong()
 
 fun Long.toSI(): Double = this.toDouble() / 1e6
 
@@ -152,7 +153,14 @@ interface Decision {
     val time: Microseconds?
     val position: Micrometers?
 
-    fun merge(current: TrainState, mostConstrained: TrainState): TrainState
+    /**
+     * Merges two states (`this` and [mostConstrained]) into an even more constrained state.
+     * [previous] is used to compute things such as acceleration between two states to help make an
+     * educated decision about what the most constrained state should be.
+     *
+     * Returns the new most constrained state.
+     */
+    fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState
 }
 
 class TrainState(
@@ -167,21 +175,51 @@ class TrainState(
         require(speed >= 0) { "train speed must be positive or zero" }
     }
 
-    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
-        val acceleration = speed - current.speed
-        val constrainedAcceleration = mostConstrained.speed - current.speed
+    fun toEnvelopePoint(): EnvelopeTimeInterpolate.EnvelopePoint {
+        return EnvelopeTimeInterpolate.EnvelopePoint(
+            this.time.toSI(),
+            this.speed.toSI(),
+            this.position.toSI(),
+        )
+    }
+
+    override fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState {
+        if (mostConstrained == null) {
+            return this
+        }
+
+        val acceleration = speed - previous.speed
+        val constrainedAcceleration = mostConstrained.speed - previous.speed
+
         if (acceleration < constrainedAcceleration) {
             if (mostConstrained.time < time) {
-                TODO("truncate this")
+                // TODO
+                return this
             }
             // TODO merge pantograph states
             return this
         }
         // TODO merge pantograph states
-        return mostConstrained
+        return this
+    }
+
+    fun naive(context: EnvelopeSimContext): TrainState {
+        val s =
+            TrainPhysicsIntegrator.step(
+                context,
+                position.toSI(),
+                speed.toSI(),
+                Action.ACCELERATE,
+                directionSign = +1.0,
+            )
+        return TrainState(
+            time = time + s.timeDelta.toMicros(),
+            position = position + s.positionDelta.toMicros(),
+            speed = s.endSpeed.toMicros(),
+            pantograph = pantograph,
+        )
     }
 }
-
 
 /**
  * Start lowering the pantograph at [position], given a time to fully lower from its current
@@ -191,9 +229,22 @@ class LowerPantograph(override val position: Micrometers, val lowerPantographTim
     Decision {
     override val time: Microseconds? = null
 
-    // TODO  add context to this method and remove LowerPantograph.lowerPantographTime to fix the problem where NeutralSection.enactDecision cannot compute the position of the pantograph when the train is at NeutralSection.start
-    // TODO find how the "short case" can be achieved using the truncate step loop https://osrd.fr/en/docs/reference/design-docs/train-sim-v3/driver-behavior-modules/#loop
-    override fun merge(current: TrainState, mostConstrained: TrainState): TrainState {
+    // TODO  add context to this method and remove LowerPantograph.lowerPantographTime to fix the
+    // problem where NeutralSection.enactDecision cannot compute the position of the pantograph when
+    // the train is at NeutralSection.start
+    // TODO find how the "short case" can be achieved using the truncate step loop
+    // https://osrd.fr/en/docs/reference/design-docs/train-sim-v3/driver-behavior-modules/#loop
+    override fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState {
+        if (mostConstrained == null) {
+            return TrainState(
+                // TODO: Unsafe
+                time = time!!,
+                position = position,
+                speed = previous.speed,
+                pantograph = PantographState.GoingDown(lowerPantographTime),
+            )
+        }
+
         if (mostConstrained.position < position) {
             return mostConstrained
         }
@@ -249,6 +300,18 @@ class Driver(
     }
 
     // TODO
+    companion object {
+        fun default(): Driver {
+            return Driver(
+                maxAcceleration = 700,
+                maxDeceleration = 700,
+                vMaxFactor = 1.0,
+                perceivedStockLength = 700,
+                sightDistanceFactor = 700.0,
+                sightDistance = 700,
+            )
+        }
+    }
 }
 
 /** A constraint that may influence the driving of the train. */
@@ -261,7 +324,11 @@ interface Constraint {
      * Apply the constraint given the [currentState] of the train and return the state of the train
      * after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
-    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): Decision?
+    fun enactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        maxDelta: Microseconds,
+    ): TrainState?
 
     /**
      * Apply the constraint given the [currentState] of the train and return the state of the train
@@ -272,6 +339,30 @@ interface Constraint {
         currentState: TrainState,
         potentialState: TrainState,
     ): TrainState
+}
+
+fun truncate(
+    step: NanoIntegrationStep,
+    startPos: Micrometers,
+    newEndPos: Micrometers,
+): NanoIntegrationStep {
+    val endPos = startPos + step.positionDelta
+    if (endPos < newEndPos) {
+        return step
+    }
+
+    val newPositionDelta = newEndPos - startPos
+    val timeDelta = newPositionDelta * step.timeDelta / step.positionDelta
+    val newEndSpeed = step.acceleration * timeDelta
+
+    return NanoIntegrationStep.fromNaiveStep(
+        timeDelta,
+        newPositionDelta,
+        step.startSpeed,
+        newEndSpeed,
+        step.acceleration,
+        +1.0,
+    )
 }
 
 /**
@@ -288,7 +379,11 @@ interface SpeedConstraint : Constraint {
      */
     fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve
 
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState {
+    override fun enactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        maxDelta: Microseconds,
+    ): TrainState {
         val curve = speedCurve(context, currentState)
 
         val startSpeedLimit = curve.lerp(currentState.position)
@@ -415,10 +510,11 @@ interface SpeedConstraint : Constraint {
             } else {
                 // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
                 // but with less likeliness of timeDelta becoming zero.
-                (2L * newEndPos) / (newEndSpeed + step.startSpeed) -
-                    (2L * startPos) / (newEndSpeed + step.startSpeed)
+                (2000000L * newEndPos) / (newEndSpeed + step.startSpeed) -
+                    (2000000L * startPos) / (newEndSpeed + step.startSpeed)
             }
-        val acceleration = if (timeDelta == 0L) 0 else (newEndSpeed - step.startSpeed) / timeDelta
+        val acceleration =
+            if (timeDelta == 0L) 0 else 1000000L * (newEndSpeed - step.startSpeed) / timeDelta
 
         return NanoIntegrationStep.fromNaiveStep(
             timeDelta,
@@ -436,13 +532,21 @@ interface SpeedConstraint : Constraint {
  *
  * From [start] to [end], the train must go no higher than [limit].
  */
-sealed class SpeedLimitedZone(
+class SpeedLimitedZone(
     val start: Micrometers,
     val end: Micrometers,
     val limit: MicrometersPerSecond,
 ) : SpeedConstraint {
     init {
         require(start < end) { "speed limit zone start must be strictly lower than end" }
+    }
+
+    override fun doesApply(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        driver: Driver,
+    ): Boolean {
+        return currentState.position in (start)..<end
     }
 
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve =
@@ -480,7 +584,11 @@ class NeutralSection(
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
 ) : Constraint {
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): Decision? {
+    override fun enactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        maxDelta: Microseconds,
+    ): TrainState? {
         if (currentState.position < start) {
             if (lowerPantograph) {
                 val time =
@@ -496,6 +604,7 @@ class NeutralSection(
 
                         is PantographState.Up -> context.rollingStock.lowerPantographTime.toMicros()
                     }
+                val naiveStep = currentState.naive(context)
                 return LowerPantograph(start, time)
             } else {
                 return null
@@ -572,8 +681,8 @@ sealed class ShortSlipStop(val position: Micrometers) : SpeedConstraint {
 
         return makeCurve(
             context,
-            Pair(stopStart27, 27.0.fromKphToUph()),
-            Pair(stopStart10, 10.0.fromKphToUph()),
+            Pair(stopStart27, 27.0.fromKphToUps()),
+            Pair(stopStart10, 10.0.fromKphToUps()),
         )
     }
 }
@@ -581,13 +690,23 @@ sealed class ShortSlipStop(val position: Micrometers) : SpeedConstraint {
 /**
  * Stop on the train path.
  *
- * The train must stop at [signalPosition] for the duration of [duration].
+ * The train must stop at [position] for the duration of [duration].
  */
-class Stop(/*override val signalPosition: Micrometers, */ val duration: Microseconds) :
-    SpeedConstraint {
+class Stop(val position: Micrometers, val duration: Microseconds) : SpeedConstraint {
+    // Deceleration curve cache
+    var stopCurve: Curve? = null
+
+    private fun getCurve(context: EnvelopeSimContext): Curve {
+        if (stopCurve == null) {
+            stopCurve = makeCurve(context, Pair(position, 0))
+        }
+
+        // This is safe because makeCurve never returns a null value
+        return stopCurve!!
+    }
+
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
-        val point = Vec2(TODO(), 0)
-        return Curve(point)
+        return getCurve(context)
     }
 }
 
@@ -698,7 +817,7 @@ private fun retainValidCandidates(candidates: List<Pair<Vec2, Curve>>): List<Vec
 /**
  * Creates a deceleration curve passing through all the provided (position, speed) [points].
  *
- * Returns the deceleration [Curve]
+ * Returns the deceleration [Curve].
  */
 internal fun makeCurve(
     context: EnvelopeSimContext,
@@ -759,14 +878,17 @@ internal fun decelerationCurve(
         speeds[i] = min(s.endSpeed, maxSpeed)
     }
 
-    // Clamp at x = 0 in case the integration step goes out of the curve
     val curve = Curve(positions, speeds)
-    val positionDiff = (positions[0] - positions[1]).absoluteValue
-    val speedDiff = (speeds[0] - speeds[1]).absoluteValue
-    val speedToZero = (positions[1] * speedDiff) / positionDiff
-    val speedAtZero = speeds[1] + speedToZero
-    curve.xs[0] = 0
-    curve.ys[0] = speedAtZero
+
+    if (positions.size > 1) {
+        // Clamp at x = 0 in case the integration step goes out of the curve
+        val positionDiff = (positions[0] - positions[1]).absoluteValue
+        val speedDiff = (speeds[0] - speeds[1]).absoluteValue
+        val speedToZero = (positions[1] * speedDiff) / positionDiff
+        val speedAtZero = speeds[1] + speedToZero
+        curve.xs[0] = 0
+        curve.ys[0] = speedAtZero
+    }
 
     return curve
 }
@@ -777,17 +899,18 @@ fun step(
     driver: Driver,
     currentState: TrainState,
 ): TrainState {
-    val decision =
-        constraints
-            .asSequence()
-            .filter { it.doesApply(context, currentState, driver) }
-            .mapNotNull { it.enactDecision(context, currentState) }
-            .fold(naiveStep(context, currentState)) { mostConstrained, decision ->
-                decision.merge(currentState, mostConstrained)
-            }
+    val cs = constraints.filter { it.doesApply(context, currentState, driver) }
+    val nextStates = cs.map { it.enactDecision(context, currentState, context.timeStep.toMicros()) }
+    val minDt = nextStates.filterNotNull().minOfOrNull { it.time }!! - currentState.time
+    val constrainedStates = cs.map { it.enactDecision(context, currentState, minDt) }
+    return constrainedStates.reduce { mostConstrained, decision ->
+        decision?.merge(currentState, mostConstrained)
+    }!!
 
-    // TODO: Do
-    return currentState
+    //    return constraints
+    //        .asSequence()
+    //        .filter { it.doesApply(context, currentState, driver) }
+    //        .mapNotNull { it.enactDecision(context, currentState) }
+    //        .fold(null) { mostConstrained, decision -> decision.merge(currentState,
+    // mostConstrained) }!!
 }
-
-fun naiveStep(context: EnvelopeSimContext, currentState: TrainState): TrainState = TODO()
