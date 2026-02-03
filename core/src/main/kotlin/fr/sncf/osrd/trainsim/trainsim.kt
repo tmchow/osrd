@@ -323,7 +323,7 @@ interface Constraint {
     fun truncateStep(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        potentialState: TrainState,
+        mergedState: TrainState,
     ): TrainState
 }
 
@@ -471,10 +471,10 @@ interface SpeedConstraint : Constraint {
     override fun truncateStep(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        potentialState: TrainState,
+        mergedState: TrainState,
     ): TrainState {
-        val curve = speedCurve(context, currentState)
-        TODO()
+        // TODO Est-ce qu'on tronque ?
+        return mergedState
     }
 
     private fun truncateStepRaw(
@@ -576,24 +576,7 @@ class NeutralSection(
         maxDelta: Microseconds,
     ): TrainState? {
         if (currentState.position < start) {
-            if (lowerPantograph) {
-                val time =
-                    when (currentState.pantograph) {
-                        is PantographState.Down -> 0
-                        is PantographState.GoingDown -> currentState.pantograph.remainingTime
-                        is PantographState.GoingUp ->
-                            (context.rollingStock.lowerPantographTime *
-                                    (1.0 -
-                                        currentState.pantograph.remainingTime.toSI() /
-                                            context.rollingStock.raisePantographTime))
-                                .toMicros()
-
-                        is PantographState.Up -> context.rollingStock.lowerPantographTime.toMicros()
-                    }
-                return currentState.naive(context).truncate(currentState, start)
-            } else {
-                return null
-            }
+            return null
         } else if (currentState.position < end) {
             val step =
                 TrainPhysicsIntegrator.step(
@@ -647,9 +630,21 @@ class NeutralSection(
     override fun truncateStep(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        potentialState: TrainState,
+        mergedState: TrainState,
     ): TrainState {
-        TODO("Not yet implemented")
+        if (currentState.position >= end ||
+            (currentState.position >= start && mergedState.position <= end) ||
+            mergedState.position <= start
+            ) {
+            return mergedState
+        }
+
+        if (currentState.position < start) {
+            return TODO("tronquer mergedState pour qu'il atteigne le début de la zone neutre this.start")
+        }
+
+        // mergedState.position >= end
+        return TODO("tronquer mergedState pour qu'il atteigne la fin de la zone neutre this.end")
     }
 }
 
