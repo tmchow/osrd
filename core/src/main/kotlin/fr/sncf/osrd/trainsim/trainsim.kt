@@ -147,28 +147,24 @@ sealed interface PantographState {
 
             is Up -> other
         }
-}
 
-interface Decision {
-    val time: Microseconds?
-    val position: Micrometers?
-
-    /**
-     * Merges two states (`this` and [mostConstrained]) into an even more constrained state.
-     * [previous] is used to compute things such as acceleration between two states to help make an
-     * educated decision about what the most constrained state should be.
-     *
-     * Returns the new most constrained state.
-     */
-    fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState
+    fun advance(dt: Microseconds): PantographState =
+        when (this) {
+            is Down -> Down()
+            is GoingDown ->
+                if (remainingTime <= dt) Down() else GoingDown(remainingTime = remainingTime - dt)
+            is GoingUp ->
+                if (remainingTime <= dt) Up() else GoingUp(remainingTime = remainingTime - dt)
+            is Up -> Up()
+        }
 }
 
 class TrainState(
-    override val time: Microseconds,
-    override val position: Micrometers,
+    val time: Microseconds,
+    val position: Micrometers,
     val speed: MicrometersPerSecond,
     val pantograph: PantographState,
-) : Decision {
+) {
     init {
         require(time >= 0) { "train time must be positive or zero" }
         require(position >= 0) { "train position must be positive or zero" }
@@ -183,24 +179,33 @@ class TrainState(
         )
     }
 
-    override fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState {
+    fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState {
         if (mostConstrained == null) {
             return this
         }
 
-        val acceleration = speed - previous.speed
-        val constrainedAcceleration = mostConstrained.speed - previous.speed
+        val timeDelta = time - previous.time
+        val constrainedTimeDelta = mostConstrained.time - previous.time
 
-        if (acceleration < constrainedAcceleration) {
-            if (mostConstrained.time < time) {
-                // TODO
-                return this
-            }
-            // TODO merge pantograph states
-            return this
-        }
-        // TODO merge pantograph states
-        return this
+        val acceleration = 1000000 * (speed - previous.speed) / timeDelta
+        val constrainedAcceleration =
+            1000000 * (mostConstrained.speed - previous.speed) / constrainedTimeDelta
+        val newAcceleration = min(acceleration, constrainedAcceleration)
+
+        val newTime = min(time, mostConstrained.time)
+        val newTimeDelta = newTime - previous.time
+
+        val newSpeed = previous.speed + newAcceleration * newTimeDelta / 1000000
+        val newPosition = previous.position + (previous.speed + newSpeed) * newTimeDelta / 2000000
+
+        val newPantograph = pantograph.merge(mostConstrained.pantograph) // TODO
+
+        return TrainState(
+            time = newTime,
+            position = newPosition,
+            speed = newSpeed,
+            pantograph = newPantograph,
+        )
     }
 
     fun naive(context: EnvelopeSimContext): TrainState {
@@ -219,41 +224,22 @@ class TrainState(
             pantograph = pantograph,
         )
     }
-}
 
-/**
- * Start lowering the pantograph at [position], given a time to fully lower from its current
- * position [lowerPantographTime]
- */
-class LowerPantograph(override val position: Micrometers, val lowerPantographTime: Microseconds) :
-    Decision {
-    override val time: Microseconds? = null
-
-    // TODO  add context to this method and remove LowerPantograph.lowerPantographTime to fix the
-    // problem where NeutralSection.enactDecision cannot compute the position of the pantograph when
-    // the train is at NeutralSection.start
-    // TODO find how the "short case" can be achieved using the truncate step loop
-    // https://osrd.fr/en/docs/reference/design-docs/train-sim-v3/driver-behavior-modules/#loop
-    override fun merge(previous: TrainState, mostConstrained: TrainState?): TrainState {
-        if (mostConstrained == null) {
-            return TrainState(
-                // TODO: Unsafe
-                time = time!!,
-                position = position,
-                speed = previous.speed,
-                pantograph = PantographState.GoingDown(lowerPantographTime),
+    fun truncate(oldState: TrainState, newEndPos: Micrometers): TrainState {
+        val oldStep =
+            NanoIntegrationStep(
+                timeDelta = time - oldState.time,
+                positionDelta = position - oldState.position,
+                startSpeed = oldState.speed,
+                endSpeed = speed,
+                acceleration = (speed - oldState.speed) / (time - oldState.time),
             )
-        }
-
-        if (mostConstrained.position < position) {
-            return mostConstrained
-        }
-        val truncated: TrainState = TODO("truncate mostConstrained to this.position")
+        val newStep = truncate(oldStep, position, newEndPos)
         return TrainState(
-            time = truncated.time,
-            position = truncated.position,
-            speed = truncated.speed,
-            pantograph = PantographState.GoingDown(lowerPantographTime),
+            time = oldState.time + newStep.timeDelta,
+            position = oldState.position + newStep.positionDelta,
+            speed = newStep.endSpeed,
+            pantograph = pantograph,
         )
     }
 }
@@ -353,7 +339,7 @@ fun truncate(
 
     val newPositionDelta = newEndPos - startPos
     val timeDelta = newPositionDelta * step.timeDelta / step.positionDelta
-    val newEndSpeed = step.acceleration * timeDelta
+    val newEndSpeed = step.startSpeed + step.acceleration * timeDelta / 1000000
 
     return NanoIntegrationStep.fromNaiveStep(
         timeDelta,
@@ -604,8 +590,7 @@ class NeutralSection(
 
                         is PantographState.Up -> context.rollingStock.lowerPantographTime.toMicros()
                     }
-                val naiveStep = currentState.naive(context)
-                return LowerPantograph(start, time)
+                return currentState.naive(context).truncate(currentState, start)
             } else {
                 return null
             }
@@ -652,7 +637,7 @@ class NeutralSection(
                 time = currentState.time + step.timeDelta,
                 position = currentState.position + step.positionDelta,
                 speed = step.endSpeed,
-                pantograph = currentState.pantograph,
+                pantograph = currentState.pantograph.advance(step.timeDelta),
             )
         } else {
             return null

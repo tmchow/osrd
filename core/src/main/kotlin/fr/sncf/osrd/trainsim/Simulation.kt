@@ -14,6 +14,7 @@ import fr.sncf.osrd.envelope_sim.Comfort
 import fr.sncf.osrd.envelope_sim.EnvelopeSimContext
 import fr.sncf.osrd.path.interfaces.PhysicsPath
 import fr.sncf.osrd.path.interfaces.TrainPath
+import fr.sncf.osrd.path.legacy_objects.electrification.Neutral
 import fr.sncf.osrd.railjson.schema.schedule.RJSAllowanceDistribution
 import fr.sncf.osrd.sim_infra.api.SpeedLimitProperty
 import fr.sncf.osrd.standalone_sim.buildSignalingRanges
@@ -25,7 +26,6 @@ import fr.sncf.osrd.tsim.Micrometers
 import fr.sncf.osrd.tsim.MicrometersPerSecond
 import fr.sncf.osrd.tsim.micrometers
 import fr.sncf.osrd.tsim.micrometersPerSecond
-import fr.sncf.osrd.tsim.microseconds
 import fr.sncf.osrd.tsim.putLower
 import fr.sncf.osrd.tsim.toMicros
 import fr.sncf.osrd.tsim.toRangeValues
@@ -35,7 +35,6 @@ import fr.sncf.osrd.utils.DistanceRangeMap
 import fr.sncf.osrd.utils.entries
 import fr.sncf.osrd.utils.simplifyEnvelopePoints
 import fr.sncf.osrd.utils.toRangeMap
-import fr.sncf.osrd.utils.units.Duration
 import fr.sncf.osrd.utils.units.Offset
 import fr.sncf.osrd.utils.units.meters
 import fr.sncf.osrd.utils.units.metersPerSecond
@@ -96,11 +95,13 @@ fun runSimulation(
         }
     }
 
+    /*
     schedule.map {
         val stopPosition = it.pathOffset.micrometers
         val stopDuration = it.stopFor ?: Duration.ZERO
         constraints.add(Stop(stopPosition, stopDuration.microseconds))
     }
+    // */
 
     for (entry in mrsp.entries) {
         val range = entry.key
@@ -108,6 +109,17 @@ fun runSimulation(
         val speed = entry.value
 
         constraints.add(SpeedLimitedZone(range.lowerEndpoint(), range.upperEndpoint(), speed))
+    }
+
+    for (entry in electrificationMap.entries) {
+        val lowerPantograph = (entry.value as? Neutral)?.lowerPantograph ?: continue
+        val section =
+            NeutralSection(
+                start = entry.key.lowerEndpoint().toMicros(),
+                end = entry.key.upperEndpoint().toMicros(),
+                lowerPantograph = lowerPantograph,
+            )
+        constraints.add(section)
     }
 
     while (trainState.position < trainPath.length.toMicros()) {
