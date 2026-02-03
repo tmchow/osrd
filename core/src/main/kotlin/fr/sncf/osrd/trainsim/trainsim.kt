@@ -4,100 +4,72 @@ import fr.sncf.osrd.envelope.EnvelopeTimeInterpolate
 import fr.sncf.osrd.envelope_sim.Action
 import fr.sncf.osrd.envelope_sim.EnvelopeSimContext
 import fr.sncf.osrd.envelope_sim.IntegrationStep
+import fr.sncf.osrd.envelope_sim.PhysicsRollingStock
 import fr.sncf.osrd.envelope_sim.TrainPhysicsIntegrator
 import fr.sncf.osrd.envelope_sim.etcs.BrakingType
 import fr.sncf.osrd.tsim.MicrometerArray
 import fr.sncf.osrd.tsim.MicrometerPerSecondArray
 import kotlin.collections.windowed
 import kotlin.math.absoluteValue
-import kotlin.math.min
 
-typealias Microseconds = Long
-
-typealias Meters = Double
-
-typealias Micrometers = Long
-
-typealias MicrometersPerSecond = Long
-
-typealias MicrometersPerSecond2 = Long
-
-typealias MicrometerArray = LongArray
-
-typealias MicrometerPerSecondArray = LongArray
-
-fun Double.toMicros(): Long = (this * 1e6).toLong()
-
-/**
- * Convert a speed in kilometers per hour, as a [Double], into a speed in micrometers per second, as
- * a [Long].
- */
-fun Double.fromKphToUps(): Long = (this / 3.6e-6).toLong()
-
-fun Long.toSI(): Double = this.toDouble() / 1e6
-
-class NanoIntegrationStep(
-    val timeDelta: Microseconds,
-    val positionDelta: Micrometers,
-    val startSpeed: MicrometersPerSecond,
-    val endSpeed: MicrometersPerSecond,
-    val acceleration: MicrometersPerSecond2,
+internal class PreciseIntegrationStep(
+    val timeDelta: PreciseDuration,
+    val positionDelta: PreciseDistance,
+    val startSpeed: PreciseSpeed,
+    val endSpeed: PreciseSpeed,
+    val acceleration: PreciseAcceleration,
 ) {
+    fun truncate(
+        startPos: PreciseDistance,
+        newEndPos: PreciseDistance,
+    ): PreciseIntegrationStep {
+        val endPos = startPos + positionDelta
+        if (endPos < newEndPos) {
+            return this
+        }
+
+        val newPositionDelta = newEndPos - startPos
+        val timeDelta = newPositionDelta * timeDelta / positionDelta
+        val newEndSpeed = startSpeed + acceleration * timeDelta
+
+        return PreciseIntegrationStep(
+            timeDelta,
+            newPositionDelta,
+            startSpeed,
+            newEndSpeed,
+            acceleration,
+        )
+    }
+
     companion object {
         fun fromNaiveStep(
-            timeDelta: Microseconds,
-            positionDelta: Micrometers,
-            startSpeed: MicrometersPerSecond,
-            endSpeed: MicrometersPerSecond,
-            acceleration: MicrometersPerSecond2,
+            timeDelta: PreciseDuration,
+            positionDelta: PreciseDistance,
+            startSpeed: PreciseSpeed,
+            endSpeed: PreciseSpeed,
+            acceleration: PreciseAcceleration,
             directionSign: Double,
-        ): NanoIntegrationStep =
+        ): PreciseIntegrationStep =
             IntegrationStep.fromNaiveStep(
-                    timeDelta.toSI(),
-                    positionDelta.toSI(),
-                    startSpeed.toSI(),
-                    endSpeed.toSI(),
-                    acceleration.toSI(),
+                    timeDelta.seconds,
+                    positionDelta.meters,
+                    startSpeed.metersPerSecond,
+                    endSpeed.metersPerSecond,
+                    acceleration.metersPerSecond2,
                     directionSign,
                 )
                 .toMicros()
     }
 }
 
-fun IntegrationStep.toMicros(): NanoIntegrationStep =
-    NanoIntegrationStep(
-        timeDelta = timeDelta.toMicros(),
-        positionDelta = positionDelta.toMicros(),
-        startSpeed = startSpeed.toMicros(),
-        endSpeed = endSpeed.toMicros(),
-        acceleration = acceleration.toMicros(),
+internal fun IntegrationStep.toMicros(): PreciseIntegrationStep =
+    PreciseIntegrationStep(
+        timeDelta = timeDelta.seconds,
+        positionDelta = positionDelta.meters,
+        startSpeed = startSpeed.metersPerSecond,
+        endSpeed = endSpeed.metersPerSecond,
+        acceleration = acceleration.metersPerSecond2,
     )
-
-/**
- * Given a pantograph [position] and its time to fully lower when fully raised [lowerTime], return
- * its position after [dt] microseconds.
- */
-internal fun lowerPantograph(position: Double, lowerTime: Microseconds, dt: Microseconds): Double {
-    val dx = dt.toDouble() / lowerTime.toDouble()
-    return if (position <= dx) {
-        0.0
-    } else {
-        position - dx
-    }
-}
-
-/**
- * Given a pantograph [position] and its time to fully raise when fully lowered [raiseTime], return
- * its position after [dt] microseconds.
- */
-internal fun raisePantograph(position: Double, raiseTime: Microseconds, dt: Microseconds): Double {
-    val dx = dt.toDouble() / raiseTime.toDouble()
-    return if (position + dx >= 1.0) {
-        1.0
-    } else {
-        position + dx
-    }
-}
 
 sealed interface PantographState {
     class Up : PantographState
@@ -106,13 +78,25 @@ sealed interface PantographState {
 
     class GoingUp(
         /** time until the pantograph is fully raised */
-        val remainingTime: Microseconds
-    ) : PantographState
+        val remainingTime: PreciseDuration
+    ) : PantographState {
+        init {
+            require(remainingTime > 0.microseconds) {
+                "if remainingTime is negative or zero, this should be Up"
+            }
+        }
+    }
 
     class GoingDown(
         /** time until the pantograph is fully lowered */
-        val remainingTime: Microseconds
-    ) : PantographState
+        val remainingTime: PreciseDuration
+    ) : PantographState {
+        init {
+            require(remainingTime > 0.microseconds) {
+                "if remainingTime is negative or zero, this should be Down"
+            }
+        }
+    }
 
     fun merge(other: PantographState): PantographState =
         when (this) {
@@ -148,34 +132,64 @@ sealed interface PantographState {
             is Up -> other
         }
 
-    fun advance(dt: Microseconds): PantographState =
+    /** make the pantograph go down without advancing time */
+    fun lower(rollingStock: PhysicsRollingStock): PantographState =
         when (this) {
-            is Down -> Down()
+            is Down -> this
+            is GoingDown -> this
+            is GoingUp -> {
+                val raisePantographTime = rollingStock.raisePantographTime.seconds
+                val lowerPantographTime = rollingStock.lowerPantographTime.seconds
+                val newRemainingTime =
+                    lowerPantographTime - lowerPantographTime * remainingTime / raisePantographTime
+                GoingDown(remainingTime = newRemainingTime)
+            }
+            is Up -> GoingDown(remainingTime = rollingStock.lowerPantographTime.seconds)
+        }
+
+    /** make the pantograph go up without advancing time */
+    fun raise(rollingStock: PhysicsRollingStock): PantographState =
+        when (this) {
+            is Down -> GoingUp(remainingTime = rollingStock.raisePantographTime.seconds)
+            is GoingDown -> {
+                val raisePantographTime = rollingStock.raisePantographTime.seconds
+                val lowerPantographTime = rollingStock.lowerPantographTime.seconds
+                val newRemainingTime =
+                    raisePantographTime - raisePantographTime * remainingTime / lowerPantographTime
+                GoingUp(remainingTime = newRemainingTime)
+            }
+            is GoingUp -> this
+            is Up -> this
+        }
+
+    fun advance(dt: PreciseDuration): PantographState =
+        when (this) {
+            is Down -> this
             is GoingDown ->
                 if (remainingTime <= dt) Down() else GoingDown(remainingTime = remainingTime - dt)
             is GoingUp ->
                 if (remainingTime <= dt) Up() else GoingUp(remainingTime = remainingTime - dt)
-            is Up -> Up()
+            is Up -> this
         }
 }
 
 class TrainState(
-    val time: Microseconds,
-    val position: Micrometers,
-    val speed: MicrometersPerSecond,
-    val pantograph: PantographState,
+    val time: PreciseDuration,
+    val position: PreciseDistance,
+    val speed: PreciseSpeed,
+    val pantograph: PantographState = PantographState.Up(),
 ) {
     init {
-        require(time >= 0) { "train time must be positive or zero" }
-        require(position >= 0) { "train position must be positive or zero" }
-        require(speed >= 0) { "train speed must be positive or zero" }
+        require(time >= 0.microseconds) { "train time must be positive or zero" }
+        require(position >= 0.micrometers) { "train position must be positive or zero" }
+        require(speed >= 0.micrometersPerSecond) { "train speed must be positive or zero" }
     }
 
     fun toEnvelopePoint(): EnvelopeTimeInterpolate.EnvelopePoint {
         return EnvelopeTimeInterpolate.EnvelopePoint(
-            this.time.toSI(),
-            this.speed.toSI(),
-            this.position.toSI(),
+            this.time.seconds,
+            this.speed.metersPerSecond,
+            this.position.meters,
         )
     }
 
@@ -187,16 +201,16 @@ class TrainState(
         val timeDelta = time - previous.time
         val constrainedTimeDelta = mostConstrained.time - previous.time
 
-        val acceleration = 1000000 * (speed - previous.speed) / timeDelta
+        val acceleration = (speed - previous.speed) / timeDelta
         val constrainedAcceleration =
-            1000000 * (mostConstrained.speed - previous.speed) / constrainedTimeDelta
+            (mostConstrained.speed - previous.speed) / constrainedTimeDelta
         val newAcceleration = min(acceleration, constrainedAcceleration)
 
         val newTime = min(time, mostConstrained.time)
         val newTimeDelta = newTime - previous.time
 
-        val newSpeed = previous.speed + newAcceleration * newTimeDelta / 1000000
-        val newPosition = previous.position + (previous.speed + newSpeed) * newTimeDelta / 2000000
+        val newSpeed = previous.speed + newAcceleration * newTimeDelta
+        val newPosition = previous.position + (previous.speed + newSpeed) * newTimeDelta / 2
 
         val newPantograph = pantograph.merge(mostConstrained.pantograph) // TODO
 
@@ -212,29 +226,29 @@ class TrainState(
         val s =
             TrainPhysicsIntegrator.step(
                 context,
-                position.toSI(),
-                speed.toSI(),
+                position.meters,
+                speed.metersPerSecond,
                 Action.ACCELERATE,
                 directionSign = +1.0,
             )
         return TrainState(
-            time = time + s.timeDelta.toMicros(),
-            position = position + s.positionDelta.toMicros(),
-            speed = s.endSpeed.toMicros(),
+            time = time + s.timeDelta.seconds,
+            position = position + s.positionDelta.meters,
+            speed = s.endSpeed.metersPerSecond,
             pantograph = pantograph,
         )
     }
 
-    fun truncate(oldState: TrainState, newEndPos: Micrometers): TrainState {
+    fun truncate(oldState: TrainState, newEndPos: PreciseDistance): TrainState {
         val oldStep =
-            NanoIntegrationStep(
+            PreciseIntegrationStep(
                 timeDelta = time - oldState.time,
                 positionDelta = position - oldState.position,
                 startSpeed = oldState.speed,
                 endSpeed = speed,
                 acceleration = (speed - oldState.speed) / (time - oldState.time),
             )
-        val newStep = truncate(oldStep, position, newEndPos)
+        val newStep = oldStep.truncate(position, newEndPos)
         return TrainState(
             time = oldState.time + newStep.timeDelta,
             position = oldState.position + newStep.positionDelta,
@@ -251,7 +265,7 @@ class Driver(
      * This may be higher than the rolling stock's maximum acceleration, in which case this value
      * has no effect.
      */
-    val maxAcceleration: MicrometersPerSecond2,
+    val maxAcceleration: PreciseAcceleration,
 
     /**
      * Maximum deceleration in the driver can perform.
@@ -259,7 +273,7 @@ class Driver(
      * This may be higher than the rolling stock's maximum deceleration, in which case this value
      * has no effect.
      */
-    val maxDeceleration: MicrometersPerSecond2,
+    val maxDeceleration: PreciseAcceleration,
 
     /**
      * Ratio between the self-imposed speed limit and the railway-imposed speed limit.
@@ -275,11 +289,11 @@ class Driver(
      *
      * Used e.g. when instructions only apply after the full rolling stock has passed a signal.
      */
-    val perceivedStockLength: Micrometers,
+    val perceivedStockLength: PreciseDistance,
 
     /** Factor between `0.0` and `1.0` to apply to the path's sight distance */
     val sightDistanceFactor: Double,
-    val sightDistance: Micrometers,
+    val sightDistance: PreciseDistance,
 ) {
     init {
         assert(vMaxFactor > 0.0)
@@ -289,12 +303,12 @@ class Driver(
     companion object {
         fun default(): Driver {
             return Driver(
-                maxAcceleration = 700,
-                maxDeceleration = 700,
+                maxAcceleration = 700.micrometersPerSecond2,
+                maxDeceleration = 700.micrometersPerSecond2,
                 vMaxFactor = 1.0,
-                perceivedStockLength = 700,
-                sightDistanceFactor = 700.0,
-                sightDistance = 700,
+                perceivedStockLength = 700.0.meters,
+                sightDistanceFactor = 1.0,
+                sightDistance = 700.0.meters,
             )
         }
     }
@@ -313,7 +327,7 @@ interface Constraint {
     fun enactDecision(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        maxDelta: Microseconds,
+        maxDelta: PreciseDuration,
     ): TrainState?
 
     /**
@@ -325,30 +339,6 @@ interface Constraint {
         currentState: TrainState,
         mergedState: TrainState,
     ): TrainState
-}
-
-fun truncate(
-    step: NanoIntegrationStep,
-    startPos: Micrometers,
-    newEndPos: Micrometers,
-): NanoIntegrationStep {
-    val endPos = startPos + step.positionDelta
-    if (endPos < newEndPos) {
-        return step
-    }
-
-    val newPositionDelta = newEndPos - startPos
-    val timeDelta = newPositionDelta * step.timeDelta / step.positionDelta
-    val newEndSpeed = step.startSpeed + step.acceleration * timeDelta / 1000000
-
-    return NanoIntegrationStep.fromNaiveStep(
-        timeDelta,
-        newPositionDelta,
-        step.startSpeed,
-        newEndSpeed,
-        step.acceleration,
-        +1.0,
-    )
 }
 
 /**
@@ -368,17 +358,17 @@ interface SpeedConstraint : Constraint {
     override fun enactDecision(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        maxDelta: Microseconds,
+        maxDelta: PreciseDuration,
     ): TrainState {
         val curve = speedCurve(context, currentState)
 
-        val startSpeedLimit = curve.lerp(currentState.position)
+        val startSpeedLimit = curve.lerp(currentState.position.micrometers).micrometersPerSecond
 
         val accelerateStep =
             TrainPhysicsIntegrator.step(
                     context,
-                    initialLocation = currentState.position.toSI(),
-                    initialSpeed = currentState.speed.toSI(),
+                    initialLocation = currentState.position.meters,
+                    initialSpeed = currentState.speed.metersPerSecond,
                     action = Action.ACCELERATE,
                     directionSign = +1.0,
                     brakingType = BrakingType.CONSTANT,
@@ -391,9 +381,12 @@ interface SpeedConstraint : Constraint {
             // Snap on the curve
             val startSpeed = startSpeedLimit
 
-            if (currentState.position < curve.xs.first()) {
+            if (currentState.position.micrometers < curve.xs.first()) {
                 val positionDelta =
-                    min(accelerateStep.positionDelta, curve.xs.first() - currentState.position)
+                    min(
+                        accelerateStep.positionDelta,
+                        curve.xs.first().micrometers - currentState.position,
+                    )
                 val timeDelta = positionDelta / startSpeed
                 return TrainState(
                     time = currentState.time + timeDelta,
@@ -403,16 +396,16 @@ interface SpeedConstraint : Constraint {
                 )
             }
 
-            if (currentState.position < curve.xs.last()) {
-                val nextPointIndex = curve.firstAfterStrict(currentState.position)!!
-                val endPos = curve.xs[nextPointIndex]
-                val endSpeed = curve.ys[nextPointIndex]
+            if (currentState.position < curve.xs.last().micrometers) {
+                val nextPointIndex = curve.firstAfterStrict(currentState.position.micrometers)!!
+                val endPos = curve.xs[nextPointIndex].micrometers
+                val endSpeed = curve.ys[nextPointIndex].micrometersPerSecond
                 val positionDelta = endPos - currentState.position
                 val timeDelta =
-                    if (endSpeed + startSpeed == 0L) {
-                        context.timeStep.toMicros()
+                    if (endSpeed + startSpeed == 0.micrometersPerSecond) {
+                        context.timeStep.seconds
                     } else {
-                        (2L * positionDelta) / (endSpeed + startSpeed)
+                        (2 * positionDelta) / (endSpeed + startSpeed)
                     }
                 return TrainState(
                     time = currentState.time + timeDelta,
@@ -452,8 +445,8 @@ interface SpeedConstraint : Constraint {
         val brakingStep =
             TrainPhysicsIntegrator.step(
                     context,
-                    initialLocation = currentState.position.toSI(),
-                    initialSpeed = currentState.speed.toSI(),
+                    initialLocation = currentState.position.meters,
+                    initialSpeed = currentState.speed.metersPerSecond,
                     action = Action.BRAKE,
                     directionSign = +1.0,
                     brakingType = BrakingType.CONSTANT,
@@ -472,37 +465,41 @@ interface SpeedConstraint : Constraint {
         context: EnvelopeSimContext,
         currentState: TrainState,
         mergedState: TrainState,
-    ): TrainState {
-        // TODO Est-ce qu'on tronque ?
-        return mergedState
-    }
+    ): TrainState = mergedState
 
     private fun truncateStepRaw(
-        step: NanoIntegrationStep,
-        startPos: Micrometers,
+        step: PreciseIntegrationStep,
+        startPos: PreciseDistance,
         constraint: Curve,
-    ): NanoIntegrationStep {
+    ): PreciseIntegrationStep {
         val endPos = startPos + step.positionDelta
 
-        val segment = Segment(startPos, step.startSpeed, endPos, step.endSpeed)
+        val segment =
+            Segment(
+                startPos.micrometers,
+                step.startSpeed.micrometersPerSecond,
+                endPos.micrometers,
+                step.endSpeed.micrometersPerSecond,
+            )
         val point = constraint.intersectsAt(segment) ?: return step
 
-        val newEndPos = point.x
-        val newEndSpeed = point.y
+        val newEndPos = point.x.micrometers
+        val newEndSpeed = point.y.micrometersPerSecond
         val newPositionDelta = newEndPos - startPos
         val timeDelta =
-            if (newEndSpeed + step.startSpeed == 0L) {
+            if (newEndSpeed + step.startSpeed == 0.micrometersPerSecond) {
                 step.timeDelta
             } else {
                 // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
                 // but with less likeliness of timeDelta becoming zero.
-                (2000000L * newEndPos) / (newEndSpeed + step.startSpeed) -
-                    (2000000L * startPos) / (newEndSpeed + step.startSpeed)
+                newEndPos / (newEndSpeed + step.startSpeed) -
+                    startPos / (newEndSpeed + step.startSpeed)
             }
         val acceleration =
-            if (timeDelta == 0L) 0 else 1000000L * (newEndSpeed - step.startSpeed) / timeDelta
+            if (timeDelta == 0.microseconds) 0.micrometersPerSecond2
+            else (newEndSpeed - step.startSpeed) / timeDelta
 
-        return NanoIntegrationStep.fromNaiveStep(
+        return PreciseIntegrationStep.fromNaiveStep(
             timeDelta,
             newPositionDelta,
             step.startSpeed,
@@ -519,9 +516,9 @@ interface SpeedConstraint : Constraint {
  * From [start] to [end], the train must go no higher than [limit].
  */
 class SpeedLimitedZone(
-    val start: Micrometers,
-    val end: Micrometers,
-    val limit: MicrometersPerSecond,
+    val start: PreciseDistance,
+    val end: PreciseDistance,
+    val limit: PreciseSpeed,
 ) : SpeedConstraint {
     init {
         require(start < end) { "speed limit zone start must be strictly lower than end" }
@@ -536,7 +533,7 @@ class SpeedLimitedZone(
     }
 
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve =
-        decelerationCurve(context, start, limit) + Vec2(end, limit)
+        decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
 }
 
 /**
@@ -547,11 +544,11 @@ class SpeedLimitedZone(
  * reached. If both [endPosition] and [endTime] are `null`, the speed limit doesn't end.
  */
 class TemporarySpeedLimit(
-    val startPosition: Micrometers?,
-    val endPosition: Micrometers?,
-    val startTime: Microseconds,
-    val endTime: Microseconds?,
-    val limit: MicrometersPerSecond,
+    val startPosition: PreciseDistance?,
+    val endPosition: PreciseDistance?,
+    val startTime: PreciseDuration,
+    val endTime: PreciseDuration?,
+    val limit: PreciseSpeed,
 ) : SpeedConstraint {
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
         TODO("Curve needs time info")
@@ -565,15 +562,15 @@ class TemporarySpeedLimit(
  * pantograph must begin to lower no further than [signalPosition].
  */
 class NeutralSection(
-    val start: Micrometers,
-    val end: Micrometers,
+    val start: PreciseDistance,
+    val end: PreciseDistance,
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
 ) : Constraint {
     override fun enactDecision(
         context: EnvelopeSimContext,
         currentState: TrainState,
-        maxDelta: Microseconds,
+        maxDelta: PreciseDuration,
     ): TrainState? {
         if (currentState.position < start) {
             return null
@@ -581,46 +578,32 @@ class NeutralSection(
             val step =
                 TrainPhysicsIntegrator.step(
                         context = context,
-                        initialLocation = currentState.position.toSI(),
-                        initialSpeed = currentState.speed.toSI(),
+                        initialLocation = currentState.position.meters,
+                        initialSpeed = currentState.speed.metersPerSecond,
                         action = Action.COAST,
                         directionSign = +1.0,
                     )
                     .toMicros()
             if (step.positionDelta + currentState.position > end) {
-                val ratio = (end - currentState.position).toDouble() / step.positionDelta.toDouble()
-                val speedDelta = step.endSpeed - step.startSpeed
-                val pantograph =
-                    when (currentState.pantograph) {
-                        is PantographState.Down ->
-                            PantographState.GoingUp(
-                                context.rollingStock.raisePantographTime.toMicros()
-                            )
-
-                        is PantographState.GoingDown ->
-                            PantographState.GoingUp(
-                                (context.rollingStock.raisePantographTime *
-                                        (1.0 -
-                                            currentState.pantograph.remainingTime.toSI() /
-                                                context.rollingStock.lowerPantographTime))
-                                    .toMicros()
-                            )
-
-                        is PantographState.GoingUp -> currentState.pantograph
-                        is PantographState.Up -> currentState.pantograph
-                    }
+                val newTimeDelta =
+                    step.timeDelta * (end - currentState.position) / step.positionDelta
+                val newSpeedDelta =
+                    (step.endSpeed - step.startSpeed) * (end - currentState.position) /
+                        step.positionDelta
                 return TrainState(
-                    time = currentState.time + (step.timeDelta * ratio).toLong(),
+                    time = currentState.time + newTimeDelta,
                     position = end,
-                    speed = currentState.speed + (speedDelta * ratio).toLong(),
-                    pantograph = pantograph,
+                    speed = currentState.speed + newSpeedDelta,
+                    pantograph =
+                        currentState.pantograph.advance(newTimeDelta).raise(context.rollingStock),
                 )
             }
             return TrainState(
                 time = currentState.time + step.timeDelta,
                 position = currentState.position + step.positionDelta,
                 speed = step.endSpeed,
-                pantograph = currentState.pantograph.advance(step.timeDelta),
+                pantograph =
+                    currentState.pantograph.lower(context.rollingStock).advance(step.timeDelta),
             )
         } else {
             return null
@@ -632,19 +615,20 @@ class NeutralSection(
         currentState: TrainState,
         mergedState: TrainState,
     ): TrainState {
-        if (currentState.position >= end ||
-            (currentState.position >= start && mergedState.position <= end) ||
-            mergedState.position <= start
-            ) {
+        if (
+            currentState.position >= end ||
+                (currentState.position >= start && mergedState.position <= end) ||
+                mergedState.position <= start
+        ) {
             return mergedState
         }
 
         if (currentState.position < start) {
-            return TODO("tronquer mergedState pour qu'il atteigne le début de la zone neutre this.start")
+            return mergedState.truncate(currentState, start)
         }
 
         // mergedState.position >= end
-        return TODO("tronquer mergedState pour qu'il atteigne la fin de la zone neutre this.end")
+        return mergedState.truncate(currentState, end)
     }
 }
 
@@ -654,16 +638,12 @@ class NeutralSection(
  * When closer than 300 meters from this signal, the train must go no higher than 27kph. When closer
  * than 100 meters from this signal, the train must go no higher than 10kph.
  */
-sealed class ShortSlipStop(val position: Micrometers) : SpeedConstraint {
+sealed class ShortSlipStop(val position: PreciseDistance) : SpeedConstraint {
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
-        val stopStart27 = position - 300.0.toMicros()
-        val stopStart10 = position - 100.0.toMicros()
+        val stopStart27 = position - 300.0.meters
+        val stopStart10 = position - 100.0.meters
 
-        return makeCurve(
-            context,
-            Pair(stopStart27, 27.0.fromKphToUps()),
-            Pair(stopStart10, 10.0.fromKphToUps()),
-        )
+        return makeCurve(context, Pair(stopStart27, 27.0.kph), Pair(stopStart10, 10.0.kph))
     }
 }
 
@@ -672,13 +652,13 @@ sealed class ShortSlipStop(val position: Micrometers) : SpeedConstraint {
  *
  * The train must stop at [position] for the duration of [duration].
  */
-class Stop(val position: Micrometers, val duration: Microseconds) : SpeedConstraint {
+class Stop(val position: PreciseDistance, val duration: PreciseDuration) : SpeedConstraint {
     // Deceleration curve cache
     var stopCurve: Curve? = null
 
     private fun getCurve(context: EnvelopeSimContext): Curve {
         if (stopCurve == null) {
-            stopCurve = makeCurve(context, Pair(position, 0))
+            stopCurve = makeCurve(context, Pair(position, 0.micrometersPerSecond))
         }
 
         // This is safe because makeCurve never returns a null value
@@ -697,7 +677,7 @@ class Stop(val position: Micrometers, val duration: Microseconds) : SpeedConstra
  */
 private fun computeDecelerationCurves(
     context: EnvelopeSimContext,
-    points: Iterable<Pair<Micrometers, MicrometersPerSecond>>,
+    points: Iterable<Pair<PreciseDistance, PreciseSpeed>>,
 ): List<Curve> {
     val curveEndPosition = points.last().first
     return points.map {
@@ -705,7 +685,7 @@ private fun computeDecelerationCurves(
         if (it.first != curveEndPosition) {
             // We only need to fill the deceleration curves that end before the end of the points' x
             // coordinates range
-            curve += Vec2(curveEndPosition, it.second)
+            curve += Vec2(curveEndPosition.micrometers, it.second.micrometersPerSecond)
         }
         curve
     }
@@ -801,7 +781,7 @@ private fun retainValidCandidates(candidates: List<Pair<Vec2, Curve>>): List<Vec
  */
 internal fun makeCurve(
     context: EnvelopeSimContext,
-    vararg points: Pair<Micrometers, MicrometersPerSecond>,
+    vararg points: Pair<PreciseDistance, PreciseSpeed>,
 ): Curve {
     val curves = computeDecelerationCurves(context, points.asIterable())
     val belows = computeCandidatePoints(curves)
@@ -811,21 +791,21 @@ internal fun makeCurve(
 
 internal fun decelerationCurve(
     context: EnvelopeSimContext,
-    targetPosition: Micrometers,
-    targetSpeed: MicrometersPerSecond,
+    targetPosition: PreciseDistance,
+    targetSpeed: PreciseSpeed,
 ): Curve {
-    val maxSpeed = context.rollingStock.maxSpeed.toMicros()
+    val maxSpeed = context.rollingStock.maxSpeed.metersPerSecond
 
     var position = targetPosition
     var speed = targetSpeed
     var stepCount = 0
     stepCount++ // count the step (target.position, target.speed)
-    while (speed < maxSpeed && position > 0) {
+    while (speed < maxSpeed && position > 0.micrometers) {
         val s =
             TrainPhysicsIntegrator.step(
                     context,
-                    position.toSI(),
-                    speed.toSI(),
+                    position.meters,
+                    speed.metersPerSecond,
                     Action.BRAKE,
                     -1.0,
                     BrakingType.CONSTANT,
@@ -840,22 +820,22 @@ internal fun decelerationCurve(
     val speeds = MicrometerPerSecondArray(stepCount)
 
     var i = stepCount - 1
-    positions[i] = targetPosition
-    speeds[i] = targetSpeed
+    positions[i] = targetPosition.micrometers
+    speeds[i] = targetSpeed.micrometersPerSecond
     while (i > 0) {
         i--
         val s =
             TrainPhysicsIntegrator.step(
                     context,
-                    positions[i + 1].toSI(),
-                    speeds[i + 1].toSI(),
+                    positions[i + 1].micrometers.meters,
+                    speeds[i + 1].micrometers.meters,
                     Action.BRAKE,
                     -1.0,
                     BrakingType.CONSTANT,
                 )
                 .toMicros()
-        positions[i] = positions[i + 1] + s.positionDelta
-        speeds[i] = min(s.endSpeed, maxSpeed)
+        positions[i] = positions[i + 1] + s.positionDelta.micrometers
+        speeds[i] = min(s.endSpeed, maxSpeed).micrometersPerSecond
     }
 
     val curve = Curve(positions, speeds)
@@ -879,18 +859,31 @@ fun step(
     driver: Driver,
     currentState: TrainState,
 ): TrainState {
-    val cs = constraints.filter { it.doesApply(context, currentState, driver) }
-    val nextStates = cs.map { it.enactDecision(context, currentState, context.timeStep.toMicros()) }
-    val minDt = nextStates.filterNotNull().minOfOrNull { it.time }!! - currentState.time
-    val constrainedStates = cs.map { it.enactDecision(context, currentState, minDt) }
-    return constrainedStates.reduce { mostConstrained, decision ->
-        decision?.merge(currentState, mostConstrained)
-    }!!
+    val nextStates =
+        constraints.mapNotNull {
+            val decision =
+                it.enactDecision(context, currentState, context.timeStep.seconds)
+                    ?: return@mapNotNull null
+            it to decision
+        }
+    val minDt =
+        nextStates.minOfOrNull { (_, decision) -> decision.time }?.let { it - currentState.time }
+    if (minDt == null) {
+        return TODO("naive next state")
+    }
 
-    //    return constraints
-    //        .asSequence()
-    //        .filter { it.doesApply(context, currentState, driver) }
-    //        .mapNotNull { it.enactDecision(context, currentState) }
-    //        .fold(null) { mostConstrained, decision -> decision.merge(currentState,
-    // mostConstrained) }!!
+    val constrainedStates =
+        nextStates.mapNotNull { (constraint, _) ->
+            constraint.enactDecision(context, currentState, minDt)
+        }
+    val mergedState =
+        constrainedStates.reduceOrNull { mostConstrained, decision ->
+            decision.merge(currentState, mostConstrained)
+        }!!
+    val truncatedStep =
+        constraints.fold(mergedState) { mergedState, constraint ->
+            constraint.truncateStep(context, currentState, mergedState)
+        }
+
+    return truncatedStep
 }

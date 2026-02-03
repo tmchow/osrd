@@ -22,23 +22,14 @@ import fr.sncf.osrd.standalone_sim.makeElectricalProfiles
 import fr.sncf.osrd.standalone_sim.makeSafetySpeedRanges
 import fr.sncf.osrd.standalone_sim.result.ElectrificationRange
 import fr.sncf.osrd.train.RollingStock
-import fr.sncf.osrd.tsim.Micrometers
-import fr.sncf.osrd.tsim.MicrometersPerSecond
-import fr.sncf.osrd.tsim.micrometers
-import fr.sncf.osrd.tsim.micrometersPerSecond
-import fr.sncf.osrd.tsim.putLower
-import fr.sncf.osrd.tsim.toMicros
-import fr.sncf.osrd.tsim.toRangeValues
-import fr.sncf.osrd.tsim.toSI
-import fr.sncf.osrd.tsim.withStockLength
 import fr.sncf.osrd.utils.DistanceRangeMap
 import fr.sncf.osrd.utils.entries
 import fr.sncf.osrd.utils.simplifyEnvelopePoints
 import fr.sncf.osrd.utils.toRangeMap
+import fr.sncf.osrd.utils.units.Distance
+import fr.sncf.osrd.utils.units.Duration
 import fr.sncf.osrd.utils.units.Offset
-import fr.sncf.osrd.utils.units.meters
-import fr.sncf.osrd.utils.units.metersPerSecond
-import fr.sncf.osrd.utils.units.seconds
+import fr.sncf.osrd.utils.units.Speed
 
 fun runSimulation(
     infra: FullInfra,
@@ -69,28 +60,34 @@ fun runSimulation(
     val ctx = EnvelopeSimContext(rollingStock, trainPath, timeStep, effortCurveMap)
 
     val constraints = mutableListOf<Constraint>()
-    var trainState = TrainState(0L, 0L, initialSpeed.toMicros(), PantographState.Up())
+    var trainState =
+        TrainState(
+            0.microseconds,
+            0.micrometers,
+            initialSpeed.metersPerSecond,
+            PantographState.Up(),
+        )
     val trainStates = mutableListOf(trainState)
-    var mrsp: RangeMap<Micrometers, MicrometersPerSecond> = TreeRangeMap.create()
-    mrsp.put(Range.all(), rollingStock.maxSpeed.toMicros())
+    var mrsp: RangeMap<PreciseDistance, PreciseSpeed> = TreeRangeMap.create()
+    mrsp.put(Range.all(), rollingStock.maxSpeed.metersPerSecond)
     if (useSpeedLimits) {
         val props = trainPath.getSpeedLimitProperties(speedLimitTag, null)
         for (prop in props) {
             val lower = prop.lower.micrometers
             val upper = prop.upper.micrometers
-            val speed = prop.value.speed.micrometersPerSecond.toLong()
-            if (speed != 0L) {
+            val speed = prop.value.speed.micrometersPerSecond
+            if (speed != 0.micrometersPerSecond) {
                 mrsp.putLower(Range.closed(lower, upper), speed)
             }
         }
-        mrsp = mrsp.withStockLength(rollingStock.length.toMicros())
+        mrsp = mrsp.withStockLength(rollingStock.length.meters)
 
         val signalingRanges = buildSignalingRanges(infra, trainPath)
         val safetySpeedRanges = makeSafetySpeedRanges(infra, trainPath, schedule, signalingRanges)
         for (range in safetySpeedRanges) {
             val lower = range.lower.micrometers
             val upper = range.upper.micrometers
-            val speed = range.value.micrometersPerSecond.toLong()
+            val speed = range.value.micrometersPerSecond
             mrsp.putLower(Range.closed(lower, upper), speed)
         }
     }
@@ -105,7 +102,7 @@ fun runSimulation(
 
     for (entry in mrsp.entries) {
         val range = entry.key
-        if (range.upperEndpoint() == 0L) continue
+        if (range.upperEndpoint() == 0.micrometers) continue
         val speed = entry.value
 
         constraints.add(SpeedLimitedZone(range.lowerEndpoint(), range.upperEndpoint(), speed))
@@ -115,14 +112,14 @@ fun runSimulation(
         val lowerPantograph = (entry.value as? Neutral)?.lowerPantograph ?: continue
         val section =
             NeutralSection(
-                start = entry.key.lowerEndpoint().toMicros(),
-                end = entry.key.upperEndpoint().toMicros(),
+                start = entry.key.lowerEndpoint().meters,
+                end = entry.key.upperEndpoint().meters,
                 lowerPantograph = lowerPantograph,
             )
         constraints.add(section)
     }
 
-    while (trainState.position < trainPath.length.toMicros()) {
+    while (trainState.position < trainPath.length.meters) {
         trainState = step(ctx, constraints, driver, trainState)
         trainStates.add(trainState)
     }
@@ -132,8 +129,9 @@ fun runSimulation(
 
     val baseReport =
         ReportTrain(
-            positions = simplifiedPoints.map { point -> Offset(point.position.meters) },
-            times = simplifiedPoints.map { point -> point.time.seconds },
+            positions =
+                simplifiedPoints.map { point -> Offset(Distance.fromMeters(point.position)) },
+            times = simplifiedPoints.map { point -> Duration.fromSeconds(point.time) },
             speeds = simplifiedPoints.map { point -> point.speed },
             energyConsumption = 0.0, // TODO
             pathItemTimes =
@@ -146,7 +144,7 @@ fun runSimulation(
                         // to get the arrival time
                         res = (insertAt - 1).coerceIn(0, simplifiedPoints.size - 1)
                     }
-                    simplifiedPoints[res].time.seconds
+                    Duration.fromSeconds(simplifiedPoints[res].time)
                 },
         )
 
@@ -171,12 +169,42 @@ fun runSimulation(
         provisional = baseReport, // TODO margins
         finalOutput = completeReport,
         mrsp =
-            mrsp.subRangeMap(Range.closed(0, trainPath.length.toMicros())).toRangeValues { speed ->
+            mrsp.subRangeMap(Range.closed(0.micrometers, trainPath.length.meters)).toRangeValues {
+                speed ->
                 SpeedLimitProperty(
-                    speed = (speed?.toSI() ?: Double.POSITIVE_INFINITY).metersPerSecond,
+                    speed =
+                        Speed.fromMetersPerSecond(
+                            speed?.metersPerSecond ?: Double.POSITIVE_INFINITY
+                        ),
                     source = null,
                 )
             },
         electricalProfiles = makeElectricalProfiles(electrificationRanges),
     )
+}
+
+/**
+ * Update a [RangeMap] representing a Speed Profile, accounting for the length of the rolling stock.
+ *
+ * The given [RangeMap] contains the ranges on the path with speed limits (indicated by signs or
+ * signals). The returned [RangeMap] will report, for given positions of the rolling stock's head,
+ * ranges on the path where the rolling stock cannot exceed a certain speed limit, because even if
+ * pass the sign, as long as its tail is behind the sign the speed limit is still enforced.
+ */
+private fun RangeMap<PreciseDistance, PreciseSpeed>.withStockLength(
+    stockLength: PreciseDistance
+): RangeMap<PreciseDistance, PreciseSpeed> {
+    val map = TreeRangeMap.create<PreciseDistance, PreciseSpeed>()
+    for (entry in asMapOfRanges()) {
+        val range = entry.key
+        val speedLimit = entry.value
+
+        val extendedRange =
+            Range.closed(
+                range.lowerEndpointOrMin(),
+                range.upperEndpointOrMax() saturatingAdd stockLength,
+            )
+        map.putLower(extendedRange, speedLimit)
+    }
+    return map
 }
