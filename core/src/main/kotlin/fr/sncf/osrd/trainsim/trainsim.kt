@@ -880,10 +880,13 @@ fun step(
         constrainedStates.reduceOrNull { mostConstrained, decision ->
             decision.merge(currentState, mostConstrained)
         }!!
-    val truncatedStep =
+    val truncatedState =
         constraints.fold(mergedState) { mergedState, constraint ->
             constraint.truncateStep(context, currentState, mergedState)
         }
 
-    return truncatedStep
+    require(currentState.position <= truncatedState.position) { "train went backwards" }
+    require(currentState.time < truncatedState.time) { "step didn't advance time" }
+
+    return truncatedState
 }
