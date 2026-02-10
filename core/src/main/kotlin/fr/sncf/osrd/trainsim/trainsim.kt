@@ -367,14 +367,14 @@ interface SpeedConstraint : Constraint {
      *
      * It may depend on the [currentState] of the train, for example if the curve evolves over time.
      */
-    fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve
+    fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve?
 
     override fun enactDecision(
         context: EnvelopeSimContext,
         currentState: TrainState,
         maxDelta: PreciseDuration,
-    ): TrainState {
-        val curve = speedCurve(context, currentState)
+    ): TrainState? {
+        val curve = speedCurve(context, currentState) ?: return null
 
         val startSpeedLimit = curve.lerp(currentState.position.micrometers).micrometersPerSecond
 
@@ -546,8 +546,12 @@ data class SpeedLimitedZone(
         return currentState.position in (start)..<end
     }
 
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve =
-        decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
+    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve? {
+        if (currentState.position !in start..<end) {
+            return null
+        }
+        return decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
+    }
 }
 
 /**
@@ -680,6 +684,7 @@ class Stop(val position: PreciseDistance, val duration: PreciseDuration) : Speed
     }
 
     override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
+        // TODO return null if not apply
         return getCurve(context)
     }
 }
