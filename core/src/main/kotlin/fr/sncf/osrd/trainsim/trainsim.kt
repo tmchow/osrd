@@ -962,7 +962,7 @@ fun step(
     val minDt =
         nextStates.minOfOrNull { (_, decision) -> decision.time }?.let { it - currentState.time }
     if (minDt == null) {
-        return TODO("naive next state")
+        return currentState.naive(context)
     }
 
     val constrainedStates =
