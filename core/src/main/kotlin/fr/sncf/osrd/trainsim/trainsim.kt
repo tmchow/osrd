@@ -23,8 +23,10 @@ internal class PreciseIntegrationStep(
         startPos: PreciseDistance,
         newEndPos: PreciseDistance,
     ): PreciseIntegrationStep {
+        require(startPos < newEndPos)
+
         val endPos = startPos + positionDelta
-        if (endPos < newEndPos) {
+        if (endPos <= newEndPos) {
             return this
         }
 
@@ -34,6 +36,28 @@ internal class PreciseIntegrationStep(
 
         return PreciseIntegrationStep(
             timeDelta,
+            newPositionDelta,
+            startSpeed,
+            newEndSpeed,
+            acceleration,
+        )
+    }
+
+    fun truncate(startTime: PreciseDuration, newEndTime: PreciseDuration): PreciseIntegrationStep {
+        require(startTime < newEndTime)
+
+        if (startTime + timeDelta <= newEndTime) {
+            return this
+        }
+
+        val newTimeDelta = newEndTime - startTime
+        val newEndSpeed = startSpeed + acceleration * newTimeDelta
+        val newPositionDelta = newTimeDelta * (startSpeed + newEndSpeed) / 2
+
+        require(newPositionDelta < positionDelta)
+
+        return PreciseIntegrationStep(
+            newTimeDelta,
             newPositionDelta,
             startSpeed,
             newEndSpeed,
@@ -254,6 +278,10 @@ data class TrainState(
     }
 
     fun truncate(oldState: TrainState, newEndPos: PreciseDistance): TrainState {
+        if (position <= newEndPos || time == oldState.time) {
+            return this
+        }
+
         val oldStep =
             PreciseIntegrationStep(
                 timeDelta = time - oldState.time,
@@ -262,13 +290,49 @@ data class TrainState(
                 endSpeed = speed,
                 acceleration = (speed - oldState.speed) / (time - oldState.time),
             )
-        val newStep = oldStep.truncate(position, newEndPos)
-        return TrainState(
+        val newStep = oldStep.truncate(oldState.position, newEndPos)
+        val truncated =  TrainState(
             time = oldState.time + newStep.timeDelta,
             position = oldState.position + newStep.positionDelta,
             speed = newStep.endSpeed,
             pantograph = pantograph,
         )
+
+        require(truncated.time <= time)
+        require(truncated.position <= position)
+        require((oldState.time < truncated.time) == (oldState.time < time))
+        require((oldState.position < truncated.position) == (oldState.position < position))
+
+        return truncated
+    }
+
+    fun truncate(oldState: TrainState, newEndTime: PreciseDuration): TrainState {
+        if (time <= newEndTime || time == oldState.time) {
+            return this
+        }
+
+        val oldStep =
+            PreciseIntegrationStep(
+                timeDelta = time - oldState.time,
+                positionDelta = position - oldState.position,
+                startSpeed = oldState.speed,
+                endSpeed = speed,
+                acceleration = (speed - oldState.speed) / (time - oldState.time),
+            )
+        val newStep = oldStep.truncate(oldState.time, newEndTime)
+        val truncated = TrainState(
+            time = oldState.time + newStep.timeDelta,
+            position = oldState.position + newStep.positionDelta,
+            speed = newStep.endSpeed,
+            pantograph = pantograph,
+        )
+
+        require(truncated.time <= time)
+        require(truncated.position <= position)
+        require((oldState.time < truncated.time) == (oldState.time < time))
+        require((oldState.position < truncated.position) == (oldState.position < position))
+
+        return truncated
     }
 }
 
@@ -426,7 +490,7 @@ interface SpeedConstraint : Constraint {
                     position = currentState.position + positionDelta,
                     speed = endSpeed,
                     pantograph = currentState.pantograph,
-                )
+                ).truncate(currentState, currentState.time + context.timeStep.seconds)
             }
 
             // Here, currentState.position >= curve.xs.last()
