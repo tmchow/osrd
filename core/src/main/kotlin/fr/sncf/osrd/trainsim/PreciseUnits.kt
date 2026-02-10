@@ -1,11 +1,20 @@
 package fr.sncf.osrd.trainsim
 
 import fr.sncf.osrd.utils.units.Distance
+import kotlin.math.absoluteValue
 
 @JvmInline
 value class PreciseDuration(val microseconds: Long) : Comparable<PreciseDuration> {
     val seconds: Double
         get() = microseconds.toDouble() / 1e6
+
+    override fun toString(): String {
+        val usec = (microseconds % 1_000_000).absoluteValue.toString().padStart(6, '0')
+        val sec = ((microseconds / 1_000_000) % 60).absoluteValue.toString().padStart(2, '0')
+        val min = ((microseconds / 60_000_000) % 60).absoluteValue.toString().padStart(2, '0')
+        val hour = microseconds / 3_600_000_000
+        return "$hour:$min:$sec.$usec"
+    }
 
     override fun compareTo(other: PreciseDuration): Int = microseconds.compareTo(other.microseconds)
 
@@ -14,6 +23,9 @@ value class PreciseDuration(val microseconds: Long) : Comparable<PreciseDuration
 
     operator fun minus(other: PreciseDuration): PreciseDuration =
         PreciseDuration(microseconds = microseconds - other.microseconds)
+
+    operator fun times(speed: PreciseSpeed): PreciseDistance =
+        PreciseDistance(micrometers = microseconds * speed.micrometersPerSecond / 1_000_000)
 
     operator fun times(distance: PreciseDistance): PreciseDiDu =
         PreciseDiDu(micrometersMicrosecond = microseconds * distance.micrometers)
@@ -38,6 +50,12 @@ value class PreciseDistance(val micrometers: Long) : Comparable<PreciseDistance>
         get() = Distance(millimeters = micrometers / 1000)
 
     override fun compareTo(other: PreciseDistance): Int = micrometers.compareTo(other.micrometers)
+
+    override fun toString(): String {
+        val um = (micrometers % 1_000_000).absoluteValue.toString().padStart(6, '0')
+        val m = micrometers / 1_000_000
+        return "$m.${um}m"
+    }
 
     operator fun plus(other: PreciseDistance): PreciseDistance =
         PreciseDistance(micrometers = micrometers + other.micrometers)
@@ -89,6 +107,12 @@ value class PreciseSpeed(val micrometersPerSecond: Long) : Comparable<PreciseSpe
     val metersPerSecond: Double
         get() = micrometersPerSecond.toDouble() / 1e6
 
+    override fun toString(): String {
+        val um = (micrometersPerSecond % 1_000_000).absoluteValue.toString().padStart(6, '0')
+        val m = micrometersPerSecond / 1_000_000
+        return "$m.${um}m/s"
+    }
+
     override fun compareTo(other: PreciseSpeed): Int =
         micrometersPerSecond.compareTo(other.micrometersPerSecond)
 
@@ -126,6 +150,12 @@ fun min(a: PreciseSpeed, b: PreciseSpeed): PreciseSpeed = if (a < b) a else b
 value class PreciseAcceleration(val micrometersPerSecond2: Long) : Comparable<PreciseAcceleration> {
     val metersPerSecond2: Double
         get() = micrometersPerSecond2.toDouble() / 1e6
+
+    override fun toString(): String {
+        val um = (micrometersPerSecond2 % 1_000_000).absoluteValue.toString().padStart(6, '0')
+        val m = micrometersPerSecond2 / 1_000_000
+        return "$m.${um}m/s²"
+    }
 
     override fun compareTo(other: PreciseAcceleration): Int =
         micrometersPerSecond2.compareTo(other.micrometersPerSecond2)

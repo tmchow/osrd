@@ -72,9 +72,13 @@ internal fun IntegrationStep.toMicros(): PreciseIntegrationStep =
     )
 
 sealed interface PantographState {
-    class Up : PantographState
+    class Up : PantographState {
+        override fun toString(): String = "UP"
+    }
 
-    class Down : PantographState
+    class Down : PantographState {
+        override fun toString(): String = "DOWN"
+    }
 
     class GoingUp(
         /** time until the pantograph is fully raised */
@@ -85,6 +89,8 @@ sealed interface PantographState {
                 "if remainingTime is negative or zero, this should be Up"
             }
         }
+
+        override fun toString(): String = "UP($remainingTime)"
     }
 
     class GoingDown(
@@ -96,6 +102,8 @@ sealed interface PantographState {
                 "if remainingTime is negative or zero, this should be Down"
             }
         }
+
+        override fun toString(): String = "DOWN($remainingTime)"
     }
 
     fun merge(other: PantographState): PantographState =
@@ -179,7 +187,7 @@ sealed interface PantographState {
         }
 }
 
-class TrainState(
+data class TrainState(
     val time: PreciseDuration,
     val position: PreciseDistance,
     val speed: PreciseSpeed,
@@ -521,7 +529,7 @@ interface SpeedConstraint : Constraint {
  *
  * From [start] to [end], the train must go no higher than [limit].
  */
-class SpeedLimitedZone(
+data class SpeedLimitedZone(
     val start: PreciseDistance,
     val end: PreciseDistance,
     val limit: PreciseSpeed,
@@ -567,7 +575,7 @@ class TemporarySpeedLimit(
  * From [start] on, the train has no access to electricity. If [lowerPantograph] is `true`, the
  * pantograph must begin to lower no further than [signalPosition].
  */
-class NeutralSection(
+data class NeutralSection(
     val start: PreciseDistance,
     val end: PreciseDistance,
     /** Whether the pantograph must be lowered when entering the zone */
