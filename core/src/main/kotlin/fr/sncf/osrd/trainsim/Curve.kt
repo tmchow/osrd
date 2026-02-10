@@ -136,13 +136,15 @@ class Curve(val xs: LongArray, val ys: LongArray) {
      * The index of the first point in [xs];[ys] whose X coordinate is strictly higher than the
      * given [x], or `null` if [x] is out of bounds.
      */
-    internal fun firstAfterStrict(x: Long): Int? {
+    internal fun firstStrictlyAfter(x: Long): Int? {
         if (x < xs.first() || xs[xs.size - 1] <= x) {
             return null
         }
 
         val result = xs.binarySearch(x)
 
+        // Works because elements in [xs] are strictly increasing. If some could be equal,
+        // then we'd need a while loop to get the correct index.
         return if (result >= 0) {
             result + 1
         } else {

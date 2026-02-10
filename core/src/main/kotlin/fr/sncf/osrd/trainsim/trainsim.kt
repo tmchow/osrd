@@ -475,7 +475,7 @@ interface SpeedConstraint : Constraint {
             }
 
             if (currentState.position < curve.xs.last().micrometers) {
-                val nextPointIndex = curve.firstAfterStrict(currentState.position.micrometers)!!
+                val nextPointIndex = curve.firstStrictlyAfter(currentState.position.micrometers)!!
                 val endPos = curve.xs[nextPointIndex].micrometers
                 val endSpeed = curve.ys[nextPointIndex].micrometersPerSecond
                 val positionDelta = endPos - currentState.position
