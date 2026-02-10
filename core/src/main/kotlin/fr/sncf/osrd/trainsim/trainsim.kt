@@ -138,22 +138,28 @@ sealed interface PantographState {
             is Down -> this
             is GoingDown -> this
             is GoingUp -> {
-                val raisePantographTime = rollingStock.raisePantographTime.seconds
-                val lowerPantographTime = rollingStock.lowerPantographTime.seconds
+                val raisePantographTime = rollingStock.raisePantographTime?.seconds ?: return Down()
+                val lowerPantographTime = rollingStock.lowerPantographTime?.seconds ?: return Down()
                 val newRemainingTime =
                     lowerPantographTime - lowerPantographTime * remainingTime / raisePantographTime
                 GoingDown(remainingTime = newRemainingTime)
             }
-            is Up -> GoingDown(remainingTime = rollingStock.lowerPantographTime.seconds)
+            is Up -> {
+                val remainingTime = rollingStock.lowerPantographTime?.seconds ?: return Down()
+                GoingDown(remainingTime)
+            }
         }
 
     /** make the pantograph go up without advancing time */
     fun raise(rollingStock: PhysicsRollingStock): PantographState =
         when (this) {
-            is Down -> GoingUp(remainingTime = rollingStock.raisePantographTime.seconds)
+            is Down -> {
+                val remainingTime = rollingStock.raisePantographTime?.seconds ?: return Up()
+                GoingUp(remainingTime)
+            }
             is GoingDown -> {
-                val raisePantographTime = rollingStock.raisePantographTime.seconds
-                val lowerPantographTime = rollingStock.lowerPantographTime.seconds
+                val raisePantographTime = rollingStock.raisePantographTime?.seconds ?: return Up()
+                val lowerPantographTime = rollingStock.lowerPantographTime?.seconds ?: return Up()
                 val newRemainingTime =
                     raisePantographTime - raisePantographTime * remainingTime / lowerPantographTime
                 GoingUp(remainingTime = newRemainingTime)

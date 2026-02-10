@@ -63,8 +63,8 @@ interface PhysicsRollingStock {
     )
 
     /** Time to raise the pantograph from a fully lowered position */
-    val raisePantographTime: Double
-    val lowerPantographTime: Double
+    val raisePantographTime: Double?
+    val lowerPantographTime: Double?
         get() = raisePantographTime
 
     /** The maximum acceleration, in m/s^2, which can be applied at a given speed, in m/s */
