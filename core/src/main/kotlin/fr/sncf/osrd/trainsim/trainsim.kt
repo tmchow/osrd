@@ -880,11 +880,21 @@ fun step(
 ): TrainState {
     val nextStates =
         constraints.mapNotNull {
-            val decision =
+            val nextState =
                 it.enactDecision(context, currentState, context.timeStep.seconds)
                     ?: return@mapNotNull null
-            it to decision
+
+            require(currentState.position <= nextState.position) {
+                "constraint made train go backwards"
+            }
+            require(currentState.time < nextState.time) { "constraint didn't advance time" }
+            require(nextState.time - currentState.time <= context.timeStep.seconds) {
+                "constraint advanced too much time"
+            }
+
+            it to nextState
         }
+
     val minDt =
         nextStates.minOfOrNull { (_, decision) -> decision.time }?.let { it - currentState.time }
     if (minDt == null) {
