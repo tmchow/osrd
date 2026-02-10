@@ -981,5 +981,7 @@ fun step(
     require(currentState.position <= truncatedState.position) { "train went backwards" }
     require(currentState.time < truncatedState.time) { "step didn't advance time" }
 
-    return truncatedState
+    val clampedState = truncatedState.truncate(currentState, context.path.length.meters)
+
+    return clampedState
 }
