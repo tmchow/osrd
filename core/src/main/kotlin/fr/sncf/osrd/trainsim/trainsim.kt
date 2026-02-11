@@ -19,10 +19,7 @@ internal class PreciseIntegrationStep(
     val endSpeed: PreciseSpeed,
     val acceleration: PreciseAcceleration,
 ) {
-    fun truncate(
-        startPos: PreciseDistance,
-        newEndPos: PreciseDistance,
-    ): PreciseIntegrationStep {
+    fun truncate(startPos: PreciseDistance, newEndPos: PreciseDistance): PreciseIntegrationStep {
         require(startPos < newEndPos)
 
         val endPos = startPos + positionDelta
@@ -211,6 +208,11 @@ sealed interface PantographState {
         }
 }
 
+/**
+ * In constraint implementations, avoid the use of the primary constructor. Instead, use [brake],
+ * [coast] and [accelerate] with the [copy] method. This is because new fields may be required in
+ * the future, or old fields removed.
+ */
 data class TrainState(
     val time: PreciseDuration,
     val position: PreciseDistance,
@@ -260,20 +262,58 @@ data class TrainState(
         )
     }
 
-    fun naive(context: EnvelopeSimContext): TrainState {
+    fun accelerate(context: EnvelopeSimContext): TrainState {
+        val action = if (pantograph is PantographState.Up) Action.ACCELERATE else Action.COAST
         val s =
             TrainPhysicsIntegrator.step(
-                context,
-                position.meters,
-                speed.metersPerSecond,
-                Action.ACCELERATE,
-                directionSign = +1.0,
-            )
+                    context,
+                    position.meters,
+                    speed.metersPerSecond,
+                    action,
+                    directionSign = +1.0,
+                )
+                .toMicros()
         return TrainState(
-            time = time + s.timeDelta.seconds,
-            position = position + s.positionDelta.meters,
-            speed = s.endSpeed.metersPerSecond,
-            pantograph = pantograph,
+            time = time + s.timeDelta,
+            position = position + s.positionDelta,
+            speed = s.endSpeed,
+            pantograph = pantograph.advance(s.timeDelta),
+        )
+    }
+
+    fun coast(context: EnvelopeSimContext): TrainState {
+        val s =
+            TrainPhysicsIntegrator.step(
+                    context,
+                    position.meters,
+                    speed.metersPerSecond,
+                    Action.COAST,
+                    directionSign = +1.0,
+                )
+                .toMicros()
+        return TrainState(
+            time = time + s.timeDelta,
+            position = position + s.positionDelta,
+            speed = s.endSpeed,
+            pantograph = pantograph.advance(s.timeDelta),
+        )
+    }
+
+    fun brake(context: EnvelopeSimContext): TrainState {
+        val s =
+            TrainPhysicsIntegrator.step(
+                    context,
+                    position.meters,
+                    speed.metersPerSecond,
+                    Action.BRAKE,
+                    directionSign = +1.0,
+                )
+                .toMicros()
+        return TrainState(
+            time = time + s.timeDelta,
+            position = position + s.positionDelta,
+            speed = s.endSpeed,
+            pantograph = pantograph.advance(s.timeDelta),
         )
     }
 
@@ -291,12 +331,13 @@ data class TrainState(
                 acceleration = (speed - oldState.speed) / (time - oldState.time),
             )
         val newStep = oldStep.truncate(oldState.position, newEndPos)
-        val truncated =  TrainState(
-            time = oldState.time + newStep.timeDelta,
-            position = oldState.position + newStep.positionDelta,
-            speed = newStep.endSpeed,
-            pantograph = pantograph,
-        )
+        val truncated =
+            TrainState(
+                time = oldState.time + newStep.timeDelta,
+                position = oldState.position + newStep.positionDelta,
+                speed = newStep.endSpeed,
+                pantograph = pantograph,
+            )
 
         require(truncated.time <= time)
         require(truncated.position <= position)
@@ -320,12 +361,13 @@ data class TrainState(
                 acceleration = (speed - oldState.speed) / (time - oldState.time),
             )
         val newStep = oldStep.truncate(oldState.time, newEndTime)
-        val truncated = TrainState(
-            time = oldState.time + newStep.timeDelta,
-            position = oldState.position + newStep.positionDelta,
-            speed = newStep.endSpeed,
-            pantograph = pantograph,
-        )
+        val truncated =
+            TrainState(
+                time = oldState.time + newStep.timeDelta,
+                position = oldState.position + newStep.positionDelta,
+                speed = newStep.endSpeed,
+                pantograph = pantograph,
+            )
 
         require(truncated.time <= time)
         require(truncated.position <= position)
@@ -333,6 +375,31 @@ data class TrainState(
         require((oldState.position < truncated.position) == (oldState.position < position))
 
         return truncated
+    }
+
+    fun truncate(oldState: TrainState, speedCurve: Curve): TrainState {
+        val segment =
+            Segment(
+                oldState.position.micrometers,
+                oldState.speed.micrometersPerSecond,
+                position.micrometers,
+                speed.micrometersPerSecond,
+            )
+        val point = speedCurve.intersectsAt(segment) ?: return this
+
+        val newEndPos = point.x.micrometers
+        val newEndSpeed = point.y.micrometersPerSecond
+        val newTimeDelta =
+            if (newEndSpeed + oldState.speed == 0.micrometersPerSecond) {
+                TODO()
+            } else {
+                // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
+                // but with less likeliness of timeDelta becoming zero.
+                newEndPos / (newEndSpeed + oldState.speed) -
+                    oldState.position / (newEndSpeed + oldState.speed)
+            }
+
+        return copy(time = oldState.time + newTimeDelta, position = newEndPos, speed = newEndSpeed)
     }
 }
 
@@ -439,104 +506,42 @@ interface SpeedConstraint : Constraint {
         maxDelta: PreciseDuration,
     ): TrainState? {
         val curve = speedCurve(context, currentState) ?: return null
+        val startSpeedLimit =
+            curve.lerp(currentState.position.micrometers)?.micrometersPerSecond ?: return null
 
-        val startSpeedLimit = curve.lerp(currentState.position.micrometers).micrometersPerSecond
-
-        val accelerateStep =
-            TrainPhysicsIntegrator.step(
-                    context,
-                    initialLocation = currentState.position.meters,
-                    initialSpeed = currentState.speed.metersPerSecond,
-                    action = Action.ACCELERATE,
-                    directionSign = +1.0,
-                    brakingType = BrakingType.CONSTANT,
-                )
-                .toMicros()
-
-        if (accelerateStep.startSpeed == startSpeedLimit) {
+        if (currentState.speed == startSpeedLimit) {
             // The stock is on the curve, so we return the next point on the curve.
 
             // Snap on the curve
             val startSpeed = startSpeedLimit
 
-            if (currentState.position.micrometers < curve.xs.first()) {
-                val positionDelta =
-                    min(
-                        accelerateStep.positionDelta,
-                        curve.xs.first().micrometers - currentState.position,
-                    )
-                val timeDelta = positionDelta / startSpeed
-                return TrainState(
+            val nextPointIndex = curve.firstStrictlyAfter(currentState.position.micrometers)!!
+            val endPosition = curve.xs[nextPointIndex].micrometers
+            val endSpeed = curve.ys[nextPointIndex].micrometersPerSecond
+            val positionDelta = endPosition - currentState.position
+            val timeDelta =
+                if (endSpeed + startSpeed == 0.micrometersPerSecond) {
+                    TODO()
+                } else {
+                    (2 * positionDelta) / (endSpeed + startSpeed)
+                }
+            return currentState
+                .accelerate(context)
+                .copy(
                     time = currentState.time + timeDelta,
-                    position = currentState.position + positionDelta,
-                    speed = startSpeed,
-                    pantograph = currentState.pantograph,
-                )
-            }
-
-            if (currentState.position < curve.xs.last().micrometers) {
-                val nextPointIndex = curve.firstStrictlyAfter(currentState.position.micrometers)!!
-                val endPos = curve.xs[nextPointIndex].micrometers
-                val endSpeed = curve.ys[nextPointIndex].micrometersPerSecond
-                val positionDelta = endPos - currentState.position
-                val timeDelta =
-                    if (endSpeed + startSpeed == 0.micrometersPerSecond) {
-                        context.timeStep.seconds
-                    } else {
-                        (2 * positionDelta) / (endSpeed + startSpeed)
-                    }
-                return TrainState(
-                    time = currentState.time + timeDelta,
-                    position = currentState.position + positionDelta,
+                    position = endPosition,
                     speed = endSpeed,
-                    pantograph = currentState.pantograph,
-                ).truncate(currentState, currentState.time + context.timeStep.seconds)
-            }
-
-            // Here, currentState.position >= curve.xs.last()
-            val positionDelta = accelerateStep.positionDelta
-            val timeDelta = positionDelta / startSpeed
-            return TrainState(
-                time = currentState.time + timeDelta,
-                position = currentState.position + positionDelta,
-                speed = startSpeed,
-                pantograph = currentState.pantograph,
-            )
-        }
-
-        if (accelerateStep.startSpeed < startSpeedLimit) {
-            // The stock is below the curve, so we truncate accelerateStep to land
-            // on the curve.
-
-            val s = truncateStepRaw(accelerateStep, currentState.position, curve)
-            return TrainState(
-                time = currentState.time + s.timeDelta,
-                position = currentState.position + s.positionDelta,
-                speed = s.endSpeed,
-                pantograph = currentState.pantograph,
-            )
-        }
-
-        // The stock is above the curve, so we brake. We might still need to
-        // truncate the braking step if its endSpeed is lower than constraint.ys.last()
-
-        val brakingStep =
-            TrainPhysicsIntegrator.step(
-                    context,
-                    initialLocation = currentState.position.meters,
-                    initialSpeed = currentState.speed.metersPerSecond,
-                    action = Action.BRAKE,
-                    directionSign = +1.0,
-                    brakingType = BrakingType.CONSTANT,
                 )
-                .toMicros()
-        val s = truncateStepRaw(brakingStep, currentState.position, curve)
-        return TrainState(
-            time = currentState.time + s.timeDelta,
-            position = currentState.position + s.positionDelta,
-            speed = s.endSpeed,
-            pantograph = currentState.pantograph,
-        )
+                .truncate(currentState, currentState.time + context.timeStep.seconds)
+        } else if (currentState.speed < startSpeedLimit) {
+            // The stock is below the curve
+
+            return currentState.accelerate(context).truncate(currentState, curve)
+        } else {
+            // The stock is above the curve
+
+            return currentState.brake(context).truncate(currentState, curve)
+        }
     }
 
     override fun truncateStep(
@@ -544,48 +549,6 @@ interface SpeedConstraint : Constraint {
         currentState: TrainState,
         mergedState: TrainState,
     ): TrainState = mergedState
-
-    private fun truncateStepRaw(
-        step: PreciseIntegrationStep,
-        startPos: PreciseDistance,
-        constraint: Curve,
-    ): PreciseIntegrationStep {
-        val endPos = startPos + step.positionDelta
-
-        val segment =
-            Segment(
-                startPos.micrometers,
-                step.startSpeed.micrometersPerSecond,
-                endPos.micrometers,
-                step.endSpeed.micrometersPerSecond,
-            )
-        val point = constraint.intersectsAt(segment) ?: return step
-
-        val newEndPos = point.x.micrometers
-        val newEndSpeed = point.y.micrometersPerSecond
-        val newPositionDelta = newEndPos - startPos
-        val timeDelta =
-            if (newEndSpeed + step.startSpeed == 0.micrometersPerSecond) {
-                step.timeDelta
-            } else {
-                // This is like (2*newPositionDelta)/(newEndSpeed+startSpeed),
-                // but with less likeliness of timeDelta becoming zero.
-                newEndPos / (newEndSpeed + step.startSpeed) -
-                    startPos / (newEndSpeed + step.startSpeed)
-            }
-        val acceleration =
-            if (timeDelta == 0.microseconds) 0.micrometersPerSecond2
-            else (newEndSpeed - step.startSpeed) / timeDelta
-
-        return PreciseIntegrationStep.fromNaiveStep(
-            timeDelta,
-            newPositionDelta,
-            step.startSpeed,
-            newEndSpeed,
-            acceleration,
-            +1.0,
-        )
-    }
 }
 
 /**
@@ -654,42 +617,35 @@ data class NeutralSection(
         currentState: TrainState,
         maxDelta: PreciseDuration,
     ): TrainState? {
-        if (currentState.position < start) {
-            return null
-        } else if (currentState.position < end) {
-            val step =
-                TrainPhysicsIntegrator.step(
-                        context = context,
-                        initialLocation = currentState.position.meters,
-                        initialSpeed = currentState.speed.metersPerSecond,
-                        action = Action.COAST,
-                        directionSign = +1.0,
-                    )
-                    .toMicros()
-            if (step.positionDelta + currentState.position > end) {
-                val newTimeDelta =
-                    step.timeDelta * (end - currentState.position) / step.positionDelta
-                val newSpeedDelta =
-                    (step.endSpeed - step.startSpeed) * (end - currentState.position) /
-                        step.positionDelta
-                return TrainState(
-                    time = currentState.time + newTimeDelta,
-                    position = end,
-                    speed = currentState.speed + newSpeedDelta,
-                    pantograph =
-                        currentState.pantograph.advance(newTimeDelta).raise(context.rollingStock),
-                )
-            }
-            return TrainState(
-                time = currentState.time + step.timeDelta,
-                position = currentState.position + step.positionDelta,
-                speed = step.endSpeed,
-                pantograph =
-                    currentState.pantograph.lower(context.rollingStock).advance(step.timeDelta),
-            )
-        } else {
+        if (currentState.position !in start..<end) {
             return null
         }
+
+        val coastState = currentState.coast(context)
+
+        if (coastState.position > end) {
+            val oldPositionDelta = coastState.position - currentState.position
+            val newPositionDelta = end - currentState.position
+            val newTimeDelta =
+                (coastState.time - currentState.time) * newPositionDelta / oldPositionDelta
+            val newSpeedDelta =
+                (coastState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
+
+            return coastState.copy(
+                time = currentState.time + newTimeDelta,
+                position = end,
+                speed = currentState.speed + newSpeedDelta,
+                pantograph =
+                    currentState.pantograph.advance(newTimeDelta).raise(context.rollingStock),
+            )
+        }
+
+        return coastState.copy(
+            pantograph =
+                currentState.pantograph
+                    .lower(context.rollingStock)
+                    .advance(coastState.time - currentState.time)
+        )
     }
 
     override fun truncateStep(
@@ -962,7 +918,7 @@ fun step(
     val minDt =
         nextStates.minOfOrNull { (_, decision) -> decision.time }?.let { it - currentState.time }
     if (minDt == null) {
-        return currentState.naive(context)
+        return currentState.accelerate(context)
     }
 
     val constrainedStates =

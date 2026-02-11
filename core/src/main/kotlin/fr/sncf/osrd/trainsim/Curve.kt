@@ -104,15 +104,12 @@ class Curve(val xs: LongArray, val ys: LongArray) {
     /**
      * Linear intERPolation of the Y value of the curve at the given [x] position
      *
-     * If [x] is out of bounds, returns the first or the last value of [ys].
+     * If [x] is out of bounds, returns `null`.
      */
-    internal fun lerp(x: Long): Long {
+    internal fun lerp(x: Long): Long? {
         // Edge cases where we don't have two points to interpolate
-        if (x >= xs.last()) {
-            return ys.last()
-        }
-        if (x <= xs.first()) {
-            return ys.first()
+        if (x !in xs.first()..xs.last()) {
+            return null
         }
 
         val result = xs.binarySearch(x)
