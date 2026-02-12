@@ -856,46 +856,33 @@ fun step(
     driver: Driver,
     currentState: TrainState,
 ): TrainState {
-    val nextStates =
-        constraints.mapNotNull {
-            val nextState =
-                it.enactDecision(context, currentState, context.timeStep.seconds)
-                    ?: return@mapNotNull null
-
-            require(currentState.position <= nextState.position) {
-                "constraint made train go backwards"
-            }
-            require(currentState.time < nextState.time) { "constraint didn't advance time" }
-            require(nextState.time - currentState.time <= context.timeStep.seconds) {
-                "constraint advanced too much time"
-            }
-
-            it to nextState
-        }
-
-    val minDt =
-        nextStates.minOfOrNull { (_, decision) -> decision.time }?.let { it - currentState.time }
-    if (minDt == null) {
-        return currentState.accelerate(context)
-    }
-
-    val constrainedStates =
-        nextStates.mapNotNull { (constraint, _) ->
-            constraint.enactDecision(context, currentState, minDt)
-        }
     val mergedState =
-        constrainedStates.reduceOrNull { mostConstrained, decision ->
-            decision.merge(currentState, mostConstrained)
-        }!!
-    val truncatedState =
-        constraints.fold(mergedState) { mergedState, constraint ->
-            constraint.truncateStep(context, currentState, mergedState)
+        constraints
+            .mapNotNull {
+                val nextState = it.enactDecision(context, currentState) ?: return@mapNotNull null
+
+                require(currentState.position <= nextState.position) {
+                    "constraint made train go backwards"
+                }
+                require(currentState.time < nextState.time) { "constraint didn't advance time" }
+                require(nextState.time - currentState.time <= context.timeStep.seconds) {
+                    "constraint advanced too much time"
+                }
+
+                nextState
+            }
+            .reduceOrNull { mostConstrained, decision ->
+                decision.merge(currentState, mostConstrained)
+            } ?: return currentState.accelerate(context)
+
+    return constraints
+        .fold(mergedState) { mergedState, constraint ->
+            val truncatedState = constraint.truncateStep(context, currentState, mergedState)
+
+            require(currentState.position <= truncatedState.position) { "train went backwards" }
+            require(currentState.time < truncatedState.time) { "step didn't advance time" }
+
+            truncatedState
         }
-
-    require(currentState.position <= truncatedState.position) { "train went backwards" }
-    require(currentState.time < truncatedState.time) { "step didn't advance time" }
-
-    val clampedState = truncatedState.truncate(currentState, context.path.length.meters)
-
-    return clampedState
+        .truncate(currentState, context.path.length.meters)
 }
