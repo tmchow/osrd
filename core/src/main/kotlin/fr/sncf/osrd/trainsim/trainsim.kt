@@ -277,7 +277,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = pantograph.advance(s.timeDelta),
+            pantograph = PantographState.Up(),
         )
     }
 
@@ -295,7 +295,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = pantograph.advance(s.timeDelta),
+            pantograph = PantographState.Up(),
         )
     }
 
@@ -313,7 +313,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = pantograph.advance(s.timeDelta),
+            pantograph = PantographState.Up(),
         )
     }
 
@@ -617,8 +617,16 @@ data class NeutralSection(
         currentState: TrainState,
         maxDelta: PreciseDuration,
     ): TrainState? {
-        if (currentState.position !in start..<end) {
+        if (currentState.position < start) {
             return null
+        }
+        if (currentState.position >= end) {
+            val accelerateState = currentState.accelerate(context)
+                return accelerateState.copy(pantograph =
+                currentState.pantograph
+                    .raise(context.rollingStock)
+                    .advance(accelerateState.time - currentState.time)
+            )
         }
 
         val coastState = currentState.coast(context)
@@ -630,6 +638,8 @@ data class NeutralSection(
                 (coastState.time - currentState.time) * newPositionDelta / oldPositionDelta
             val newSpeedDelta =
                 (coastState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
+
+            require(newTimeDelta > 0.microseconds)
 
             return coastState.copy(
                 time = currentState.time + newTimeDelta,
