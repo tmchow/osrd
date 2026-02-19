@@ -509,7 +509,8 @@ data class SpeedLimitedZone(
         if (currentState.position !in start..<end) {
             return null
         }
-        return decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
+        return decelerationCurve(context, start, limit) +
+            Vec2(end.micrometers, limit.micrometersPerSecond)
     }
 }
 
