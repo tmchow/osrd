@@ -11,6 +11,8 @@ import fr.sncf.osrd.tsim.MicrometerArray
 import fr.sncf.osrd.tsim.MicrometerPerSecondArray
 import kotlin.collections.windowed
 import kotlin.math.absoluteValue
+import kotlin.math.max
+import kotlin.math.min
 
 internal class PreciseIntegrationStep(
     val timeDelta: PreciseDuration,
@@ -92,120 +94,50 @@ internal fun IntegrationStep.toMicros(): PreciseIntegrationStep =
         acceleration = acceleration.metersPerSecond2,
     )
 
-sealed interface PantographState {
-    class Up : PantographState {
-        override fun toString(): String = "UP"
+data class PantographState(val position: Double, val goingUp: Boolean) {
+    init {
+        require(position in 0.0..1.0) { "position must be between 0.0 and 1.0" }
     }
 
-    class Down : PantographState {
-        override fun toString(): String = "DOWN"
-    }
-
-    class GoingUp(
-        /** time until the pantograph is fully raised */
-        val remainingTime: PreciseDuration
-    ) : PantographState {
-        init {
-            require(remainingTime > 0.microseconds) {
-                "if remainingTime is negative or zero, this should be Up"
-            }
+    override fun toString(): String =
+        if (position == 1.0 && goingUp) {
+            "UP"
+        } else if (position == 0.0 && !goingUp) {
+            "DOWN"
+        } else if (goingUp) {
+            String.format("MOVING_UP(%.2f%%)", position * 100)
+        } else {
+            String.format("MOVING_DOWN(%.2f%%)", position * 100)
         }
 
-        override fun toString(): String = "UP($remainingTime)"
-    }
-
-    class GoingDown(
-        /** time until the pantograph is fully lowered */
-        val remainingTime: PreciseDuration
-    ) : PantographState {
-        init {
-            require(remainingTime > 0.microseconds) {
-                "if remainingTime is negative or zero, this should be Down"
-            }
-        }
-
-        override fun toString(): String = "DOWN($remainingTime)"
+    companion object {
+        fun up(): PantographState = PantographState(position = 1.0, goingUp = true)
     }
 
     fun merge(other: PantographState): PantographState =
-        when (this) {
-            is Down -> this
-            is GoingDown ->
-                when (other) {
-                    is Down -> other
-                    is GoingDown ->
-                        if (remainingTime < other.remainingTime) {
-                            this
-                        } else {
-                            other
-                        }
-
-                    is GoingUp -> this
-                    is Up -> this
-                }
-
-            is GoingUp ->
-                when (other) {
-                    is Down -> other
-                    is GoingDown -> other
-                    is GoingUp ->
-                        if (remainingTime < other.remainingTime) {
-                            other
-                        } else {
-                            this
-                        }
-
-                    is Up -> this
-                }
-
-            is Up -> other
-        }
+        PantographState(
+            position = min(position, other.position),
+            goingUp = goingUp && other.goingUp,
+        )
 
     /** make the pantograph go down without advancing time */
-    fun lower(rollingStock: PhysicsRollingStock): PantographState =
-        when (this) {
-            is Down -> this
-            is GoingDown -> this
-            is GoingUp -> {
-                val raisePantographTime = rollingStock.raisePantographTime?.seconds ?: return Down()
-                val lowerPantographTime = rollingStock.lowerPantographTime?.seconds ?: return Down()
-                val newRemainingTime =
-                    lowerPantographTime - lowerPantographTime * remainingTime / raisePantographTime
-                GoingDown(remainingTime = newRemainingTime)
-            }
-            is Up -> {
-                val remainingTime = rollingStock.lowerPantographTime?.seconds ?: return Down()
-                GoingDown(remainingTime)
-            }
-        }
+    fun lower(): PantographState = copy(goingUp = false)
 
     /** make the pantograph go up without advancing time */
-    fun raise(rollingStock: PhysicsRollingStock): PantographState =
-        when (this) {
-            is Down -> {
-                val remainingTime = rollingStock.raisePantographTime?.seconds ?: return Up()
-                GoingUp(remainingTime)
-            }
-            is GoingDown -> {
-                val raisePantographTime = rollingStock.raisePantographTime?.seconds ?: return Up()
-                val lowerPantographTime = rollingStock.lowerPantographTime?.seconds ?: return Up()
-                val newRemainingTime =
-                    raisePantographTime - raisePantographTime * remainingTime / lowerPantographTime
-                GoingUp(remainingTime = newRemainingTime)
-            }
-            is GoingUp -> this
-            is Up -> this
+    fun raise(): PantographState = copy(goingUp = true)
+
+    fun advance(dt: PreciseDuration, rollingStock: PhysicsRollingStock): PantographState =
+        if (goingUp) {
+            val raisePantographTime =
+                rollingStock.raisePantographTime ?: return copy(position = 1.0)
+            copy(position = min(position + (dt.seconds / raisePantographTime), 1.0))
+        } else {
+            val lowerPantographTime =
+                rollingStock.lowerPantographTime ?: return copy(position = 0.0)
+            copy(position = max(position - (dt.seconds / lowerPantographTime), 0.0))
         }
 
-    fun advance(dt: PreciseDuration): PantographState =
-        when (this) {
-            is Down -> this
-            is GoingDown ->
-                if (remainingTime <= dt) Down() else GoingDown(remainingTime = remainingTime - dt)
-            is GoingUp ->
-                if (remainingTime <= dt) Up() else GoingUp(remainingTime = remainingTime - dt)
-            is Up -> this
-        }
+    fun isUp(): Boolean = position == 1.0
 }
 
 /**
@@ -217,7 +149,7 @@ data class TrainState(
     val time: PreciseDuration,
     val position: PreciseDistance,
     val speed: PreciseSpeed,
-    val pantograph: PantographState = PantographState.Up(),
+    val pantograph: PantographState = PantographState.up(),
 ) {
     init {
         require(time >= 0.microseconds) { "train time must be positive or zero" }
@@ -263,7 +195,7 @@ data class TrainState(
     }
 
     fun accelerate(context: EnvelopeSimContext): TrainState {
-        val action = if (pantograph is PantographState.Up) Action.ACCELERATE else Action.COAST
+        val action = if (pantograph.isUp()) Action.ACCELERATE else Action.COAST
         val s =
             TrainPhysicsIntegrator.step(
                     context,
@@ -277,7 +209,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = PantographState.Up(),
+            pantograph = PantographState.up(),
         )
     }
 
@@ -295,7 +227,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = PantographState.Up(),
+            pantograph = PantographState.up(),
         )
     }
 
@@ -313,7 +245,7 @@ data class TrainState(
             time = time + s.timeDelta,
             position = position + s.positionDelta,
             speed = s.endSpeed,
-            pantograph = PantographState.Up(),
+            pantograph = PantographState.up(),
         )
     }
 
@@ -622,10 +554,11 @@ data class NeutralSection(
         }
         if (currentState.position >= end) {
             val accelerateState = currentState.accelerate(context)
-                return accelerateState.copy(pantograph =
-                currentState.pantograph
-                    .raise(context.rollingStock)
-                    .advance(accelerateState.time - currentState.time)
+            return accelerateState.copy(
+                pantograph =
+                    currentState.pantograph
+                        .raise()
+                        .advance(accelerateState.time - currentState.time, context.rollingStock)
             )
         }
 
@@ -646,15 +579,15 @@ data class NeutralSection(
                 position = end,
                 speed = currentState.speed + newSpeedDelta,
                 pantograph =
-                    currentState.pantograph.advance(newTimeDelta).raise(context.rollingStock),
+                    currentState.pantograph.advance(newTimeDelta, context.rollingStock).raise(),
             )
         }
 
         return coastState.copy(
             pantograph =
                 currentState.pantograph
-                    .lower(context.rollingStock)
-                    .advance(coastState.time - currentState.time)
+                    .lower()
+                    .advance(coastState.time - currentState.time, context.rollingStock)
         )
     }
 

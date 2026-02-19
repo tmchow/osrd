@@ -65,7 +65,7 @@ fun runSimulation(
             0.microseconds,
             0.micrometers,
             initialSpeed.metersPerSecond,
-            PantographState.Up(),
+            PantographState.up(),
         )
     val trainStates = mutableListOf(trainState)
     var mrsp: RangeMap<PreciseDistance, PreciseSpeed> = TreeRangeMap.create()
