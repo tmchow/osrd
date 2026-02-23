@@ -401,11 +401,7 @@ interface Constraint {
      * Apply the constraint given the [currentState] of the train and return the state of the train
      * after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
-    fun enactDecision(
-        context: EnvelopeSimContext,
-        currentState: TrainState,
-        maxDelta: PreciseDuration,
-    ): TrainState?
+    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState?
 
     /**
      * Apply the constraint given the [currentState] of the train and return the state of the train
@@ -432,11 +428,7 @@ interface SpeedConstraint : Constraint {
      */
     fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve?
 
-    override fun enactDecision(
-        context: EnvelopeSimContext,
-        currentState: TrainState,
-        maxDelta: PreciseDuration,
-    ): TrainState? {
+    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
         val curve = speedCurve(context, currentState) ?: return null
         val startSpeedLimit =
             curve.lerp(currentState.position.micrometers)?.micrometersPerSecond ?: return null
@@ -545,11 +537,7 @@ data class NeutralSection(
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
 ) : Constraint {
-    override fun enactDecision(
-        context: EnvelopeSimContext,
-        currentState: TrainState,
-        maxDelta: PreciseDuration,
-    ): TrainState? {
+    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
         if (currentState.position < start) {
             return null
         }
