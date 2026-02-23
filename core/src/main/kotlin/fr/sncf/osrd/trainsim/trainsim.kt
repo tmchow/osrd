@@ -620,11 +620,19 @@ data class NeutralSection(
         }
 
         if (currentState.position < start) {
-            return mergedState.truncate(currentState, start)
+            val nextState = mergedState.truncate(currentState, start)
+            if (currentState.time < nextState.time) {
+                return nextState
+            }
         }
 
         // mergedState.position >= end
-        return mergedState.truncate(currentState, end)
+        val nextState = mergedState.truncate(currentState, end)
+        return if (currentState.time < nextState.time) {
+            nextState
+        } else {
+            mergedState
+        }
     }
 }
 
