@@ -567,42 +567,42 @@ data class NeutralSection(
         if (currentState.position < start) {
             return null
         }
+
+        val nextState = currentState.accelerate(context)
+
         if (currentState.position >= end) {
-            val accelerateState = currentState.accelerate(context)
-            return accelerateState.copy(
+            return nextState.copy(
                 pantograph =
                     currentState.pantograph
                         .raise()
-                        .advance(accelerateState.time - currentState.time, context.rollingStock)
+                        .advance(nextState.time - currentState.time, context.rollingStock)
             )
         }
 
-        val coastState = currentState.coast(context)
-
-        if (coastState.position > end) {
-            val oldPositionDelta = coastState.position - currentState.position
+        if (nextState.position > end) {
+            val oldPositionDelta = nextState.position - currentState.position
             val newPositionDelta = end - currentState.position
             val newTimeDelta =
-                (coastState.time - currentState.time) * newPositionDelta / oldPositionDelta
+                (nextState.time - currentState.time) * newPositionDelta / oldPositionDelta
             val newSpeedDelta =
-                (coastState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
+                (nextState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
 
-            require(newTimeDelta > 0.microseconds)
-
-            return coastState.copy(
-                time = currentState.time + newTimeDelta,
-                position = end,
-                speed = currentState.speed + newSpeedDelta,
-                pantograph =
-                    currentState.pantograph.advance(newTimeDelta, context.rollingStock).raise(),
-            )
+            if (newTimeDelta > 0.microseconds) {
+                return nextState.copy(
+                    time = currentState.time + newTimeDelta,
+                    position = end,
+                    speed = currentState.speed + newSpeedDelta,
+                    pantograph =
+                        currentState.pantograph.advance(newTimeDelta, context.rollingStock).raise(),
+                )
+            }
         }
 
-        return coastState.copy(
+        return nextState.copy(
             pantograph =
                 currentState.pantograph
                     .lower()
-                    .advance(coastState.time - currentState.time, context.rollingStock)
+                    .advance(nextState.time - currentState.time, context.rollingStock)
         )
     }
 
