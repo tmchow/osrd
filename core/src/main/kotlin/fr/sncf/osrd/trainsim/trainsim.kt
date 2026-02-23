@@ -437,6 +437,24 @@ interface SpeedConstraint : Constraint {
 
     override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
         val curve = speedCurve(context, currentState) ?: return null
+        val nextState = tryEnactDecision(context, currentState, curve) ?: return null
+
+        val curveEnd = curve.end.micrometers
+        if (currentState.position < curveEnd && nextState.time <= currentState.time) {
+            // The previous call to tryEnactDecision didn't advance time, so currentState must be
+            // really close to the end of the curve. In this case, assume the speed limit has been
+            // passed.
+            return null
+        }
+
+        return nextState
+    }
+
+    fun tryEnactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+        curve: Curve,
+    ): TrainState? {
         val startSpeedLimit =
             curve.lerp(currentState.position.micrometers)?.micrometersPerSecond ?: return null
 
@@ -446,7 +464,8 @@ interface SpeedConstraint : Constraint {
             // Snap on the curve
             val startSpeed = startSpeedLimit
 
-            val nextPointIndex = curve.firstStrictlyAfter(currentState.position.micrometers)!!
+            val nextPointIndex =
+                curve.firstStrictlyAfter(currentState.position.micrometers) ?: return null
             val endPosition = curve.xs[nextPointIndex].micrometers
             val endSpeed = curve.ys[nextPointIndex].micrometersPerSecond
             val positionDelta = endPosition - currentState.position

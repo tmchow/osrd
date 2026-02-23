@@ -54,6 +54,14 @@ class Curve(val xs: LongArray, val ys: LongArray) {
     val size: Int
         get() = xs.size
 
+    /** The first X coordinate of the curve */
+    val start: Long
+        get() = xs.first()
+
+    /** The last X coordinate of the curve */
+    val end: Long
+        get() = xs.last()
+
     operator fun plus(point: Vec2): Curve =
         Curve(xs.asSequence().zip(ys.asSequence()).map { Vec2(it) } + sequenceOf(point))
 
