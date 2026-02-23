@@ -536,7 +536,7 @@ class TemporarySpeedLimit(
  * Start of a neutral zone
  *
  * From [start] on, the train has no access to electricity. If [lowerPantograph] is `true`, the
- * pantograph must begin to lower no further than [signalPosition].
+ * pantograph must begin to lower no further than [start].
  */
 data class NeutralSection(
     val start: PreciseDistance,
