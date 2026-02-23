@@ -280,8 +280,8 @@ data class TrainState(
 
         require(truncated.time <= time)
         require(truncated.position <= position)
-        require((oldState.time < truncated.time) == (oldState.time < time))
-        require((oldState.position < truncated.position) == (oldState.position < position))
+        require((oldState.time <= truncated.time) == (oldState.time <= time))
+        require((oldState.position <= truncated.position) == (oldState.position <= position))
 
         return truncated
     }
