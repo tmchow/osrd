@@ -195,7 +195,14 @@ data class TrainState(
     }
 
     fun accelerate(context: EnvelopeSimContext): TrainState {
-        val action = if (pantograph.isUp()) Action.ACCELERATE else Action.COAST
+        val action =
+            if (pantograph.isUp() || context.rollingStock.raisePantographTime == null) {
+                // Hack: if raisePantographTime is null, assume the train is thermal
+                // and can accelerate even when its pantograph isn't up
+                Action.ACCELERATE
+            } else {
+                Action.COAST
+            }
         val s =
             TrainPhysicsIntegrator.step(
                     context,
