@@ -437,6 +437,7 @@ interface SpeedConstraint : Constraint {
 
     override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
         val curve = speedCurve(context, currentState) ?: return null
+        if (currentState.position.micrometers !in curve.start..curve.end) return null
         val nextState = tryEnactDecision(context, currentState, curve) ?: return null
 
         val curveEnd = curve.end.micrometers
@@ -523,13 +524,8 @@ data class SpeedLimitedZone(
         return currentState.position in (start)..<end
     }
 
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve? {
-        if (currentState.position !in start..<end) {
-            return null
-        }
-        return decelerationCurve(context, start, limit) +
-            Vec2(end.micrometers, limit.micrometersPerSecond)
-    }
+    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve =
+        decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
 }
 
 /**
