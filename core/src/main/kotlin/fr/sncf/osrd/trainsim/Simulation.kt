@@ -180,6 +180,27 @@ fun runSimulation(
                 )
             },
         electricalProfiles = makeElectricalProfiles(electrificationRanges),
+        speedLimitCurves =
+            constraints
+                .asSequence()
+                .filterIsInstance<SpeedLimitedZone>()
+                .mapNotNull {
+                    val curve =
+                        it.speedCurve(
+                            context,
+                            TrainState(
+                                time = 0.microseconds,
+                                position = 0.micrometers,
+                                speed = 0.micrometersPerSecond,
+                            ),
+                        ) ?: return@mapNotNull null
+                    for (i in 0..<curve.size) {
+                        curve.xs[i] /= 1000
+                        curve.ys[i] /= 1000
+                    }
+                    curve
+                }
+                .toList(),
     )
 }
 

@@ -68,6 +68,24 @@ pub struct SimulationResponseSuccess {
     pub mrsp: SpeedLimitProperties,
     #[schema(inline)]
     pub electrical_profiles: ElectricalProfiles,
+    #[schema(inline)]
+    #[serde(default)]
+    pub speed_limit_curves: Vec<Curve>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug, ToSchema)]
+pub struct Curve {
+    pub xs: Vec<u64>,
+    pub ys: Vec<u64>,
+}
+
+impl From<core_client::simulation::Curve> for Curve {
+    fn from(value: core_client::simulation::Curve) -> Self {
+        Self {
+            xs: value.xs,
+            ys: value.ys,
+        }
+    }
 }
 
 /// Compute whether the simulation response respects the times on each path item.
@@ -227,6 +245,7 @@ impl From<core_client::simulation::SimulationSuccess> for SimulationResponseSucc
             final_output: response.final_output,
             mrsp: response.mrsp,
             electrical_profiles: response.electrical_profiles,
+            speed_limit_curves: response.speed_limit_curves.into_iter().map(Curve::from).collect(),
         }
     }
 }

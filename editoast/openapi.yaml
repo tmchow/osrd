@@ -13172,6 +13172,26 @@ components:
         provisional:
           $ref: '#/components/schemas/core.ReportTrain'
           description: Simulation that takes into account the regularity margins
+        speed_limit_curves:
+          type: array
+          items:
+            type: object
+            required:
+            - xs
+            - ys
+            properties:
+              xs:
+                type: array
+                items:
+                  type: integer
+                  format: int64
+                  minimum: 0
+              ys:
+                type: array
+                items:
+                  type: integer
+                  format: int64
+                  minimum: 0
     SimulationSummaryResult:
       oneOf:
       - type: object

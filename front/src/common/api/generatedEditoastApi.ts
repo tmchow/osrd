@@ -4586,6 +4586,10 @@ export type SimulationResponseSuccess = {
   };
   /** Simulation that takes into account the regularity margins */
   provisional: CoreReportTrain;
+  speed_limit_curves?: {
+    xs: number[];
+    ys: number[];
+  }[];
 };
 export type SimulationResponse =
   | (SimulationResponseSuccess & {

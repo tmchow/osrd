@@ -13,7 +13,7 @@ const GRADIENT_HEIGHT = 16;
 const TRAIN_LENGTH_MARKER_HEIGHT = 8;
 
 export const drawSpeedLimits = ({ ctx, width, height, store }: DrawFunctionParams) => {
-  const { mrsp, trainLength, ratioX, leftOffset } = store;
+  const { mrsp, speedLimitCurves, trainLength, ratioX, leftOffset } = store;
 
   if (!mrsp) return;
 
@@ -28,16 +28,21 @@ export const drawSpeedLimits = ({ ctx, width, height, store }: DrawFunctionParam
 
   ctx.lineCap = 'round';
 
-  let previousBoundaryX = positionToPosX(0, maxPosition, width, ratioX);
+  const posToPosX = (position: number): number =>
+    positionToPosX(position, maxPosition, width, ratioX);
+  const speedToPosY = (speed: number): number =>
+    realHeight - (speed / maxSpeed) * (realHeight - CURVE_MARGIN_TOP) + MARGIN_TOP;
+
+  let previousBoundaryX = posToPosX(0);
   let previousSpeedY: number | null = null;
   for (let i = 0; i < mrsp.values.length; i++) {
     const { speed, isTemporary } = mrsp.values[i];
 
     const isLastValue = i == mrsp.values.length - 1;
     const currentBoundary = isLastValue ? maxPosition : mrsp.boundaries[i];
-    const currentBoundaryX = positionToPosX(currentBoundary, maxPosition, width, ratioX);
+    const currentBoundaryX = posToPosX(currentBoundary);
 
-    const speedY = realHeight - (speed / maxSpeed) * (realHeight - CURVE_MARGIN_TOP) + MARGIN_TOP;
+    const speedY = speedToPosY(speed);
     // Draw vertical line joining 2 speed limits
     if (previousSpeedY !== null) {
       ctx.beginPath();
@@ -65,11 +70,8 @@ export const drawSpeedLimits = ({ ctx, width, height, store }: DrawFunctionParam
     // Handle train length (only if next speed is higher than current speed)
     let extendedBoundaryX: number | null = null;
     if (!isLastValue && mrsp.values[i + 1].speed > speed) {
-      extendedBoundaryX = positionToPosX(
-        Math.min(currentBoundary + convertMToKm(trainLength), maxPosition),
-        maxPosition,
-        width,
-        ratioX
+      extendedBoundaryX = posToPosX(
+        Math.min(currentBoundary + convertMToKm(trainLength), maxPosition)
       );
     }
 
@@ -93,6 +95,37 @@ export const drawSpeedLimits = ({ ctx, width, height, store }: DrawFunctionParam
   }
 
   ctx.restore();
+
+  if (speedLimitCurves && speedLimitCurves.length > 0) {
+    ctx.save();
+    ctx.translate(leftOffset, 0);
+
+    for (const curve of speedLimitCurves) {
+      const { xs, ys } = curve;
+
+      if (xs.length === 0 || xs.length !== ys.length) {
+        continue;
+      }
+
+      const x0 = xs[0];
+      const y0 = ys[0];
+
+      ctx.beginPath();
+      ctx.moveTo(posToPosX(x0), speedToPosY(y0));
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = WARNING_30.hex();
+
+      for (let i = 1; i < xs.length; i++) {
+        const x = xs[i];
+        const y = ys[i];
+        ctx.lineTo(posToPosX(x), speedToPosY(y));
+      }
+
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
 
   // Prevent overlapping with y axis
   ctx.clearRect(0, 0, MARGIN_LEFT, height);

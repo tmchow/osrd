@@ -294,6 +294,14 @@ pub struct SimulationSuccess {
     pub final_output: CompleteReportTrain,
     pub mrsp: SpeedLimitProperties,
     pub electrical_profiles: ElectricalProfiles,
+    #[serde(default)]
+    pub speed_limit_curves: Vec<Curve>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+pub struct Curve {
+    pub xs: Vec<u64>,
+    pub ys: Vec<u64>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

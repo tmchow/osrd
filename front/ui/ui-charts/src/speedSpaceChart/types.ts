@@ -53,6 +53,11 @@ type SpeedLimit = {
   isTemporary: boolean;
 };
 
+type Curve = {
+  xs: number[];
+  ys: number[];
+};
+
 export type Data = {
   speeds: LayerData<number>[];
   ecoSpeeds: LayerData<number>[];
@@ -61,6 +66,7 @@ export type Data = {
   electrifications: LayerData<ElectrificationValues>[];
   slopes: LayerData<number>[];
   mrsp?: ValuesAlongPath<SpeedLimit>;
+  speedLimitCurves?: Curve[];
   electricalProfiles?: LayerData<ElectricalProfileValues>[];
   powerRestrictions?: LayerData<PowerRestrictionValues>[];
   speedLimitTags?: LayerData<SpeedLimitTagValues>[];

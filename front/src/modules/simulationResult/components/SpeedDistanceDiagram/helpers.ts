@@ -14,6 +14,7 @@ import type { SpeedLimitTagValue } from 'modules/simulationResult/types';
 import { mmToKm, msToKmh, mToKm } from 'utils/physics';
 
 import { electricalProfilesDesignValues } from './consts';
+import type { Data } from '@osrd-project/ui-charts/dist/speedSpaceChart/types';
 
 const getTag = (source?: SpeedLimitTagValue['source']): { name: string; color: string } => {
   let name: string;
@@ -97,6 +98,12 @@ const formatMrsp = (mrsp: SimulationResponseSuccess['mrsp']) => ({
   boundaries: mrsp.boundaries.map((pos) => mmToKm(pos)),
   values: mrsp.values.map((speed) => ({ speed: msToKmh(speed.speed), isTemporary: false })),
 });
+
+const formatSpeedLimitCurves = (speedLimitCurves: { xs: number[]; ys: number[] }[]) =>
+  speedLimitCurves.map(({ xs, ys }) => ({
+    xs: xs.map((x) => mmToKm(x)),
+    ys: ys.map((y) => msToKmh(y / 1000)),
+  }));
 
 export const formatStops = (operationalPoints: PathPropertiesFormatted['operationalPoints']) =>
   operationalPoints.map(({ position, weight, extensions: { identifier, sncf } = {} }) => ({
@@ -195,7 +202,7 @@ export const formatData = (
   trainLength: number,
   selectedTrainPowerRestrictions?: LayerData<PowerRestrictionValues>[],
   pathProperties?: PathPropertiesFormatted
-) => {
+): Data => {
   const pathLength = simulation.base.positions[simulation.base.positions.length - 1];
   const speeds: LayerData<number>[] = formatSpeeds(simulation.base);
   const ecoSpeeds: LayerData<number>[] = formatSpeeds(simulation.final_output);
@@ -215,6 +222,7 @@ export const formatData = (
     pathLength
   );
   const mrsp = formatMrsp(simulation.mrsp);
+  const speedLimitCurves = formatSpeedLimitCurves(simulation.speed_limit_curves ?? []);
 
   return {
     speeds,
@@ -227,5 +235,6 @@ export const formatData = (
     speedLimitTags,
     mrsp,
     trainLength,
+    speedLimitCurves,
   };
 };

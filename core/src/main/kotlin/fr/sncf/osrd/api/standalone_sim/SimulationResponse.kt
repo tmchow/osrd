@@ -10,6 +10,7 @@ import fr.sncf.osrd.path.interfaces.PhysicsPath
 import fr.sncf.osrd.reporting.exceptions.OSRDError
 import fr.sncf.osrd.sim_infra.api.SpeedLimitProperty
 import fr.sncf.osrd.sim_infra.api.SpeedLimitSource
+import fr.sncf.osrd.trainsim.Curve
 import fr.sncf.osrd.utils.json.UnitAdapterFactory
 import fr.sncf.osrd.utils.units.Offset
 import fr.sncf.osrd.utils.units.TimeDelta
@@ -28,6 +29,7 @@ class SimulationSuccess(
     @Json(name = "final_output") val finalOutput: CompleteReportTrain,
     val mrsp: RangeValues<SpeedLimitProperty>,
     @Json(name = "electrical_profiles") val electricalProfiles: RangeValues<ElectricalProfileValue>,
+    @Json(name = "speed_limit_curves") val speedLimitCurves: List<Curve> = listOf(),
 ) : SimulationResponse
 
 sealed class ElectricalProfileValue {

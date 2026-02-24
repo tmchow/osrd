@@ -87,6 +87,7 @@ const SpeedSpaceChart = ({
     electrifications: [],
     slopes: [],
     mrsp: undefined,
+    speedLimitCurves: undefined,
     powerRestrictions: undefined,
     electricalProfiles: undefined,
     speedLimitTags: undefined,
@@ -108,7 +109,7 @@ const SpeedSpaceChart = ({
     layersDisplay: {
       steps: true,
       declivities: false,
-      speedLimits: false,
+      speedLimits: true,
       electricalProfiles: false,
       powerRestrictions: false,
       speedLimitTags: false,
