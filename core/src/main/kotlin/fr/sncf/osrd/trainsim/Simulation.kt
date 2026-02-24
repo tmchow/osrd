@@ -57,7 +57,7 @@ fun runSimulation(
         )
     val curvesAndConditions = rollingStock.mapTractiveEffortCurves(electrificationMap, comfort)
     val effortCurveMap = curvesAndConditions.curves
-    val ctx = EnvelopeSimContext(rollingStock, trainPath, timeStep, effortCurveMap)
+    val context = EnvelopeSimContext(rollingStock, trainPath, timeStep, effortCurveMap)
 
     val constraints = mutableListOf<Constraint>()
     var trainState =
@@ -120,7 +120,7 @@ fun runSimulation(
     }
 
     while (trainState.position < trainPath.length.meters) {
-        trainState = step(ctx, constraints, driver, trainState)
+        trainState = step(context, constraints, driver, trainState)
         trainStates.add(trainState)
     }
 
