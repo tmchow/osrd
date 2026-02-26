@@ -15,6 +15,18 @@
       },
       "end": {
         "title": "Ende"
+      },
+      "track": {
+        "description": "Bezeichnung des Gleisabschnitts",
+        "title": "Gleis"
+      }
+    },
+    "title": "Fahrtrichtung des Gleisabschnitts"
+  },
+  "BalSystem": {
+    "properties": {
+      "conditional_parameters": {
+        "description": "BAL-Signalparamter für die gewählte Strecke"
       }
     }
   }
