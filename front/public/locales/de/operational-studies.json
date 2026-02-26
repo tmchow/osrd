@@ -1,4 +1,8 @@
 {
+  "boardFullNames": {
+    "sdd": "Geschwindigkeits-Weg-Diagramm",
+    "std": "Weg-Zeit-Diagramm"
+  },
   "boards": {
     "conflicts": "Konflikte",
     "macro": "Makro",
@@ -7,6 +11,11 @@
     "std": "SZD",
     "tables": "Fahrpläne",
     "trains": "Züge"
+  },
+  "importTrainScheduleSet": {
+    "cancel": "Abbrechen",
+    "cartEmpty": "Leere Auswahl",
+    "import": "Importieren"
   },
   "importTrains": {
     "and": "und",
