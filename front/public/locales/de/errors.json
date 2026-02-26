@@ -5,5 +5,16 @@
   "500": "Serverfehler",
   "502": "Serverfehler",
   "503": "Serverfehler",
-  "504": "Der Server hat nicht geantwortet."
+  "504": "Der Server hat nicht geantwortet.",
+  "core": {
+    "assert_error": "Fehlermeldung unter {{file_location}}: {{assert_message}}",
+    "missing_last_stdcm_stop": "STDCM Anfragen, die nicht mit einem Halt enden sind aktuell nicht unterstützt"
+  },
+  "default": "Es ist ein Fehler aufgetreten.",
+  "editoast": {
+    "DatabaseAccessError": "Fehler beim Datenbankzugriff",
+    "app_health": {
+      "Core": "Core ist fehlerhaft"
+    }
+  }
 }
