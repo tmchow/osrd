@@ -2,5 +2,59 @@
   "401": "未授权的用户",
   "403": "访问拒绝",
   "404": "资源未找到",
-  "500": "服务器错误"
+  "500": "服务器错误",
+  "502": "服务器错误",
+  "503": "服务器错误",
+  "504": "服务器未响应。",
+  "core": {
+    "assert_error": "断言不成成立：{{file_location}}: {{assert_message}}"
+  },
+  "default": "发生错误.",
+  "editoast": {
+    "DatabaseAccessError": "数据库访问错误",
+    "app_health": {
+      "Core": "核心错误",
+      "Database": "数据库错误",
+      "Openfga": "OpenFGA错误",
+      "Timeout": "服务超时",
+      "Valkey": "Valkey错误"
+    },
+    "attached": {
+      "TrackNotFound": "轨道 {{track_id}} 未找到"
+    },
+    "authz": {
+      "AuthError": "授权内部错误，请重试或联系服务",
+      "Authorizer": "内部错误",
+      "Authz": "授权内部错误，请重试或联系服务",
+      "Database": "内部错误（数据库）",
+      "DbError": "数据库访问错误",
+      "Driver": "授权内部错误，请重试或联系服务",
+      "Forbidden": "未授权",
+      "GrantsApiMisuse": "不正当的API使用",
+      "NoSuchUser": "未知用户",
+      "Unauthorized": "未授权用户",
+      "UnknownIdentity": "未知身份 '{{identity}}'",
+      "UnknownResource": "未知资源",
+      "UnknownResourceType": "未知资源类型",
+      "UnknownSubject": "未知对象",
+      "UnknownUser": "未知用户 {{id}}"
+    },
+    "auto_fixes": {
+      "FixTrialFailure": "无法尝试应用修复",
+      "MissingErrorObject": "无法找到错误主体"
+    },
+    "cache_operation": {
+      "DuplicateIdsProvided": "{{obj_type}} {{obj_id}}：一个副本已经存在",
+      "ObjectNotFound": "无法在基础设施缓存中找到{{obj_type}} {{obj_id}}"
+    },
+    "catalog_entry": {
+      "Database": "内部错误（数据库）",
+      "NotFound": "目录条目 '{{catalog_entry_id}}' 无法找到"
+    },
+    "core": {
+      "pathfinding": {
+        "ZeroLengthPath": "路径长度不能为空。"
+      }
+    }
+  }
 }
