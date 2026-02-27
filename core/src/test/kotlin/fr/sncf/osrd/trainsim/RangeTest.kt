@@ -1,4 +1,4 @@
-package fr.sncf.osrd.tsim
+package fr.sncf.osrd.trainsim
 
 import com.google.common.collect.Range
 import com.google.common.collect.TreeRangeMap
@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class RangeTest {
     @Test
     fun testPutLower() {
-        val map = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
+        val map = TreeRangeMap.create<Long, Long>()
         map.put(Range.all(), 42)
 
         Assertions.assertEquals(42, map.get(0))
@@ -23,7 +23,7 @@ class RangeTest {
 
     @Test
     fun testPutLower2() {
-        val map = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
+        val map = TreeRangeMap.create<Long, Long>()
         map.put(Range.atMost(0), 42)
         map.put(Range.atLeast(0), 69)
 
@@ -42,7 +42,7 @@ class RangeTest {
 
     @Test
     fun testPutLower3() {
-        val map = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
+        val map = TreeRangeMap.create<Long, Long>()
         map.put(Range.closed(2, 4), 42)
         map.putLower(Range.closed(0, 6), 69)
         map.putLower(Range.all(), 420)
@@ -56,28 +56,28 @@ class RangeTest {
 
     @Test
     fun testWithStockLength() {
-        val map = TreeRangeMap.create<Micrometers, MicrometersPerSecond>()
-        map.put(Range.closed(0, 689), 27_778)
-        map.put(Range.closed(1187, 1193), 22_222)
-        map.put(Range.closed(897, 1187), 27_778)
-        map.put(Range.closed(689, 897), 19_444)
+        val map = TreeRangeMap.create<PreciseDistance, PreciseSpeed>()
+        map.put(Range.closed(0.micrometers, 689.micrometers), 27_778.micrometersPerSecond)
+        map.put(Range.closed(1187.micrometers, 1193.micrometers), 22_222.micrometersPerSecond)
+        map.put(Range.closed(897.micrometers, 1187.micrometers), 27_778.micrometersPerSecond)
+        map.put(Range.closed(689.micrometers, 897.micrometers), 19_444.micrometersPerSecond)
 
-        val res = map.withStockLength(400)
+        val res = map.withStockLength(400.micrometers)
 
-        Assertions.assertEquals(27_778, res.get(0))
-        Assertions.assertEquals(27_778, res.get(688))
+        Assertions.assertEquals(27_778.micrometersPerSecond, res.get(0.micrometers)!!)
+        Assertions.assertEquals(27_778.micrometersPerSecond, res.get(688.micrometers)!!)
 
-        Assertions.assertEquals(19_444, res.get(690))
-        Assertions.assertEquals(19_444, res.get(896))
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(690.micrometers)!!)
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(896.micrometers)!!)
 
-        Assertions.assertEquals(19_444, res.get(898))
-        Assertions.assertEquals(19_444, res.get(1186))
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(898.micrometers)!!)
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(1186.micrometers)!!)
 
-        Assertions.assertEquals(19_444, res.get(1188))
-        Assertions.assertEquals(19_444, res.get(1192))
-        Assertions.assertEquals(19_444, res.get(1296))
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(1188.micrometers)!!)
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(1192.micrometers)!!)
+        Assertions.assertEquals(19_444.micrometersPerSecond, res.get(1296.micrometers)!!)
 
-        Assertions.assertEquals(null, res.get(1298))
+        Assertions.assertNull(res.get(1298.micrometers))
     }
 
     @Test

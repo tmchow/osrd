@@ -177,6 +177,10 @@ class Curve(val xs: LongArray, val ys: LongArray) {
         val y1 = segment.y1
         val x2 = segment.x2
         val y2 = segment.y2
+        return intersectsAt(x1, y1, x2, y2)
+    }
+
+    internal fun intersectsAt(x1: Long, y1: Long, x2: Long, y2: Long): Vec2? {
         require(x1 < x2)
 
         val r1 = xs.binarySearch(x1)

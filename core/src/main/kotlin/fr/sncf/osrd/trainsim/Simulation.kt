@@ -212,7 +212,7 @@ fun runSimulation(
  * ranges on the path where the rolling stock cannot exceed a certain speed limit, because even if
  * pass the sign, as long as its tail is behind the sign the speed limit is still enforced.
  */
-private fun RangeMap<PreciseDistance, PreciseSpeed>.withStockLength(
+internal fun RangeMap<PreciseDistance, PreciseSpeed>.withStockLength(
     stockLength: PreciseDistance
 ): RangeMap<PreciseDistance, PreciseSpeed> {
     val map = TreeRangeMap.create<PreciseDistance, PreciseSpeed>()
