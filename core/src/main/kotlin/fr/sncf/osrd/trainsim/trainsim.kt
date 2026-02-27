@@ -7,8 +7,6 @@ import fr.sncf.osrd.envelope_sim.IntegrationStep
 import fr.sncf.osrd.envelope_sim.PhysicsRollingStock
 import fr.sncf.osrd.envelope_sim.TrainPhysicsIntegrator
 import fr.sncf.osrd.envelope_sim.etcs.BrakingType
-import fr.sncf.osrd.tsim.MicrometerArray
-import fr.sncf.osrd.tsim.MicrometerPerSecondArray
 import kotlin.collections.windowed
 import kotlin.math.absoluteValue
 import kotlin.math.max
@@ -817,8 +815,8 @@ internal fun decelerationCurve(
         stepCount++
     }
 
-    val positions = MicrometerArray(stepCount)
-    val speeds = MicrometerPerSecondArray(stepCount)
+    val positions = LongArray(stepCount)
+    val speeds = LongArray(stepCount)
 
     var i = stepCount - 1
     positions[i] = targetPosition.micrometers
