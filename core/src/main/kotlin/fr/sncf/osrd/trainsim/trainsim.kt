@@ -419,6 +419,10 @@ interface Constraint {
     ): TrainState
 }
 
+interface Updatable {
+    fun update(oldState: TrainState, newState: TrainState)
+}
+
 /**
  * A driving constraint that only constrains the speed of the train.
  *
@@ -650,9 +654,13 @@ sealed class ShortSlipStop(val position: PreciseDistance) : SpeedConstraint {
  *
  * The train must stop at [position] for the duration of [duration].
  */
-class Stop(val position: PreciseDistance, val duration: PreciseDuration) : SpeedConstraint {
-    // Deceleration curve cache
+data class Stop(val position: PreciseDistance, var duration: PreciseDuration) :
+    SpeedConstraint, Updatable {
+    /** Deceleration curve cache */
     var stopCurve: Curve? = null
+
+    /** Whether the train is or has stopped at this stop */
+    var trainStopped = false
 
     private fun getCurve(context: EnvelopeSimContext): Curve {
         if (stopCurve == null) {
@@ -664,8 +672,24 @@ class Stop(val position: PreciseDistance, val duration: PreciseDuration) : Speed
     }
 
     override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> {
-        // TODO return null if not apply
+        if (trainStopped && duration <= 0.microseconds) {
+            return listOf()
+        }
         return listOf(getCurve(context))
+    }
+
+    override fun update(oldState: TrainState, newState: TrainState) {
+        val trainCurrentlyStopped =
+            oldState.speed == 0.micrometersPerSecond && newState.speed == 0.micrometersPerSecond
+        if (trainStopped) {
+            if (trainCurrentlyStopped) {
+                val dt = newState.time - oldState.time
+                duration = duration saturatedMinus dt
+            }
+        } else if (newState.position > position && trainCurrentlyStopped) {
+            val dt = newState.time - oldState.time
+            duration = duration saturatedMinus dt
+        }
     }
 }
 

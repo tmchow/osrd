@@ -1,6 +1,8 @@
 package fr.sncf.osrd.trainsim
 
 import fr.sncf.osrd.utils.units.Distance
+import fr.sncf.osrd.utils.units.Duration
+import fr.sncf.osrd.utils.units.Offset
 import fr.sncf.osrd.utils.units.Speed
 import kotlin.math.absoluteValue
 
@@ -8,6 +10,9 @@ import kotlin.math.absoluteValue
 value class PreciseDuration(val microseconds: Long) : Comparable<PreciseDuration> {
     val seconds: Double
         get() = microseconds.toDouble() / 1e6
+
+    infix fun saturatedMinus(other: PreciseDuration): PreciseDuration =
+        if (this <= other) 0.microseconds else this - other
 
     override fun toString(): String {
         val usec = (microseconds % 1_000_000).absoluteValue.toString().padStart(6, '0')
@@ -39,6 +44,8 @@ val Double.seconds: PreciseDuration
     get() = PreciseDuration(microseconds = (this * 1e6).toLong())
 val Int.microseconds: PreciseDuration
     get() = PreciseDuration(microseconds = this.toLong())
+
+fun Duration.toPrecise(): PreciseDuration = PreciseDuration(microseconds = milliseconds * 1000)
 
 fun min(a: PreciseDistance, b: PreciseDistance): PreciseDistance = if (a < b) a else b
 
@@ -100,7 +107,11 @@ val Int.micrometers: PreciseDistance
     get() = PreciseDistance(micrometers = this.toLong())
 val Long.micrometers: PreciseDistance
     get() = PreciseDistance(micrometers = this)
+
 fun Distance.toPrecise(): PreciseDistance = PreciseDistance(micrometers = millimeters * 1000)
+
+fun <T> Offset<T>.toPrecise(): PreciseDistance =
+    PreciseDistance(micrometers = distance.millimeters * 1000)
 
 fun min(a: PreciseDuration, b: PreciseDuration): PreciseDuration = if (a < b) a else b
 
@@ -145,7 +156,9 @@ val Int.micrometersPerSecond: PreciseSpeed
     get() = PreciseSpeed(micrometersPerSecond = this.toLong())
 val Long.micrometersPerSecond: PreciseSpeed
     get() = PreciseSpeed(micrometersPerSecond = this)
-fun Speed.toPrecise(): PreciseSpeed = PreciseSpeed(micrometersPerSecond = millimetersPerSecond.toLong() * 1000)
+
+fun Speed.toPrecise(): PreciseSpeed =
+    PreciseSpeed(micrometersPerSecond = millimetersPerSecond.toLong() * 1000)
 
 fun min(a: PreciseSpeed, b: PreciseSpeed): PreciseSpeed = if (a < b) a else b
 

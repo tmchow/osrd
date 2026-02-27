@@ -3,6 +3,7 @@ package fr.sncf.osrd.trainsim
 import com.google.common.collect.Range
 import com.google.common.collect.RangeMap
 import com.google.common.collect.TreeRangeMap
+import fr.sncf.osrd.DriverBehaviour
 import fr.sncf.osrd.api.FullInfra
 import fr.sncf.osrd.api.RangeValues
 import fr.sncf.osrd.api.standalone_sim.CompleteReportTrain
@@ -60,14 +61,6 @@ fun runSimulation(
     val context = EnvelopeSimContext(rollingStock, trainPath, timeStep, effortCurveMap)
 
     val constraints = mutableListOf<Constraint>()
-    var trainState =
-        TrainState(
-            0.microseconds,
-            0.micrometers,
-            initialSpeed.metersPerSecond,
-            PantographState.up(),
-        )
-    val trainStates = mutableListOf(trainState)
     var mrsp: RangeMap<PreciseDistance, PreciseSpeed> = TreeRangeMap.create()
     mrsp.put(Range.all(), rollingStock.maxSpeed.metersPerSecond)
     if (useSpeedLimits) {
@@ -92,13 +85,14 @@ fun runSimulation(
         }
     }
 
-    /*
-    schedule.map {
-        val stopPosition = it.pathOffset.micrometers
-        val stopDuration = it.stopFor ?: Duration.ZERO
-        constraints.add(Stop(stopPosition, stopDuration.microseconds))
-    }
-    // */
+    constraints.addAll(
+        schedule.mapNotNull {
+            Stop(
+                position = it.pathOffset.toPrecise(),
+                duration = it.stopFor?.toPrecise() ?: return@mapNotNull null,
+            )
+        }
+    )
 
     for (entry in mrsp.entries) {
         val range = entry.key
@@ -119,8 +113,22 @@ fun runSimulation(
         constraints.add(section)
     }
 
+    var trainState =
+        TrainState(
+            0.microseconds,
+            0.micrometers,
+            initialSpeed.metersPerSecond,
+            PantographState.up(),
+        )
+    val trainStates = mutableListOf(trainState)
     while (trainState.position < trainPath.length.meters) {
-        trainState = step(context, constraints, driver, trainState)
+        val nextTrainState = step(context, constraints, Driver(), trainState)
+        for (constraint in constraints) {
+            if (constraint is Updatable) {
+                constraint.update(trainState, nextTrainState)
+            }
+        }
+        trainState = nextTrainState
         trainStates.add(trainState)
     }
 
@@ -183,7 +191,7 @@ fun runSimulation(
         speedLimitCurves =
             constraints
                 .asSequence()
-                .filterIsInstance<SpeedLimitedZone>()
+                .filterIsInstance<SpeedConstraint>()
                 .flatMap {
                     it.speedCurves(
                         context,
