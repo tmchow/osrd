@@ -4,6 +4,7 @@
     "std": "速度时间图"
   },
   "boards": {
-    "conflicts": "冲突"
+    "conflicts": "冲突",
+    "macro": "宏"
   }
 }
