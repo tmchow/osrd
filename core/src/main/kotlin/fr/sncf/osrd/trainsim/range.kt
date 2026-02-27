@@ -27,11 +27,11 @@ internal fun Range<PreciseDistance>.upperEndpointOrMax(): PreciseDistance =
  * assert(map.get(0.0) == 69.0)
  * ```
  */
-internal fun <T : Comparable<T>> RangeMap<T, PreciseSpeed>.putLower(
+internal fun <T : Comparable<T>, U : Comparable<U>> RangeMap<T, U>.putLower(
     range: Range<T>,
-    value: PreciseSpeed,
+    value: U,
 ) {
-    merge(range, value) { old, new -> min(old, new!!) }
+    merge(range, value) { old, new -> if (old <= new!!) old else new }
 }
 
 /**
