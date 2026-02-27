@@ -1,1 +1,9 @@
-{}
+{
+  "boardFullNames": {
+    "sdd": "速度距离图",
+    "std": "速度时间图"
+  },
+  "boards": {
+    "conflicts": "冲突"
+  }
+}
