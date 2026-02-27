@@ -184,16 +184,17 @@ fun runSimulation(
             constraints
                 .asSequence()
                 .filterIsInstance<SpeedLimitedZone>()
-                .mapNotNull {
-                    val curve =
-                        it.speedCurve(
-                            context,
-                            TrainState(
-                                time = 0.microseconds,
-                                position = 0.micrometers,
-                                speed = 0.micrometersPerSecond,
-                            ),
-                        ) ?: return@mapNotNull null
+                .flatMap {
+                    it.speedCurves(
+                        context,
+                        TrainState(
+                            time = 0.microseconds,
+                            position = 0.micrometers,
+                            speed = 0.micrometersPerSecond,
+                        ),
+                    )
+                }
+                .map { curve ->
                     for (i in 0..<curve.size) {
                         curve.xs[i] /= 1000
                         curve.ys[i] /= 1000

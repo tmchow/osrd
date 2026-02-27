@@ -403,10 +403,10 @@ interface Constraint {
         true
 
     /**
-     * Apply the constraint given the [currentState] of the train and return the state of the train
+     * Apply the constraint given the [currentState] of the train and return potential states of the train
      * after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
-    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState?
+    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState>
 
     /**
      * Apply the constraint given the [currentState] of the train and return the state of the train
@@ -422,32 +422,33 @@ interface Constraint {
 /**
  * A driving constraint that only constrains the speed of the train.
  *
- * Implementers of this interface only need to implement [speedCurve], and the constraint will limit
+ * Implementers of this interface only need to implement [speedCurves], and the constraint will limit
  * the speed of the train to below the curve.
  */
 interface SpeedConstraint : Constraint {
     /**
-     * The speed constraint represented as a curve where X is the position and Y is the speed.
+     * The speed constraint represented as zero or more curves where X is the position and Y is the speed.
      *
-     * It may depend on the [currentState] of the train, for example if the curve evolves over time.
+     * It may depend on the [currentState] of the train, for example if the curves evolve over time.
      */
-    fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve?
+    fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve>
 
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
-        val curve = speedCurve(context, currentState) ?: return null
-        if (currentState.position.micrometers !in curve.start..curve.end) return null
-        val nextState = tryEnactDecision(context, currentState, curve) ?: return null
+    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState> =
+         speedCurves(context, currentState)
+             .mapNotNull { curve ->
+                 if (currentState.position.micrometers !in curve.start..curve.end) return@mapNotNull null
+                 val nextState = tryEnactDecision(context, currentState, curve) ?: return@mapNotNull null
 
-        val curveEnd = curve.end.micrometers
-        if (currentState.position < curveEnd && nextState.time <= currentState.time) {
-            // The previous call to tryEnactDecision didn't advance time, so currentState must be
-            // really close to the end of the curve. In this case, assume the speed limit has been
-            // passed.
-            return null
-        }
+                 val curveEnd = curve.end.micrometers
+                 if (currentState.position < curveEnd && nextState.time <= currentState.time) {
+                     // The previous call to tryEnactDecision didn't advance time, so currentState must be
+                     // really close to the end of the curve. In this case, assume the speed limit has been
+                     // passed.
+                     return@mapNotNull null
+                 }
 
-        return nextState
-    }
+                 nextState
+             }
 
     fun tryEnactDecision(
         context: EnvelopeSimContext,
@@ -522,8 +523,8 @@ data class SpeedLimitedZone(
         return currentState.position in (start)..<end
     }
 
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve =
-        decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond)
+    override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> =
+        listOf(decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond))
 }
 
 /**
@@ -540,7 +541,7 @@ class TemporarySpeedLimit(
     val endTime: PreciseDuration?,
     val limit: PreciseSpeed,
 ) : SpeedConstraint {
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
+    override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> {
         TODO("Curve needs time info")
     }
 }
@@ -557,20 +558,20 @@ data class NeutralSection(
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
 ) : Constraint {
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): TrainState? {
+    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState> {
         if (currentState.position < start) {
-            return null
+            return listOf()
         }
 
         val nextState = currentState.accelerate(context)
 
         if (currentState.position >= end) {
-            return nextState.copy(
+            return listOf(nextState.copy(
                 pantograph =
                     currentState.pantograph
                         .raise()
                         .advance(nextState.time - currentState.time, context.rollingStock)
-            )
+            ))
         }
 
         if (nextState.position > end) {
@@ -582,22 +583,22 @@ data class NeutralSection(
                 (nextState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
 
             if (newTimeDelta > 0.microseconds) {
-                return nextState.copy(
+                return listOf(nextState.copy(
                     time = currentState.time + newTimeDelta,
                     position = end,
                     speed = currentState.speed + newSpeedDelta,
                     pantograph =
                         currentState.pantograph.advance(newTimeDelta, context.rollingStock).raise(),
-                )
+                ))
             }
         }
 
-        return nextState.copy(
+        return listOf(nextState.copy(
             pantograph =
                 currentState.pantograph
                     .lower()
                     .advance(nextState.time - currentState.time, context.rollingStock)
-        )
+        ))
     }
 
     override fun truncateStep(
@@ -637,12 +638,11 @@ data class NeutralSection(
  * than 100 meters from this signal, the train must go no higher than 10kph.
  */
 sealed class ShortSlipStop(val position: PreciseDistance) : SpeedConstraint {
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
-        val stopStart27 = position - 300.0.meters
-        val stopStart10 = position - 100.0.meters
-
-        return makeCurve(context, Pair(stopStart27, 27.0.kph), Pair(stopStart10, 10.0.kph))
-    }
+    override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> =
+        listOf(
+            decelerationCurve(context, position - 300.0.meters, 27.0.kph),
+            decelerationCurve(context, position - 100.0.meters, 10.0.kph),
+        )
 }
 
 /**
@@ -663,9 +663,9 @@ class Stop(val position: PreciseDistance, val duration: PreciseDuration) : Speed
         return stopCurve!!
     }
 
-    override fun speedCurve(context: EnvelopeSimContext, currentState: TrainState): Curve {
+    override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> {
         // TODO return null if not apply
-        return getCurve(context)
+        return listOf(getCurve(context))
     }
 }
 
@@ -860,18 +860,20 @@ fun step(
 ): TrainState {
     val mergedState =
         constraints
-            .mapNotNull {
-                val nextState = it.enactDecision(context, currentState) ?: return@mapNotNull null
+            .flatMap {
+                val nextStates = it.enactDecision(context, currentState)
 
-                require(currentState.position <= nextState.position) {
-                    "constraint made train go backwards"
-                }
-                require(currentState.time < nextState.time) { "constraint didn't advance time" }
-                require(nextState.time - currentState.time <= context.timeStep.seconds) {
-                    "constraint advanced too much time"
+                for (nextState in nextStates) {
+                    require(currentState.position <= nextState.position) {
+                        "constraint made train go backwards"
+                    }
+                    require(currentState.time < nextState.time) { "constraint didn't advance time" }
+                    require(nextState.time - currentState.time <= context.timeStep.seconds) {
+                        "constraint advanced too much time"
+                    }
                 }
 
-                nextState
+                nextStates
             }
             .reduceOrNull { mostConstrained, decision ->
                 decision.merge(currentState, mostConstrained)
