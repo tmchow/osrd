@@ -1,9 +1,18 @@
+import { isEqual } from 'lodash';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 
+import { useScenarioContext } from 'applications/operationalStudies/hooks/useScenarioContext';
 import { MANAGE_TIMETABLE_ITEM_TYPES } from 'applications/operationalStudies/views/Scenario/consts';
+import type { PacedTrainException } from 'common/api/osrdEditoastApi';
 import { useStoreDataForRollingStockSelector } from 'modules/rollingStock/components/RollingStockSelector/useStoreDataForRollingStockSelector';
-import { storePacedTrain } from 'modules/timetableItem/helpers/updateTimetableItemHelpers';
+import { hasNoChangeGroups } from 'modules/timetableItem/helpers/pacedTrain';
+import {
+  createExceptions,
+  deleteExceptions,
+  storePacedTrain,
+  updateExceptions,
+} from 'modules/timetableItem/helpers/updateTimetableItemHelpers';
 import { setSuccess } from 'reducers/main';
 import { clearAddedExceptionsList } from 'reducers/osrdconf/operationalStudiesConf';
 import {
@@ -24,7 +33,11 @@ import {
 } from 'utils/trainId';
 
 import checkCurrentConfig from '../helpers/checkCurrentConfig';
-import { formatPacedTrainPayload } from '../helpers/formatTimetableItemPayload';
+import {
+  formatOccurrenceException,
+  formatPacedTrainPayload,
+  formatPacedTrainWithDetailsToPacedTrainPayload,
+} from '../helpers/formatTimetableItemPayload';
 
 const useUpdateTimetableItem = (
   setIsWorking: (isWorking: boolean) => void,
@@ -36,6 +49,8 @@ const useUpdateTimetableItem = (
 ) => {
   const { t } = useTranslation('operational-studies', { keyPrefix: 'manageTimetableItem' });
   const dispatch = useAppDispatch();
+
+  const { timetableId } = useScenarioContext();
 
   const confName = useSelector(getName);
   const simulationConf = useSelector(getOperationalStudiesConf);
@@ -52,31 +67,179 @@ const useUpdateTimetableItem = (
     )
       return;
 
-    const { timetableItemId } = timetableItemToEditData;
-
     setIsWorking(true);
 
-    // TODO: extract updated exceptions from the return to handle updating exceptions
-    const { newTrainSchedulePayload } = formatPacedTrainPayload(
-      simulationConf,
-      rollingStock!.name,
-      timetableItemToEditData
-    );
+    const { timetableItemId } = timetableItemToEditData;
 
-    const updatedItem = await storePacedTrain(
-      timetableItemId,
-      // When editing an occurrence, timetableItemToEditData will contain the original paced train
-      // information and the occurrence id being modified.
-      // The user has modified some fields that have been saved in the store (simulationConf).
-      // The function will compare this original paced train information with the one
-      // from the store and save the differences in the exception property of the original paced train.
-      {
-        ...newTrainSchedulePayload,
-        train_schedule_set_id: timetableItemToEditData.originalPacedTrain.train_schedule_set_id,
-      },
-      dispatch,
-      upsertTimetableItems
-    );
+    // ========== user is editing an occurrence ==========
+    if (timetableItemToEditData.occurrenceId) {
+      const { updatedExceptions, originalExceptions } = formatOccurrenceException(
+        simulationConf,
+        rollingStock!.name,
+        timetableItemToEditData as TimetableItemToEditData & {
+          occurrenceId: NonNullable<TimetableItemToEditData['occurrenceId']>;
+        }
+      );
+
+      const exceptionsToUpdate = updatedExceptions.filter((updatedException) => {
+        const original = originalExceptions.find((o) => o.id === updatedException.id);
+        if (!original) return false;
+        if (hasNoChangeGroups(updatedException)) return false;
+        return !isEqual(original, updatedException);
+      });
+
+      const exceptionsToCreate = updatedExceptions.filter(
+        (updatedException) => !originalExceptions.some((o) => o.id === updatedException.id)
+      );
+
+      if (exceptionsToUpdate.length > 0) {
+        await updateExceptions(dispatch, exceptionsToUpdate, timetableItemId);
+      }
+
+      let createdExceptions: PacedTrainException[] = [];
+      if (exceptionsToCreate.length > 0) {
+        const created = await createExceptions(
+          dispatch,
+          exceptionsToCreate,
+          timetableItemId,
+          timetableId
+        );
+
+        // TODO: remove this part when the back will be done inserting the new exception format in TrainSchedule
+        createdExceptions = created.map((exceptionNewModel) => {
+          const {
+            change_groups,
+            train_schedule_id: _train_schedule_id,
+            timetable_id: _timetable_id,
+            ...restExceptions
+          } = exceptionNewModel;
+          return {
+            ...change_groups,
+            ...restExceptions,
+            // TODO_EXCEPTION: remove this when drop key in the model
+            key: restExceptions.id.toString(),
+          };
+        });
+      }
+
+      let createIndex = 0;
+      const finalExceptions = updatedExceptions.map((ex) => {
+        if (!ex.id) return createdExceptions[createIndex++] ?? ex;
+        return ex;
+      });
+
+      const formattedPacedTrain = formatPacedTrainWithDetailsToPacedTrainPayload(
+        timetableItemToEditData.originalPacedTrain
+      );
+
+      upsertTimetableItems([
+        {
+          ...formattedPacedTrain,
+          id: timetableItemId,
+          train_schedule_set_id: timetableItemToEditData.originalPacedTrain.train_schedule_set_id,
+          paced: formattedPacedTrain.paced
+            ? { ...formattedPacedTrain.paced, exceptions: finalExceptions }
+            : undefined,
+        },
+      ]);
+    } else {
+      // ========== user is editing the whole paced train or creating ==========
+      const {
+        newTrainSchedulePayload: trainSchedule,
+        originalExceptions,
+        updatedExceptions,
+        exceptionsToDeleteIds,
+      } = formatPacedTrainPayload(simulationConf, rollingStock!.name, timetableItemToEditData);
+
+      // Delete exceptions marked for deletion (e.g. when switching from paced to unique train)
+      if (exceptionsToDeleteIds && exceptionsToDeleteIds.length > 0) {
+        await deleteExceptions(dispatch, exceptionsToDeleteIds);
+      }
+
+      // Handle exceptions create/update/delete before storing the paced train
+      let finalExceptions = originalExceptions ?? [];
+
+      if (updatedExceptions) {
+        const exceptionsToUpdate = updatedExceptions.filter((updatedException) => {
+          const original = originalExceptions?.find((o) => o.id === updatedException.id);
+          if (!original) return false;
+          if (hasNoChangeGroups(updatedException)) return false;
+          return !isEqual(original, updatedException);
+        });
+
+        const exceptionsToCreate = updatedExceptions.filter(
+          (updatedException) => !originalExceptions?.some((o) => o.id === updatedException.id)
+        );
+
+        const exceptionsToDelete = (originalExceptions ?? []).filter(
+          (original) =>
+            original.id != null &&
+            (!updatedExceptions.some((u) => u.id === original.id) ||
+              updatedExceptions.some(
+                (u) => u.id === original.id && hasNoChangeGroups(u) && u.disabled === false
+              ))
+        );
+
+        if (exceptionsToDelete.length > 0) {
+          await deleteExceptions(
+            dispatch,
+            exceptionsToDelete.map((e) => e.id!)
+          );
+        }
+
+        if (exceptionsToUpdate.length > 0) {
+          await updateExceptions(dispatch, exceptionsToUpdate, timetableItemId);
+        }
+
+        let createdExceptions: PacedTrainException[] = [];
+        if (exceptionsToCreate.length > 0) {
+          const created = await createExceptions(
+            dispatch,
+            exceptionsToCreate,
+            timetableItemId,
+            timetableId
+          );
+
+          // TODO: remove this part when the back will be done inserting the new exception format in TrainSchedule
+          createdExceptions = created.map((exceptionNewModel) => {
+            const {
+              change_groups,
+              train_schedule_id: _train_schedule_id,
+              timetable_id: _timetable_id,
+              ...restExceptions
+            } = exceptionNewModel;
+            return {
+              ...change_groups,
+              ...restExceptions,
+              // TODO_EXCEPTION: remove this when drop key in the model
+              key: restExceptions.id.toString(),
+            };
+          });
+        }
+
+        // Build final exceptions list with created ids
+        let createIndex = 0;
+        finalExceptions = updatedExceptions
+          .filter((ex) => !exceptionsToDelete.some((d) => d.id === ex.id))
+          .map((ex) => {
+            if (!ex.id) return createdExceptions[createIndex++] ?? ex;
+            return ex;
+          });
+      }
+
+      await storePacedTrain(
+        timetableItemId,
+        {
+          ...trainSchedule,
+          train_schedule_set_id: timetableItemToEditData.originalPacedTrain.train_schedule_set_id,
+          ...(trainSchedule.paced && {
+            paced: { ...trainSchedule.paced, exceptions: finalExceptions },
+          }),
+        },
+        dispatch,
+        upsertTimetableItems
+      );
+    }
 
     // if the selected TimetableItem is an Occurrence of the edited PacedTrain, keep it selected
     // else select the first Occurrence by default
@@ -85,10 +248,10 @@ const useUpdateTimetableItem = (
         isOccurrenceId(selectedTrainId) &&
         extractEditoastIdFromPacedTrainId(extractPacedTrainIdFromOccurrenceId(selectedTrainId)) ===
           timetableItemId) ||
-      !updatedItem.paced
+      !timetableItemToEditData.originalPacedTrain.paced
         ? selectedTrainId
         : formatEditoastIdToIndexedOccurrenceId({
-            pacedTrainId: updatedItem.id,
+            pacedTrainId: timetableItemId,
             occurrenceIndex: 0,
           });
 
@@ -109,10 +272,10 @@ const useUpdateTimetableItem = (
     if (
       trainIdUsedForProjection &&
       isOccurrenceId(trainIdUsedForProjection) &&
-      trainIdUsedForProjection.includes(`_${updatedItem.id}_`) &&
-      !updatedItem.paced
+      trainIdUsedForProjection.includes(`_${timetableItemId}_`) &&
+      !timetableItemToEditData.originalPacedTrain.paced
     ) {
-      dispatch(updateTrainIdUsedForProjection(formatEditoastIdToPacedTrainId(updatedItem.id)));
+      dispatch(updateTrainIdUsedForProjection(formatEditoastIdToPacedTrainId(timetableItemId)));
     }
 
     // close the modal

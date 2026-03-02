@@ -53,11 +53,9 @@ const CreateTimetableItemButton = ({
     setIsWorking(true);
 
     try {
-      const payload = isPacedTrainMode
+      const { newTrainSchedulePayload, updatedExceptions } = isPacedTrainMode
         ? formatPacedTrainPayload(simulationConf, rollingStock!.name)
         : formatTimetableItemPayload(simulationConf, rollingStock!.name);
-
-      const { newTrainSchedulePayload, updatedExceptions } = payload;
 
       const formattedNewTrainSchedule: TimetableItem = (
         await createPacedTrains(dispatch, sandboxId, [newTrainSchedulePayload])
@@ -65,7 +63,7 @@ const CreateTimetableItemButton = ({
 
       let timetableItemToUpsert = formattedNewTrainSchedule;
 
-      if (updatedExceptions.length > 0) {
+      if (updatedExceptions && updatedExceptions.length > 0) {
         const newExceptions = await createExceptions(
           dispatch,
           updatedExceptions,
@@ -84,8 +82,8 @@ const CreateTimetableItemButton = ({
           return {
             ...change_groups,
             ...restExceptions,
-            // TODO: drop this when drop key in the model
-            key: restExceptions.key ?? restExceptions.id.toString(),
+            // TODO_EXCEPTION: remove this when drop key in the model
+            key: restExceptions.id.toString(),
           };
         });
 

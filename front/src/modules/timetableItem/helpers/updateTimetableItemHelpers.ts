@@ -45,6 +45,15 @@ export async function createPacedTrains(
   return newPacedTrains;
 }
 
+async function updatePacedTrain(dispatch: AppDispatch, id: number, trainSchedule: TrainSchedule) {
+  await dispatch(
+    osrdEditoastApi.endpoints.putTrainSchedulesById.initiate({
+      id,
+      trainSchedule,
+    })
+  ).unwrap();
+}
+
 export async function createExceptions(
   dispatch: AppDispatch,
   exceptions: PacedTrainException[],
@@ -54,6 +63,7 @@ export async function createExceptions(
   // TODO: use batch when it will be possible to batch post exceptions
   return await Promise.all(
     exceptions.map((exception) => {
+      // TODO_EXCEPTION: remove key from the model and this destructuration when it will be done
       const { key: _key, occurrence_index, disabled, ...change_groups } = exception;
       return dispatch(
         osrdEditoastApi.endpoints.postTimetableByIdTrainScheduleException.initiate({
@@ -70,19 +80,44 @@ export async function createExceptions(
   );
 }
 
-async function updatePacedTrain(dispatch: AppDispatch, id: number, trainSchedule: TrainSchedule) {
-  await dispatch(
-    osrdEditoastApi.endpoints.putTrainSchedulesById.initiate({
-      id,
-      trainSchedule,
+export async function updateExceptions(
+  dispatch: AppDispatch,
+  exceptions: PacedTrainException[],
+  pacedTrainId: number
+) {
+  // TODO: use batch when it will be possible to batch put exceptions
+  await Promise.all(
+    exceptions.map((exception) => {
+      const { key: _key, occurrence_index, disabled, id, ...change_groups } = exception;
+
+      return dispatch(
+        osrdEditoastApi.endpoints.putTrainScheduleExceptionById.initiate({
+          // TODO_EXCEPTION: remove `!` when using TrainScheduleException type
+          id: id!,
+          body: {
+            change_groups,
+            disabled: disabled ?? false,
+            occurrence_index,
+            train_schedule_id: pacedTrainId,
+          },
+        })
+      ).unwrap();
     })
-  ).unwrap();
+  );
 }
 
 export async function deleteTrainSchedules(dispatch: AppDispatch, ids: number[]) {
   ids.forEach((id) => dispatch(unsetTrainIdsMatching(formatEditoastIdToPacedTrainId(id))));
   await dispatch(
     osrdEditoastApi.endpoints.deleteTrainSchedules.initiate({
+      body: { ids },
+    })
+  ).unwrap();
+}
+
+export async function deleteExceptions(dispatch: AppDispatch, ids: number[]) {
+  await dispatch(
+    osrdEditoastApi.endpoints.postTrainScheduleExceptionsDelete.initiate({
       body: { ids },
     })
   ).unwrap();
@@ -104,14 +139,12 @@ export async function storePacedTrain(
     );
   }
 
-  // Remove train_schedule_set_id before updating paced train as we don't want to pass it in the payload
   const { train_schedule_set_id: _trainScheduleSetId, ...pacedTrainWithoutTrainScheduleSetId } =
     pacedTrain;
+
   await updatePacedTrain(dispatch, timetableItemIdToUpdate, pacedTrainWithoutTrainScheduleSetId);
-  const updatedPacedTrain: TimetableItem = {
-    ...pacedTrain,
-    id: timetableItemIdToUpdate,
-  };
+
+  const updatedPacedTrain: TimetableItem = { ...pacedTrain, id: timetableItemIdToUpdate };
   upsertTimetableItems([updatedPacedTrain]);
   return updatedPacedTrain;
 }

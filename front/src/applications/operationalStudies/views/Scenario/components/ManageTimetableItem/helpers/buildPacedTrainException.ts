@@ -8,6 +8,7 @@ import computeOccurrenceName from 'modules/timetableItem/helpers/computeOccurren
 import {
   findExceptionWithOccurrenceId,
   computeIndexedOccurrenceStartTime,
+  hasExceptions,
 } from 'modules/timetableItem/helpers/pacedTrain';
 import type { OccurrenceId } from 'reducers/osrdconf/types';
 import { removeElementAtIndex, replaceElementAtIndex } from 'utils/array';
@@ -27,6 +28,7 @@ export function generatePacedTrainException(
   updatedOccurrence: TrainSchedule,
   originalPacedTrain: Omit<PacedTrainWithPaced, 'train_schedule_set_id'>,
   occurrenceIndex: number | null = null
+  // TODO_EXCEPTION: remove `key`
 ): Omit<PacedTrainException, 'key' | 'occurrence_index'> {
   const exception: Omit<PacedTrainException, 'key' | 'occurrence_index'> = {};
 
@@ -143,19 +145,17 @@ export function updatePacedTrainExceptionsList<T extends PacedTrainException>(
   occurrenceId: OccurrenceId
 ): T[] {
   // Check if there are change groups in this exception or if it is disabled.
-  const hasExceptions =
-    !isEmpty(omit(newException, ['key', 'occurrence_index', 'disabled'])) || newException.disabled;
-
+  const isStillException = hasExceptions(newException);
   const exceptionToUpdate = findExceptionWithOccurrenceId(currentExceptions, occurrenceId);
 
   // If the exception was not already present and it has some change groups, add it.
   // Return the current exceptions list otherwise.
   if (!exceptionToUpdate) {
-    return hasExceptions ? [...currentExceptions, newException] : currentExceptions;
+    return isStillException ? [...currentExceptions, newException] : currentExceptions;
   }
 
   // If the exception was already present, find it and replace it by the updated one
-  let exceptionIndex;
+  let exceptionIndex: number;
   if (isIndexedOccurrenceId(occurrenceId)) {
     const occurrenceToUpdateIndex = extractOccurrenceIndexFromOccurrenceId(occurrenceId);
 
@@ -164,11 +164,11 @@ export function updatePacedTrainExceptionsList<T extends PacedTrainException>(
     );
   } else {
     const addedExceptionId = extractExceptionIdFromOccurrenceId(occurrenceId);
-    exceptionIndex = currentExceptions.findIndex(({ key }) => addedExceptionId === key);
+    exceptionIndex = currentExceptions.findIndex(({ id }) => addedExceptionId === id);
   }
 
   // If yes we replace the exception at the found index, otherwise we remove it
-  return hasExceptions
+  return isStillException
     ? replaceElementAtIndex(currentExceptions, exceptionIndex, newException)
     : removeElementAtIndex(currentExceptions, exceptionIndex);
 }

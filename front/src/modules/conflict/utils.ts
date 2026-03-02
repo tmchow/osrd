@@ -40,7 +40,8 @@ function getConflictTrainNames(conflict: Conflict, trainMap: Map<number, Timetab
       // Check if the exception has a name change group
       // Otherwise, the name is `${pacedTrainName}/+`
       const namedException = pacedTrain.paced.exceptions.find(
-        (exception) => exception.key === train.exception_key && exception.train_name
+        // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
+        (exception) => exception.id! === train.exception_id && exception.train_name
       );
       trainNames.push(
         namedException ? namedException.train_name!.value : `${pacedTrain.train_name}/+`
