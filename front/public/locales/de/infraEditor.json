@@ -32,7 +32,44 @@
       },
       "default_parameters": {
         "description": "BAL-Signalparameter"
+      },
+      "next_signaling_systems": {
+        "description": "Liste der zulässigen Zugsicherungssysteme",
+        "title": "Nachfolgendes Zugsicherungssystem"
       }
     }
+  },
+  "BufferStop": {
+    "title": "Prellbock"
+  },
+  "BufferStopSncfExtension": {
+    "properties": {
+      "kp": {
+        "description": "Kilometerpunkt des Prellbocks",
+        "title": "KP"
+      }
+    }
+  },
+  "Electrification": {
+    "description": "Eine Oberleitung ist ein System aus Kabeln, über das Züge mithilfe eines Stromabnehmers mit Strom versorgt werden.\nDie Oberleitung ist an ihrer Kennzeichnung zu erkennen.",
+    "title": "Oberleitung"
+  },
+  "LineString": {
+    "description": "LineString-Modell",
+    "properties": {
+      "bbox": {
+        "title": "Bbox"
+      },
+      "coordinates": {
+        "title": "Koordinaten"
+      },
+      "type": {
+        "title": "Typ"
+      }
+    },
+    "title": "Linie aus Punkten"
+  },
+  "LoadingGaugeLimit": {
+    "description": "Diese Klasse wird verwendet, um die Begrenzung des Lichtraumprofils zu definieren.\nSie stellt eine Einschränkung für Züge entsprechend ihrer Lichtraumprofilkategorien und dem Typ des entsprechenden Rollmaterials dar."
   }
 }
