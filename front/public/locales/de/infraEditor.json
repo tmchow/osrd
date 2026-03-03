@@ -10,10 +10,11 @@
         "description": "Richtung, in der das entsprechende Objekt angewendet wird"
       },
       "begin": {
-        "description": "Anfangsversatz (Kilometersprung?) in Metern des entsprechenden Gleisabschnitts",
+        "description": "Versatz am Anfang des entsprechenden Gleisabschnitts (in Metern)",
         "title": "Anfang"
       },
       "end": {
+        "description": "Versatz am Ende des entsprechenden Gleisabschnitts (in Metern)",
         "title": "Ende"
       },
       "track": {
@@ -26,7 +27,11 @@
   "BalSystem": {
     "properties": {
       "conditional_parameters": {
-        "description": "BAL-Signalparamter für die gewählte Strecke"
+        "description": "BAL-Signalparamter für die gewählte Strecke",
+        "title": "Vorausgesetzte Parameter"
+      },
+      "default_parameters": {
+        "description": "BAL-Signalparameter"
       }
     }
   }
