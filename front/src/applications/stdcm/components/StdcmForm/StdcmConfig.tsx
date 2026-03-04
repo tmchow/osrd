@@ -44,6 +44,8 @@ import { ArrivalTimeTypes, StdcmConfigErrorTypes } from '../../types';
 import checkStdcmConfigErrors from '../../utils/checkStdcmConfigErrors';
 import StdcmLoader from '../StdcmLoader';
 import StdcmWarningBox from '../StdcmWarningBox';
+import StdcmDefaultCard from './StdcmDefaultCard';
+import StdcmMapProgressLayer from '../StdcmResults/StdcmMapProgressLayer';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -385,7 +387,9 @@ const StdcmConfig = ({
             mapSettings={{ ...mapSettings, viewport: stdcmConfigViewport }}
             updateMapSettings={updateMapSettings}
             updateViewport={updateViewport}
-          />
+          >
+            {(isPending || isPendingAdditional) && <StdcmMapProgressLayer />}
+          </DefaultBaseMap>
         </div>
       </div>
     </div>
