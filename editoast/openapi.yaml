@@ -3926,6 +3926,22 @@ paths:
                 oneOf:
                 - type: object
                   required:
+                  - point
+                  - best_travel_time
+                  - status
+                  properties:
+                    best_travel_time:
+                      type: integer
+                      format: int64
+                      minimum: 0
+                    point:
+                      $ref: '#/components/schemas/StdcmProgressCoordinates'
+                    status:
+                      type: string
+                      enum:
+                      - in_progress
+                - type: object
+                  required:
                   - simulation
                   - pathfinding_result
                   - departure_time
@@ -13586,6 +13602,18 @@ components:
         value:
           type: string
           format: date-time
+    StdcmProgressCoordinates:
+      type: object
+      required:
+      - lat
+      - lon
+      properties:
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
     StdcmSearchEnvironment:
       type: object
       required:

@@ -2397,6 +2397,11 @@ export type GetTimetableByIdRoundTripsPacedTrainsApiArg = {
 };
 export type PostTimetableByIdStdcmApiResponse = /** status 200 The simulation result */
   | {
+      best_travel_time: number;
+      point: StdcmProgressCoordinates;
+      status: 'in_progress';
+    }
+  | {
       core_payload?: null | CoreStdcmRequest;
       departure_time: string;
       pathfinding_result: CorePathfindingResultSuccess;
@@ -4545,6 +4550,10 @@ export type CoreTrainRequirementsById = {
   train_id: string;
   /** ID that can be used to find the train in tools other than OSRD. Used in debug traces. */
   train_name: string;
+};
+export type StdcmProgressCoordinates = {
+  lat: number;
+  lon: number;
 };
 export type ConsistConfiguration = {
   /** The loading gauge of the rolling stock */

@@ -2,23 +2,31 @@ pub(crate) mod request;
 
 use authz;
 use axum::Extension;
+use axum::body::Body;
 use axum::extract::Json;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::response::IntoResponse;
+use axum::response::Response;
+use axum_streams::StreamBodyAs;
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
 use core_client::AsCoreRequest;
 use core_client::CoreClient;
+use core_client::Json as CoreJson;
 use core_client::pathfinding::InvalidPathItem;
 use core_client::pathfinding::PathfindingResultSuccess;
 use core_client::stdcm::ConsistConfiguration;
 use core_client::stdcm::ConsistSchedule;
 use core_client::stdcm::Request as StdcmRequest;
+use core_client::stdcm::StdcmProgressCoordinates;
 use core_client::stdcm::UndirectedTrackRange;
 use database::DbConnectionPoolV2;
 use editoast_derive::EditoastError;
+use futures::StreamExt as _;
+use futures::stream;
 use request::Request;
 use request::convert_steps;
 use schemas::primitives::PositiveDuration;
@@ -30,9 +38,12 @@ use schemas::train_schedule::TrainOccurrence;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cmp::max;
+use std::pin::pin;
 use std::slice;
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::spawn;
+use tokio::sync::mpsc;
 use tracing::Span;
 use utoipa::IntoParams;
 use utoipa::ToSchema;
@@ -58,6 +69,10 @@ use editoast_models::timetable::Timetable;
 // Since there is only on success and others are error cases
 #[allow(clippy::large_enum_variant)]
 pub(in crate::views) enum StdcmResponse {
+    InProgress {
+        point: StdcmProgressCoordinates,
+        best_travel_time: u64,
+    },
     Success {
         simulation: SimulationResponseSuccess,
         pathfinding_result: PathfindingResultSuccess,
@@ -165,7 +180,7 @@ pub(in crate::views) async fn stdcm(
     Path(id): Path<i64>,
     Query(query): Query<StdcmQueryParams>,
     Json(request): Json<Request>,
-) -> Result<Json<StdcmResponse>> {
+) -> Result<Response<Body>> {
     // Add serialized request to trace attributes, skipping allowed track sections
     // (as it would make the payload too large to be saved). TODO: include search env ID
     let mut request_copy = request.clone();
@@ -205,7 +220,7 @@ pub(in crate::views) async fn stdcm_handler(
     Query(query): Query<StdcmQueryParams>,
     Json(request): Json<Request>,
     returned_request: &mut Option<core_client::stdcm::Request>,
-) -> Result<Json<StdcmResponse>> {
+) -> Result<Response<Body>> {
     let authorized = auth
         .check_roles([authz::Role::Stdcm].into())
         .await
@@ -282,10 +297,10 @@ pub(in crate::views) async fn stdcm_handler(
         // Default 12h value when the simulation fails
         matches!(virtual_train_run.simulation, simulation::Response::SimulationFailed { .. }).then_some(12 * 3_600_000))
     else {
-        return Ok(Json(StdcmResponse::PreprocessingSimulationError {
-            error: virtual_train_run.simulation,
-            core_payload: None,
-        }))
+        let payload = StdcmResponse::PreprocessingSimulationError {
+                error: virtual_train_run.simulation,
+                core_payload: None,};
+        return Ok(StreamBodyAs::json_nl(stream::once(async {payload})).into_response())
     };
 
     let earliest_departure_time = request.get_earliest_departure_time(simulation_run_time);
@@ -331,34 +346,72 @@ pub(in crate::views) async fn stdcm_handler(
     };
     *returned_request = query.return_debug_payloads.then_some(stdcm_request.clone());
 
-    let stdcm_response: Result<core_client::stdcm::Response, InternalError> = stdcm_request
-        .fetch(core_client.as_ref())
-        .await
-        .map_err(Into::into);
+    let (tx, rx) = mpsc::unbounded_channel();
+    let core_payload = returned_request.clone();
 
-    // 6. Handle STDCM Core Response
-    let span = Span::current();
-    match stdcm_response? {
-        core_client::stdcm::Response::Success {
-            simulation,
-            path,
-            departure_time,
-        } => {
-            span.record("path_found", true);
-            Ok(Json(StdcmResponse::Success {
-                simulation: simulation.into(),
-                pathfinding_result: path,
-                departure_time,
-                core_payload: returned_request.clone(),
-            }))
+    spawn(async move {
+        let stream_stdcm_response = stdcm_request
+            .fetch_streaming::<CoreJson<core_client::stdcm::StdcmProgressStatus>>(
+                core_client.as_ref(),
+            )
+            .await
+            .map_err(InternalError::from);
+        let stream_stdcm_response = match stream_stdcm_response {
+            Ok(stream_stdcm_response) => stream_stdcm_response,
+            Err(e) => {
+                let _ = tx.send(Err(e));
+                return;
+            }
+        };
+
+        // 6. Handle STDCM Core Response
+        let result_stream =
+            stream_stdcm_response.map(move |response| -> Result<StdcmResponse, InternalError> {
+                let result = response.map_err(InternalError::from)?;
+
+                let span = Span::current();
+                let payload = match result {
+                    core_client::stdcm::StdcmProgressStatus::InProgress {
+                        point,
+                        best_travel_time,
+                    } => StdcmResponse::InProgress {
+                        point: point,
+                        best_travel_time: best_travel_time,
+                    },
+                    core_client::stdcm::StdcmProgressStatus::Done { result } => match result {
+                        core_client::stdcm::Response::Success {
+                            simulation,
+                            path,
+                            departure_time,
+                        } => {
+                            span.record("path_found", true);
+                            StdcmResponse::Success {
+                                simulation: simulation.into(),
+                                pathfinding_result: path,
+                                departure_time,
+                                core_payload: core_payload.clone(),
+                            }
+                        }
+                        core_client::stdcm::Response::PathNotFound => {
+                            span.record("path_found", false);
+                            StdcmResponse::PathNotFound {
+                                core_payload: core_payload.clone(),
+                            }
+                        }
+                    },
+                };
+                Ok(payload)
+            });
+
+        let mut result_stream = pin!(result_stream);
+        while let Some(item) = result_stream.next().await {
+            if tx.send(Ok(item)).is_err() {
+                break;
+            }
         }
-        core_client::stdcm::Response::PathNotFound => {
-            span.record("path_found", false);
-            Ok(Json(StdcmResponse::PathNotFound {
-                core_payload: returned_request.clone(),
-            }))
-        }
-    }
+    });
+    let stream = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
+    Ok(StreamBodyAs::json_nl(stream).into_response())
 }
 
 struct VirtualTrainRun {
