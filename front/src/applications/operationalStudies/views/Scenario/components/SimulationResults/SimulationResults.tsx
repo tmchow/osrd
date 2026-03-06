@@ -292,6 +292,7 @@ const SimulationResults = ({
                 pathProperties={
                   simulationResults.isValid ? simulationResults.pathProperties : undefined
                 }
+                pathfindingResults={simulationResults.isValid ? simulationResults.path : undefined}
                 setMapCanvas={setMapCanvas}
               />
             </div>
