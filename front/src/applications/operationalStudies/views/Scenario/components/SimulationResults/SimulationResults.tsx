@@ -32,9 +32,9 @@ import {
 import { useAppDispatch } from 'store';
 import { extractPacedTrainIdFromOccurrenceId, isOccurrenceId } from 'utils/trainId';
 
-import BoardWrapper from '../BoardWrapper';
 import SimulationResultsExport from './SimulationResultsExport';
 import SimulationResultsMap from './SimulationResultsMap';
+import BoardWrapper from '../BoardWrapper';
 
 export const HIDDEN_CHART_TOP_HEIGHT = 23;
 const SDD_INITIAL_HEIGHT = 460;

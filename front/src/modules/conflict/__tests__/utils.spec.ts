@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import type { TimetableItem } from 'reducers/osrdconf/types';
 
+import { pacedId, occurrenceId, conflictBase } from './sampleData';
 import type { ConflictWithTrainNames } from '../types';
 import addTrainNamesToConflicts, { filterAndReorderConflict } from '../utils';
-import { pacedId, occurrenceId, conflictBase } from './sampleData';
 
 describe('addTrainNamesToConflicts', () => {
   it('combines schedule and occurrence names', () => {

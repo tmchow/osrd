@@ -21,9 +21,9 @@ import type { PathStep } from 'reducers/osrdconf/types';
 import { getPointOnTrackCoordinates } from 'utils/geometry';
 import { mToMm } from 'utils/physics';
 
-import type { FeatureInfoClick } from '../types';
 import OperationalPointPopupDetails from './OperationalPointPopupDetails';
 import { setPointIti } from './setPointIti';
+import type { FeatureInfoClick } from '../types';
 
 type AddPathStepPopupProps = {
   infraId: number | undefined;

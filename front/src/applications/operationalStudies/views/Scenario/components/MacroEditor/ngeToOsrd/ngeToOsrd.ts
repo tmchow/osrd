@@ -6,10 +6,6 @@ import { type MacroNodeForm } from 'common/api/osrdEditoastApi';
 import type { TimetableItemId, TimetableItem } from 'reducers/osrdconf/types';
 import type { AppDispatch } from 'store';
 
-import type { NetzgrafikDto, NGEEvent, NodeDto, LabelDto } from '../../NGE/types';
-import { DEFAULT_TRAIN_SCHEDULE_PAYLOAD, TRAINRUN_DIRECTIONS } from '../consts';
-import type MacroEditorState from '../MacroEditorState';
-import { getTrainCategoryFromTrainrunCategoryId } from '../utils';
 import { castNgeNode, handleNodeOperation } from './node';
 import { castNgeNoteToOsrd, handleNoteOperation } from './note';
 import {
@@ -20,6 +16,10 @@ import {
   generatePathAndSchedule,
   createPacedAttributesFromTrainrun,
 } from './trainrun';
+import type { NetzgrafikDto, NGEEvent, NodeDto, LabelDto } from '../../NGE/types';
+import { DEFAULT_TRAIN_SCHEDULE_PAYLOAD, TRAINRUN_DIRECTIONS } from '../consts';
+import type MacroEditorState from '../MacroEditorState';
+import { getTrainCategoryFromTrainrunCategoryId } from '../utils';
 
 const handleLabelOperation = async ({
   type,

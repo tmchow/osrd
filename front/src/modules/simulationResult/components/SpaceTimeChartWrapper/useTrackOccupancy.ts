@@ -24,10 +24,10 @@ import {
 } from 'utils/trainId';
 import { mapBy } from 'utils/types';
 
-import type { BaseTrainProjection, PathOperationalPoint, TrainSpaceTimeData } from '../../types';
 import { batchFetchTrackOccupancy } from './helpers/utils';
 import { getMovableOccupancyZone, type MovableOccupancyZone } from './helpers/zones';
 import { usePrevious } from '../../../../utils/hooks/state';
+import type { BaseTrainProjection, PathOperationalPoint, TrainSpaceTimeData } from '../../types';
 
 type AsyncState<T> = { type: 'loading'; data?: T; abort?: () => void } | { type: 'ok'; data: T };
 type ZonesState = AsyncState<MovableOccupancyZone[]>;

@@ -7,8 +7,8 @@ import { useSubCategoryContext } from 'common/SubCategoryContext';
 import isMainCategory from 'modules/rollingStock/helpers/category';
 import { useDateTimeLocale } from 'utils/date';
 
-import type { ConflictWithTrainNames } from '../types';
 import { getTrainCategoryClassName } from './../../../applications/operationalStudies/views/Scenario/components/Timetable/utils';
+import type { ConflictWithTrainNames } from '../types';
 
 const MAX_TAG_ROWS = 2;
 const TRAIN_NAME_TAG_GAP = 4; // must match .trains-name --tag-gap in SCSS

@@ -53,12 +53,12 @@ import {
   formatPacedTrainIdToOccurrenceId,
 } from 'utils/trainId';
 
-import { TIMETABLE_ITEM_DELTA } from '../consts';
-import TimetableItemActions from '../TimetableItemActions';
-import { formatTrainDuration, getTrainCategoryClassName } from '../utils';
 import useOccurrenceActions from './hooks/useOccurrenceActions';
 import useOccurrences from './hooks/useOccurrences';
 import OccurrenceItem from './OccurrenceItem';
+import { TIMETABLE_ITEM_DELTA } from '../consts';
+import TimetableItemActions from '../TimetableItemActions';
+import { formatTrainDuration, getTrainCategoryClassName } from '../utils';
 
 type PacedTrainItemProps = {
   isInSelection: boolean;

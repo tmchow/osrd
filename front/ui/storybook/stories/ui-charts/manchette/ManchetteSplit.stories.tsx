@@ -2,6 +2,7 @@ import React from 'react';
 
 import '@osrd-project/ui-charts/dist/theme.css';
 import { Manchette } from '@osrd-project/ui-charts';
+
 import '@osrd-project/ui-core/dist/theme.css';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 

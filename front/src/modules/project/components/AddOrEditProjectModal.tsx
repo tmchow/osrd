@@ -36,9 +36,9 @@ import useInputChange from 'utils/hooks/useInputChange';
 import useModalFocusTrap from 'utils/hooks/useModalFocusTrap';
 import useOutsideClick from 'utils/hooks/useOutsideClick';
 
+import DeleteItemsModal from './DeleteItemsModal';
 import cleanLocalStorageByProject from '../helpers/cleanLocalStorageByProject';
 import checkProjectFields from '../utils';
-import DeleteItemsModal from './DeleteItemsModal';
 
 const emptyProject: ProjectCreateForm = {
   budget: null,

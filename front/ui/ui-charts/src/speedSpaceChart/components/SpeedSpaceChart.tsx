@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Slider } from '@osrd-project/ui-core';
 
-import type { Data, EtcsBrakingCurves, Store } from '../types';
 import InteractionButtons from './common/InteractionButtons';
 import SettingsPanel from './common/SettingsPanel';
 import { DEFAULT_ETCS_LAYERS_DISPLAY, LINEAR_LAYERS_HEIGHTS, MARGINS, ZOOM_CONFIG } from './const';
@@ -22,6 +21,7 @@ import {
   TickLayerYRight,
 } from './layers/index';
 import { clamp, getActiveEtcsBrakingTypes, getGraphOffsets } from './utils';
+import type { Data, EtcsBrakingCurves, Store } from '../types';
 
 export type SpeedSpaceChartProps = {
   width: number;

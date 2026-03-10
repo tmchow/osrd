@@ -3,6 +3,8 @@ import { isNil } from 'lodash';
 
 import type { OsrdStdcmConfState } from 'reducers/osrdconf/types';
 
+import filterMissingFields from './filterMissingFields';
+import getInvalidFields from './getInvalidFields';
 import {
   StdcmConfigErrorTypes,
   ArrivalTimeTypes,
@@ -10,8 +12,6 @@ import {
   type ConsistErrors,
   type MissingFields,
 } from '../types';
-import filterMissingFields from './filterMissingFields';
-import getInvalidFields from './getInvalidFields';
 
 const checkStdcmConfigErrors = ({
   t,

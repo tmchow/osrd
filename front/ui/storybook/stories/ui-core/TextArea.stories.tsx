@@ -6,6 +6,7 @@ import { type Meta, type StoryObj, type Decorator } from '@storybook/react-vite'
 import '@osrd-project/ui-core/dist/theme.css';
 
 const withControlledValue: Decorator = (Story, ctx) => {
+  // oxlint-disable-next-line eslint-plugin-react-hooks/rules-of-hooks
   const [value, setValue] = useState<string>(String(ctx.args.value ?? ''));
   return (
     <Story
@@ -122,6 +123,7 @@ export const ErrorWithoutMessageTextArea: Story = {
 
 export const TransformedTextArea: Story = {
   render: (args) => {
+    // oxlint-disable-next-line eslint-plugin-react-hooks/rules-of-hooks
     const [comment, setComment] = useState('');
 
     const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

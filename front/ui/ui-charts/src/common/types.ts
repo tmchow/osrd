@@ -1,7 +1,7 @@
 import { type HTMLProps } from 'react';
 
-import { type SpaceTimeChartTheme } from '../spaceTimeChart';
 import type { LAYERS, PICKING_LAYERS } from './consts';
+import { type SpaceTimeChartTheme } from '../spaceTimeChart';
 import type { DataPoint, Handler, PointToData, DataToPoint } from '../spaceTimeChart/lib/types';
 
 export type BaseChartContextType = {

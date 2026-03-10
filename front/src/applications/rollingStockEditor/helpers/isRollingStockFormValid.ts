@@ -5,14 +5,14 @@ import type { EffortCurve } from 'common/api/osrdEditoastApi';
 import { kmhToMs } from 'utils/physics';
 import { getTranslationKey } from 'utils/strings';
 
+import { filterNullValueInCurve } from './curves';
+import { isMultiUnitsParam } from './units';
 import { RS_SCHEMA_PROPERTIES, RS_REQUIRED_FIELDS } from '../consts';
 import type {
   RollingStockParametersValues,
   EffortCurveForms,
   RollingStockParametersValidValues,
 } from '../types';
-import { filterNullValueInCurve } from './curves';
-import { isMultiUnitsParam } from './units';
 
 const isInvalidCurve = (curve: EffortCurve) =>
   curve.max_efforts.length < 2 ||

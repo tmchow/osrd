@@ -2,6 +2,7 @@ import React, { Fragment, type ReactNode, useCallback, useMemo, useState } from 
 
 import { sortBy, clamp } from 'lodash';
 
+import useSyncManchette, { type SyncManchetteState } from './useSyncManchette';
 import { getCrispLineCoordinate } from '../../common/helpers/time';
 import { type SpaceScale, type SpaceTimeChartProps } from '../../spaceTimeChart';
 import {
@@ -21,7 +22,6 @@ import {
 } from '../consts';
 import type { InteractiveWaypoint, Waypoint } from '../types';
 import { calcTotalDistance } from '../utils';
-import useSyncManchette, { type SyncManchetteState } from './useSyncManchette';
 import {
   selectWaypointsToDisplay,
   getScales,

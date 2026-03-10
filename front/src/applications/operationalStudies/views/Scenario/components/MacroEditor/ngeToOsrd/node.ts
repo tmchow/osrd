@@ -1,6 +1,7 @@
 import type { TimetableItem, TimetableItemId } from 'reducers/osrdconf/types';
 import type { AppDispatch } from 'store';
 
+import { updateTrainrunsByNode } from './trainrun';
 import type { NetzgrafikDto, NGEEvent, NodeDto } from '../../NGE/types';
 import type MacroEditorState from '../MacroEditorState';
 import type { NodeIndexed } from '../MacroEditorState';
@@ -10,7 +11,6 @@ import {
   fetchStationSecondaryCode,
   updateMacroNode,
 } from '../utils';
-import { updateTrainrunsByNode } from './trainrun';
 
 /**
  * Cast a NGE node to a node.

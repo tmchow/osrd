@@ -37,14 +37,14 @@ import {
   getSpeedSectionsPointLayerProps,
   getSpeedSectionsTextLayerProps,
 } from './SpeedLimits';
+import { getSwitchesLayerProps, getSwitchesNameLayerProps } from './Switches';
+import { lineNameLayer, lineNumberLayer, trackNameLayer } from '../commonLayers';
 import {
   getLineErrorsLayerProps,
   getLineTextErrorsLayerProps,
   getPointErrorsLayerProps,
   getPointTextErrorsLayerProps,
 } from '../Errors';
-import { getSwitchesLayerProps, getSwitchesNameLayerProps } from './Switches';
-import { lineNameLayer, lineNumberLayer, trackNameLayer } from '../commonLayers';
 import OrderedLayer from '../OrderedLayer';
 import { Platforms } from '../OSMLayers/Platforms';
 import type { LayerContext, LayerProps } from '../types';

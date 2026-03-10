@@ -17,9 +17,9 @@ import { getSelectedTrainId } from 'reducers/simulationResults/selectors';
 import { Duration } from 'utils/duration';
 import { extractOccurrenceIndexFromOccurrenceId, isOccurrenceId } from 'utils/trainId';
 
+import { useScenarioContext } from './useScenarioContext';
 import type { SimulationResults } from '../types';
 import { preparePathPropertiesData } from '../utils';
-import { useScenarioContext } from './useScenarioContext';
 
 /**
  * Prepare data to be used in simulation results

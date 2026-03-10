@@ -22,10 +22,10 @@ import type useScenarioTrainScheduleSet from 'applications/operationalStudies/ho
 import type { CatalogEntry, TrainScheduleSet } from 'common/api/osrdEditoastApi';
 import MenuTriggerButton, { type MenuProps } from 'common/MenuTriggerButton';
 
-import TrainScheduleDeleteDialog from './TrainScheduleDeleteDialog';
-import { computeTrainScheduleSetName, isSandbox } from '../utils';
 import LocalCopyTrainScheduleSetDialog from './LocalCopyTrainScheduleSetDialog';
+import TrainScheduleDeleteDialog from './TrainScheduleDeleteDialog';
 import TrainScheduleSetDialog from './TrainScheduleSetDialog';
+import { computeTrainScheduleSetName, isSandbox } from '../utils';
 
 type OpenDialogName =
   | 'duplicate'

@@ -5,10 +5,10 @@ import { LAYER_GROUPS_ORDER, LAYERS } from 'config/layerOrder';
 import type { MapStyle } from 'reducers/commonMap/types';
 
 import Background from './Background';
-import Hillshade from '../Hillshade';
 import OSM from './OSM';
 import PlatformsLayer from './Platforms';
 import TracksOSM from './TracksOSM';
+import Hillshade from '../Hillshade';
 
 type OSMLayersProps = {
   mapStyle: MapStyle;

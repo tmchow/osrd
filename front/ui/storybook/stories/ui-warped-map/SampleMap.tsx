@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { BaseMap, Loader, WarpedMap, type SourceDefinition } from '@osrd-project/ui-warped-map';
 import { featureCollection } from '@turf/helpers';
 import type { Feature, LineString } from 'geojson';
+
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Layer, type LineLayerSpecification, Source } from 'react-map-gl/maplibre';
 

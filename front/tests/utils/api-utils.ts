@@ -24,6 +24,7 @@ import type {
   GetScenariosApiResponse,
 } from 'common/api/osrdEditoastApi';
 
+import { readJsonFile } from './file-utils';
 import {
   BASE_URL,
   globalProjectName,
@@ -31,7 +32,6 @@ import {
   infrastructureName,
 } from '../assets/constants/project-const';
 import { logger } from '../logging-fixture';
-import { readJsonFile } from './file-utils';
 
 /**
  * Initialize a new API request context with the base URL.

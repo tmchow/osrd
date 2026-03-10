@@ -36,13 +36,13 @@ import StdcmConsist from './StdcmConsist';
 import StdcmDestination from './StdcmDestination';
 import StdcmLinkedTrainSearch from './StdcmLinkedTrainSearch';
 import StdcmOrigin from './StdcmOrigin';
+import StdcmVias from './StdcmVias';
 import useStaticPathfinding from '../../hooks/useStaticPathfinding';
 import type { StdcmConfigErrors, ConsistErrors } from '../../types';
-import StdcmSimulationParams from '../StdcmSimulationParams';
-import StdcmVias from './StdcmVias';
 import { ArrivalTimeTypes, StdcmConfigErrorTypes } from '../../types';
 import checkStdcmConfigErrors from '../../utils/checkStdcmConfigErrors';
 import StdcmLoader from '../StdcmLoader';
+import StdcmSimulationParams from '../StdcmSimulationParams';
 import StdcmWarningBox from '../StdcmWarningBox';
 
 declare global {

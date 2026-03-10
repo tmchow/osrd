@@ -4,11 +4,11 @@ import { describe, it, expect } from 'vitest';
 import type { TrainSchedule } from 'common/api/osrdEditoastApi';
 import type { RangedValue } from 'common/types';
 
+import generateEffortCurvesForTests from './generateEffortCurvesForTests';
 import {
   convertPowerRestrictionsAndCheckCompatibility,
   formatPowerRestrictionRanges,
 } from '../formatPowerRestrictionRangesWithHandled';
-import generateEffortCurvesForTests from './generateEffortCurvesForTests';
 
 describe('formatPowerRestrictionRanges', () => {
   it('should properly format power restrictions ranges', () => {

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { IconData } from '../types/icon-data';
+
 import { default as sizes } from '../sizes';
+import { IconData } from '../types/icon-data';
 
 const iconData: IconData = {};
 

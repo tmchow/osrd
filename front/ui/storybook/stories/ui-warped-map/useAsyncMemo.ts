@@ -21,6 +21,7 @@ export function getAsyncMemoData<T>(state: AsyncMemoState<T>): T | undefined {
 export function useAsyncMemo<T>(fn: () => Promise<T>, deps: DependencyList): AsyncMemoState<T> {
   const [state, setState] = useState<AsyncMemoState<T>>({ type: 'loading' });
 
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     let aborted = false;
     setState({ type: 'loading', previousData: getAsyncMemoData(state) });
@@ -35,7 +36,7 @@ export function useAsyncMemo<T>(fn: () => Promise<T>, deps: DependencyList): Asy
     return () => {
       aborted = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return state;

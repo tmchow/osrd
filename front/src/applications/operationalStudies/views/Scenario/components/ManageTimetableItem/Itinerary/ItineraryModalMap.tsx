@@ -20,8 +20,8 @@ import { useAppDispatch } from 'store';
 import { getBarycenter } from 'utils/geometry';
 import { getMapMouseEventNearestFeature } from 'utils/mapHelper';
 
-import type { FeatureInfoClick } from '../types';
 import { computePathStepCoordinates } from './utils';
+import type { FeatureInfoClick } from '../types';
 
 const OPERATIONAL_POINT_LAYERS = [
   'chartis/osrd_operational_point/geo',

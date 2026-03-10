@@ -23,7 +23,6 @@ import { useAppDispatch } from 'store';
 import { castErrorToFailure } from 'utils/error';
 import { usePrevious } from 'utils/hooks/state';
 
-import { MANAGE_TIMETABLE_ITEM_TYPES } from '../consts';
 import BoardWrapper from './BoardWrapper';
 import { EditedElementContainerProvider } from './EditedElementContainerContext';
 import MacroEditorState from './MacroEditor/MacroEditorState';
@@ -33,6 +32,7 @@ import NGE from './NGE';
 import type { NetzgrafikDto, NGEEvent } from './NGE/types';
 import { HIDDEN_CHART_TOP_HEIGHT } from './SimulationResults/SimulationResults';
 import TimetableBoardWrapper from './Timetable/TimetableBoardWrapper';
+import { MANAGE_TIMETABLE_ITEM_TYPES } from '../consts';
 
 type ScenarioContentProps = {
   activeBoards: Set<Board>;
