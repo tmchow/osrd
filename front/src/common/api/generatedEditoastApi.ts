@@ -2407,18 +2407,15 @@ export type GetTimetableByIdRoundTripsPacedTrainsApiArg = {
 };
 export type PostTimetableByIdStdcmApiResponse = /** status 200 The simulation result */
   | {
-      core_payload?: null | CoreStdcmRequest;
       departure_time: string;
       pathfinding_result: CorePathfindingResultSuccess;
       simulation: SimulationResponseSuccess;
       status: 'success';
     }
   | {
-      core_payload?: null | CoreStdcmRequest;
       status: 'path_not_found';
     }
   | {
-      core_payload?: null | CoreStdcmRequest;
       error: SimulationResponse;
       status: 'preprocessing_simulation_error';
     };
@@ -4700,124 +4697,6 @@ export type CoreTrainRequirementsById = {
   train_id: string;
   /** ID that can be used to find the train in tools other than OSRD. Used in debug traces. */
   train_name: string;
-};
-export type ConsistConfiguration = {
-  /** The loading gauge of the rolling stock */
-  loading_gauge_type: LoadingGaugeType;
-  physics_consist: {
-    base_power_class?: string | null;
-    /** Acceleration in m·s⁻² */
-    comfort_acceleration: number;
-    /**  The constant gamma braking coefficient used when NOT circulating
-         under ETCS/ERTMS signaling system
-        Acceleration in m·s⁻² */
-    const_gamma: number;
-    effort_curves: EffortCurves;
-    /** The time the train takes before actually using electrical power.
-        Is null if the train is not electric or the value not specified. */
-    electrical_power_startup_time?: number | null;
-    etcs_brake_params?: null | EtcsBrakeParams;
-    inertia_coefficient: number;
-    length: number;
-    mass: number;
-    /** Velocity in m·s⁻¹ */
-    max_speed: number;
-    /** Mapping of power restriction code to power class */
-    power_restrictions?: {
-      [key: string]: string;
-    };
-    /** The time it takes to raise this train's pantograph.
-        Is null if the train is not electric or the value not specified. */
-    raise_pantograph_time?: number | null;
-    rolling_resistance: RollingResistance;
-    /** Acceleration in m·s⁻² */
-    startup_acceleration: number;
-    startup_time: number;
-  };
-  speed_limit_tag?: string | null;
-  /** List of supported signaling systems */
-  supported_signaling_systems: string[];
-};
-export type ConsistSchedule = {
-  boundaries: number[];
-  values: ConsistConfiguration[];
-};
-export type CoreStepTimingData = {
-  /** Time the train should arrive at this point */
-  arrival_time: string;
-  /** Tolerance for the arrival time, when it arrives after the expected time, in ms */
-  arrival_time_tolerance_after: number;
-  /** Tolerance for the arrival time, when it arrives before the expected time, in ms */
-  arrival_time_tolerance_before: number;
-};
-export type CorePathItem = {
-  /** The track offsets of the path item */
-  locations: TrackOffset[];
-  step_timing_data?: null | CoreStepTimingData;
-  /** Stop duration in milliseconds. None if the train does not stop at this path item. */
-  stop_duration?: number | null;
-};
-export type CoreUndirectedTrackRange = {
-  /** The beginning of the range in mm. */
-  begin: number;
-  /** The end of the range in mm. */
-  end: number;
-  /** The track section identifier. */
-  track_section: string;
-};
-export type CoreWorkSchedule = {
-  /** End time as a time delta from the stdcm start time in ms */
-  end_time: number;
-  /** Start time as a time delta from the stdcm start time in ms */
-  start_time: number;
-  /** List of unavailable track ranges */
-  track_ranges: CoreUndirectedTrackRange[];
-};
-export type CoreStdcmRequest = {
-  /** Set of authorized track section ids for the current request */
-  allowed_track_sections?: string[] | null;
-  /** The comfort of the train */
-  comfort: Comfort;
-  consist_schedule: ConsistSchedule;
-  /** Infrastructure expected version */
-  expected_version: number;
-  /** Infrastructure id */
-  infra: number;
-  /** Margin to apply to the whole train */
-  margin?:
-    | null
-    | (
-        | {
-            Percentage: number;
-          }
-        | {
-            MinPer100Km: number;
-          }
-      );
-  /** Maximum departure delay in milliseconds. */
-  maximum_departure_delay: number;
-  /** Maximum run time of the simulation in milliseconds */
-  maximum_run_time: number;
-  /** List of waypoints. Each waypoint is a list of track offset. */
-  path_items: CorePathItem[];
-  start_time: string;
-  /** List of applicable temporary speed limits between the train departure and arrival */
-  temporary_speed_limits: {
-    /** Speed limitation in m/s */
-    speed_limit: number;
-    /** Track ranges on which the speed limitation applies */
-    track_ranges: CoreTrackRange[];
-  }[];
-  /** Gap between the created train and following trains in milliseconds */
-  time_gap_after: number;
-  /** Gap between the created train and previous trains in milliseconds */
-  time_gap_before: number;
-  /** Numerical integration time step in milliseconds. Use default value if not specified. */
-  time_step?: number | null;
-  /** Timetable id */
-  timetable_id: number;
-  /** List of planned work schedules */
-  work_schedules: CoreWorkSchedule[];
 };
 export type PathfindingItem = {
   /** The stop duration in milliseconds, None if the train does not stop. */

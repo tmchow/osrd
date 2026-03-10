@@ -62,17 +62,10 @@ pub(in crate::views) enum StdcmResponse {
         simulation: SimulationResponseSuccess,
         pathfinding_result: PathfindingResultSuccess,
         departure_time: DateTime<Utc>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        core_payload: Option<StdcmRequest>,
     },
-    PathNotFound {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        core_payload: Option<StdcmRequest>,
-    },
+    PathNotFound,
     PreprocessingSimulationError {
         error: simulation::Response,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        core_payload: Option<StdcmRequest>,
     },
 }
 
@@ -140,7 +133,6 @@ pub(in crate::views) struct StdcmQueryParams {
     skip_all,
     err,
     fields(
-        request,
         timetable_id = id,
         infra_id = query.infra,
         path_found,
@@ -160,39 +152,6 @@ pub(in crate::views) struct StdcmQueryParams {
     )
 )]
 pub(in crate::views) async fn stdcm(
-    state: State<AppState>,
-    extension: AuthenticationExt,
-    Path(id): Path<i64>,
-    Query(query): Query<StdcmQueryParams>,
-    Json(request): Json<Request>,
-) -> Result<Json<StdcmResponse>> {
-    // Add serialized request to trace attributes, skipping allowed track sections
-    // (as it would make the payload too large to be saved). TODO: include search env ID
-    let mut request_copy = request.clone();
-    request_copy.allowed_track_sections = None;
-    Span::current().record("request", serde_json::to_string(&request_copy)?);
-    let mut returned_request: Option<core_client::stdcm::Request> = None;
-    stdcm_handler(
-        state,
-        extension,
-        Path(id),
-        Query(query),
-        Json(request),
-        &mut returned_request,
-    )
-    .await
-    .map_err(|mut err| {
-        if let Some(request) = returned_request {
-            err.context.insert(
-                String::from("core_payload"),
-                serde_json::to_value(request).unwrap_or(serde_json::Value::Null),
-            );
-        }
-        err
-    })
-}
-
-pub(in crate::views) async fn stdcm_handler(
     State(AppState {
         config,
         db_pool,
@@ -204,7 +163,6 @@ pub(in crate::views) async fn stdcm_handler(
     Path(id): Path<i64>,
     Query(query): Query<StdcmQueryParams>,
     Json(request): Json<Request>,
-    returned_request: &mut Option<core_client::stdcm::Request>,
 ) -> Result<Json<StdcmResponse>> {
     let authorized = auth
         .check_roles([authz::Role::Stdcm].into())
@@ -284,7 +242,6 @@ pub(in crate::views) async fn stdcm_handler(
     else {
         return Ok(Json(StdcmResponse::PreprocessingSimulationError {
             error: virtual_train_run.simulation,
-            core_payload: None,
         }))
     };
 
@@ -329,7 +286,6 @@ pub(in crate::views) async fn stdcm_handler(
             })
             .collect(),
     };
-    *returned_request = query.return_debug_payloads.then_some(stdcm_request.clone());
 
     let stdcm_response: Result<core_client::stdcm::Response, InternalError> = stdcm_request
         .fetch(core_client.as_ref())
@@ -349,14 +305,11 @@ pub(in crate::views) async fn stdcm_handler(
                 simulation: simulation.into(),
                 pathfinding_result: path,
                 departure_time,
-                core_payload: returned_request.clone(),
             }))
         }
         core_client::stdcm::Response::PathNotFound => {
             span.record("path_found", false);
-            Ok(Json(StdcmResponse::PathNotFound {
-                core_payload: returned_request.clone(),
-            }))
+            Ok(Json(StdcmResponse::PathNotFound))
         }
     }
 }
@@ -815,7 +768,6 @@ mod tests {
                     pathfinding_result: path,
                     departure_time: DateTime::from_str("2024-01-02T00:00:00Z")
                         .expect("Failed to parse datetime"),
-                    core_payload: None,
                 }
             );
         }
@@ -952,7 +904,6 @@ mod tests {
                     pathfinding_result: path,
                     departure_time: DateTime::from_str("2024-01-02T00:00:00Z")
                         .expect("Failed to parse datetime"),
-                    core_payload: None,
                 }
             );
         }
@@ -983,10 +934,7 @@ mod tests {
             .assert_status(StatusCode::OK)
             .json_into();
 
-        assert_eq!(
-            stdcm_response,
-            StdcmResponse::PathNotFound { core_payload: None }
-        );
+        assert_eq!(stdcm_response, StdcmResponse::PathNotFound);
     }
 
     #[rstest]
