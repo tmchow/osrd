@@ -28,8 +28,8 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "rollup -c --failAfterWarnings",
-    "watch": "rollup -c -w",
+    "build": "rolldown -c --failAfterWarnings",
+    "watch": "rolldown -c -w",
     "test": "vitest run",
     "prepublishOnly": "npm run clean && npm run build",
     "lint": "oxlint . --max-warnings 0 && oxfmt . --check --ignore-path ../.prettierignore",

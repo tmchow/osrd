@@ -27,7 +27,7 @@
   "scripts": {
     "svgo": "svgo icons --config svgo.config.cjs",
     "clean": "rimraf dist",
-    "build": "node ./scripts/build.js && rollup -c --failAfterWarnings",
+    "build": "node ./scripts/build.js && rolldown -c --failAfterWarnings",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "peerDependencies": {
