@@ -1,0 +1,57 @@
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "arrowParens": "always",
+  "proseWrap": "always",
+  "trailingComma": "es5",
+  "sortPackageJson": false,
+  "ignorePatterns": ["*.md", "dist", "node_modules", "storybook-static", "ui-icons"],
+  "sortImports": {
+    "ignoreCase": true,
+    "newlinesBetween": true,
+    "customGroups": [
+      {
+        "groupName": "react-libs",
+        "elementNamePattern": ["react"]
+      },
+      {
+        "groupName": "external-styles",
+        "elementNamePattern": ["@osrd-project/**.css?url", "@osrd-project/**.scss?url"]
+      },
+      {
+        "groupName": "itrn",
+        "elementNamePattern": [
+          "applications/**",
+          "assets/**",
+          "common/**",
+          "config/**",
+          "i18n",
+          "main/**",
+          "modules/**",
+          "reducers",
+          "reducers/**",
+          "store",
+          "styles/**",
+          "test-data/**",
+          "types",
+          "types/**",
+          "utils/**"
+        ]
+      }
+    ],
+    "groups": [
+      "builtin",
+      "react-libs",
+      ["external", "external-styles"],
+      "itrn",
+      "internal",
+      { "newlinesBetween": false },
+      ["sibling", "index"],
+      { "newlinesBetween": false },
+      "parent",
+      { "newlinesBetween": true },
+      "style",
+      "unknown"
+    ]
+  }
+}

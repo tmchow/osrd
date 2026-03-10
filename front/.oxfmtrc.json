@@ -1,0 +1,69 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "singleQuote": true,
+  "arrowParens": "always",
+  "proseWrap": "always",
+  "trailingComma": "es5",
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "*.md",
+    "public/locales/en/infraEditor.json",
+    "src/applications/OperationalStudies/views/Scenario/components/ImportTimetableItem/rollingstock_opendata2osrd.json",
+    "src/assets/mapstyles/*.json",
+    "src/common/api/generatedEditoastApi.ts",
+    "src/common/api/osrdGatewayApi.ts",
+    "src/common/NavBar/json/licenses.json",
+    "src/reducers/osrdconf/infra_schema.json",
+    "src/utils/__tests__/assets/*.json",
+    "/ui",
+    "node_modules"
+  ],
+  "sortImports": {
+    "ignoreCase": true,
+    "newlinesBetween": true,
+    "customGroups": [
+      {
+        "groupName": "react-libs",
+        "elementNamePattern": ["react"]
+      },
+      {
+        "groupName": "external-styles",
+        "elementNamePattern": ["@*/**/*.css*", "@*/**/*.scss*"]
+      },
+      {
+        "groupName": "itrn",
+        "elementNamePattern": [
+          "applications/**",
+          "assets/**",
+          "common/**",
+          "config/**",
+          "i18n",
+          "main/**",
+          "modules/**",
+          "reducers",
+          "reducers/**",
+          "store",
+          "styles/**",
+          "test-data/**",
+          "types",
+          "types/**",
+          "utils/**"
+        ]
+      }
+    ],
+    "groups": [
+      "builtin",
+      "react-libs",
+      ["external", "external-styles"],
+      "itrn",
+      "internal",
+      { "newlinesBetween": false },
+      ["sibling", "index"],
+      { "newlinesBetween": false },
+      "parent",
+      "style",
+      "unknown"
+    ]
+  }
+}
