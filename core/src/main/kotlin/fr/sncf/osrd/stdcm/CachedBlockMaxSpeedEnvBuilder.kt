@@ -41,7 +41,7 @@ import kotlin.math.min
  */
 data class CachedBlockMaxSpeedEnvBuilder(
     private val rawInfra: RawInfra,
-    private val blockInfra: BlockInfra,
+    val blockInfra: BlockInfra,
     private val rollingStock: PhysicsRollingStock,
     private val steps: List<ExplorerStep>,
     private val timeStep: Double,
@@ -52,16 +52,16 @@ data class CachedBlockMaxSpeedEnvBuilder(
     private val addRollingStockLength: Boolean = true,
 ) {
     private val maxSpeedEnvCache = mutableMapOf<CachedBlock, Envelope>()
-    private val mrspEnvCache = mutableMapOf<BlockId, CachedMrsp>()
+    private val mrspEnvCache = mutableMapOf<BlockId, MrspAndContext>()
     private val blockToStopMap = mutableMapOf<BlockId, MutableList<Offset<Block>>>()
     private val blockToMaxSpeedMap = mutableMapOf<BlockId, Double>()
 
     private data class CachedBlock(val block: BlockId, val endSpeed: Double?)
 
-    private data class CachedMrsp(val mrsp: Envelope, val context: EnvelopeSimContext)
+    data class MrspAndContext(val mrsp: Envelope, val context: EnvelopeSimContext)
 
     init {
-        for (stop in steps.filter { it.stop }) {
+        for (stop in steps.filterIndexed { index, it -> it.stop || index == 0 }) {
             val blockToLocationMap = mutableMapOf<BlockId, Offset<Block>>()
             for (location in stop.locations) {
                 val currentOffset = blockToLocationMap.getOrPut(location.edge) { location.offset }
@@ -74,29 +74,33 @@ data class CachedBlockMaxSpeedEnvBuilder(
         }
     }
 
-    /** Returns the max speed envelope/mrsp for the given block (cached). */
+    /** Returns the mrsp and context for the given block (cached). */
+    fun getMrspAndContext(block: BlockId): MrspAndContext {
+        return mrspEnvCache.computeIfAbsent(block) {
+            // TODO: change input to infra explorers, and fetch last route there
+            val pathProps = buildTrainPathFromBlock(rawInfra, blockInfra, block, routes = listOf())
+            val context = build(rollingStock, pathProps, timeStep, comfort)
+            val mrsp =
+                computeMRSP(
+                    pathProps,
+                    rollingStock.maxSpeed,
+                    rollingStock.length,
+                    addRollingStockLength = addRollingStockLength,
+                    speedLimitTag,
+                    temporarySpeedLimitManager,
+                )
+            MrspAndContext(mrsp, context)
+        }
+    }
+
+    /** Returns the max speed envelope for the given block/end speed (cached). */
     fun getMaxSpeedEnvelope(block: BlockId, endSpeed: Double?): Envelope {
         if (endSpeed == null && blockToMaxSpeedMap.containsKey(block)) {
             // Return fastest block envelope by maximising its end speed.
             return maxSpeedEnvCache[CachedBlock(block, blockToMaxSpeedMap[block])]!!
         }
-        val cachedMrsp =
-            mrspEnvCache.computeIfAbsent(block) {
-                // TODO: change input to infra explorers, and fetch last route there
-                val pathProps =
-                    buildTrainPathFromBlock(rawInfra, blockInfra, block, routes = listOf())
-                val context = build(rollingStock, pathProps, timeStep, comfort)
-                val mrsp =
-                    computeMRSP(
-                        pathProps,
-                        rollingStock.maxSpeed,
-                        rollingStock.length,
-                        addRollingStockLength = addRollingStockLength,
-                        speedLimitTag,
-                        temporarySpeedLimitManager,
-                    )
-                CachedMrsp(mrsp, context)
-            }
+        val cachedMrsp = getMrspAndContext(block)
+        if (cachedMrsp.mrsp.beginPos == cachedMrsp.mrsp.endPos) return cachedMrsp.mrsp
         val actualEndSpeed = min(cachedMrsp.mrsp.endSpeed, endSpeed ?: Double.POSITIVE_INFINITY)
         blockToMaxSpeedMap.compute(block) { _, oldSpeed ->
             max(actualEndSpeed, oldSpeed ?: Double.NEGATIVE_INFINITY)
