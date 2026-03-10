@@ -73,9 +73,9 @@ fun runSimulation(
     if (useSpeedLimits) {
         val props = trainPath.getSpeedLimitProperties(speedLimitTag, null)
         for (prop in props) {
-            val lower = prop.lower.micrometers
-            val upper = prop.upper.micrometers
-            val speed = prop.value.speed.micrometersPerSecond
+            val lower = prop.lower.toPrecise()
+            val upper = prop.upper.toPrecise()
+            val speed = prop.value.speed.toPrecise()
             if (speed != 0.micrometersPerSecond) {
                 mrsp.putLower(Range.closed(lower, upper), speed)
             }
@@ -85,9 +85,9 @@ fun runSimulation(
         val signalingRanges = buildSignalingRanges(infra, trainPath)
         val safetySpeedRanges = makeSafetySpeedRanges(infra, trainPath, schedule, signalingRanges)
         for (range in safetySpeedRanges) {
-            val lower = range.lower.micrometers
-            val upper = range.upper.micrometers
-            val speed = range.value.micrometersPerSecond
+            val lower = range.lower.toPrecise()
+            val upper = range.upper.toPrecise()
+            val speed = range.value.toPrecise()
             mrsp.putLower(Range.closed(lower, upper), speed)
         }
     }

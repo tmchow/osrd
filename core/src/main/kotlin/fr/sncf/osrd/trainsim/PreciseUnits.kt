@@ -1,6 +1,7 @@
 package fr.sncf.osrd.trainsim
 
 import fr.sncf.osrd.utils.units.Distance
+import fr.sncf.osrd.utils.units.Speed
 import kotlin.math.absoluteValue
 
 @JvmInline
@@ -99,6 +100,7 @@ val Int.micrometers: PreciseDistance
     get() = PreciseDistance(micrometers = this.toLong())
 val Long.micrometers: PreciseDistance
     get() = PreciseDistance(micrometers = this)
+fun Distance.toPrecise(): PreciseDistance = PreciseDistance(micrometers = millimeters * 1000)
 
 fun min(a: PreciseDuration, b: PreciseDuration): PreciseDuration = if (a < b) a else b
 
@@ -143,6 +145,7 @@ val Int.micrometersPerSecond: PreciseSpeed
     get() = PreciseSpeed(micrometersPerSecond = this.toLong())
 val Long.micrometersPerSecond: PreciseSpeed
     get() = PreciseSpeed(micrometersPerSecond = this)
+fun Speed.toPrecise(): PreciseSpeed = PreciseSpeed(micrometersPerSecond = millimetersPerSecond.toLong() * 1000)
 
 fun min(a: PreciseSpeed, b: PreciseSpeed): PreciseSpeed = if (a < b) a else b
 
