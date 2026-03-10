@@ -854,12 +854,13 @@ internal fun decelerationCurve(
 
 fun step(
     context: EnvelopeSimContext,
-    constraints: List<Constraint>,
+    constraints: Iterable<Constraint>,
     driver: Driver,
     currentState: TrainState,
 ): TrainState {
     val mergedState =
         constraints
+            .asSequence()
             .flatMap {
                 val nextStates = it.enactDecision(context, currentState)
 
