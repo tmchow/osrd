@@ -516,34 +516,15 @@ class EnvelopePart(
     }
 
     /**
-     * Returns a new EnvelopePart, where all positions are shifted by positionDelta. Resulting
-     * positions are clipped to [minPosition; maxPosition].
+     * Returns a new EnvelopePart, where all positions are shifted by positionDelta. Warning: speeds
+     * and time deltas have not been cloned. To be used only if envelope is not edited afterward.
      */
-    fun copyAndShift(
-        positionDelta: Double,
-        minPosition: Double,
-        maxPosition: Double,
-    ): EnvelopePart {
-        val newPositions = DoubleArrayList()
-        val newSpeeds = DoubleArrayList()
-        val newTimeDeltas = DoubleArrayList()
-        newPositions.add(positions[0] + positionDelta)
-        newSpeeds.add(speeds[0])
-        for (i in 1 until positions.size) {
-            val p = max(minPosition, min(maxPosition, positions[i] + positionDelta))
-            if (newPositions.last().value != p) {
-                // Positions that are an epsilon away may be overlapping after the shift, we only
-                // add the distinct ones
-                newPositions.add(p)
-                newSpeeds.add(speeds[i])
-                newTimeDeltas.add(timeDeltas[i - 1])
-            }
-        }
+    fun shift(positionDelta: Double): EnvelopePart {
         return EnvelopePart(
             HashMap(attrs),
-            newPositions.toArray(),
-            newSpeeds.toArray(),
-            newTimeDeltas.toArray(),
+            positions.map { it + positionDelta }.toDoubleArray(),
+            speeds,
+            timeDeltas,
         )
     }
 

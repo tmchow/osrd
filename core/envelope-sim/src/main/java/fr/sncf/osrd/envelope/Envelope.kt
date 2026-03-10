@@ -342,6 +342,11 @@ class Envelope(parts: Array<EnvelopePart>) :
         return res.toTypedArray()
     }
 
+    /** Shifts an envelope's positions. */
+    fun shift(positionDelta: Double): Envelope {
+        return make(*parts.map { it.shift(positionDelta) }.toTypedArray())
+    }
+
     // endregion
     override fun iterator(): MutableIterator<EnvelopePart> {
         return object : MutableIterator<EnvelopePart> {
