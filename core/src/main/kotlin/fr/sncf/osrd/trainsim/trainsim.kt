@@ -449,22 +449,49 @@ interface SpeedConstraint : Constraint {
      */
     fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve>
 
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState> =
-         speedCurves(context, currentState)
-             .mapNotNull { curve ->
-                 if (currentState.position.micrometers !in curve.start..curve.end) return@mapNotNull null
-                 val nextState = tryEnactDecision(context, currentState, curve) ?: return@mapNotNull null
+    override fun enactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+    ): List<TrainState> =
+        speedCurves(context, currentState).mapNotNull { curve ->
+            val accelerateState = currentState.accelerate(context)
+            if (
+                (currentState.position.micrometers < curve.start) ==
+                    (accelerateState.position.micrometers < curve.start) &&
+                    currentState.position.micrometers !in curve.start..<curve.end &&
+                    accelerateState.position.micrometers !in curve.start..<curve.end
+            ) {
+                // [currentState;accelerateState] doesn't intersect with the curve
+                return@mapNotNull null
+            }
 
-                 val curveEnd = curve.end.micrometers
-                 if (currentState.position < curveEnd && nextState.time <= currentState.time) {
-                     // The previous call to tryEnactDecision didn't advance time, so currentState must be
-                     // really close to the end of the curve. In this case, assume the speed limit has been
-                     // passed.
-                     return@mapNotNull null
-                 }
+            var nextState = tryEnactDecision(context, currentState, curve) ?: return@mapNotNull null
 
-                 nextState
-             }
+            if (nextState.time > currentState.time) {
+                return@mapNotNull nextState
+            }
+
+            // The previous call to tryEnactDecision didn't advance time, try with currentState
+            // snapped to the curve
+            // The lerp call cannot return `null` because of the `!in` check above
+            val currentSpeedLimit =
+                curve.lerp(currentState.position.micrometers)!!.micrometersPerSecond
+            val snappedState = currentState.copy(speed = currentSpeedLimit)
+
+            // This call cannot return `null` because the previous one didn't return `null` and
+            // we're calling with the same position
+            nextState = tryEnactDecision(context, snappedState, curve)!!
+
+            if (nextState.time > currentState.time) {
+                // currentState must be really close to the speed limit. In this case, return the
+                // state computed from snappedState
+                return@mapNotNull nextState
+            }
+
+            // currentState must be really close to the position of the end of the curve. In this
+            // case, assume the speed limit has been passed.
+            null
+        }
 
     fun tryEnactDecision(
         context: EnvelopeSimContext,
