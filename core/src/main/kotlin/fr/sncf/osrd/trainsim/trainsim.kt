@@ -413,8 +413,8 @@ interface Constraint {
         true
 
     /**
-     * Apply the constraint given the [currentState] of the train and return potential states of the train
-     * after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
+     * Apply the constraint given the [currentState] of the train and return potential states of the
+     * train after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
     fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState>
 
@@ -436,12 +436,13 @@ interface Updatable {
 /**
  * A driving constraint that only constrains the speed of the train.
  *
- * Implementers of this interface only need to implement [speedCurves], and the constraint will limit
- * the speed of the train to below the curve.
+ * Implementers of this interface only need to implement [speedCurves], and the constraint will
+ * limit the speed of the train to below the curve.
  */
 interface SpeedConstraint : Constraint {
     /**
-     * The speed constraint represented as zero or more curves where X is the position and Y is the speed.
+     * The speed constraint represented as zero or more curves where X is the position and Y is the
+     * speed.
      *
      * It may depend on the [currentState] of the train, for example if the curves evolve over time.
      */
@@ -565,7 +566,10 @@ data class SpeedLimitedZone(
     }
 
     override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> =
-        listOf(decelerationCurve(context, start, limit) + Vec2(end.micrometers, limit.micrometersPerSecond))
+        listOf(
+            decelerationCurve(context, start, limit) +
+                Vec2(end.micrometers, limit.micrometersPerSecond)
+        )
 }
 
 /**
@@ -599,7 +603,10 @@ data class NeutralSection(
     /** Whether the pantograph must be lowered when entering the zone */
     val lowerPantograph: Boolean,
 ) : Constraint {
-    override fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState> {
+    override fun enactDecision(
+        context: EnvelopeSimContext,
+        currentState: TrainState,
+    ): List<TrainState> {
         if (currentState.position < start) {
             return listOf()
         }
@@ -607,12 +614,14 @@ data class NeutralSection(
         val nextState = currentState.accelerate(context)
 
         if (currentState.position >= end) {
-            return listOf(nextState.copy(
-                pantograph =
-                    currentState.pantograph
-                        .raise()
-                        .advance(nextState.time - currentState.time, context.rollingStock)
-            ))
+            return listOf(
+                nextState.copy(
+                    pantograph =
+                        currentState.pantograph
+                            .raise()
+                            .advance(nextState.time - currentState.time, context.rollingStock)
+                )
+            )
         }
 
         if (nextState.position > end) {
@@ -624,22 +633,28 @@ data class NeutralSection(
                 (nextState.speed - currentState.speed) * newPositionDelta / oldPositionDelta
 
             if (newTimeDelta > 0.microseconds) {
-                return listOf(nextState.copy(
-                    time = currentState.time + newTimeDelta,
-                    position = end,
-                    speed = currentState.speed + newSpeedDelta,
-                    pantograph =
-                        currentState.pantograph.advance(newTimeDelta, context.rollingStock).raise(),
-                ))
+                return listOf(
+                    nextState.copy(
+                        time = currentState.time + newTimeDelta,
+                        position = end,
+                        speed = currentState.speed + newSpeedDelta,
+                        pantograph =
+                            currentState.pantograph
+                                .advance(newTimeDelta, context.rollingStock)
+                                .raise(),
+                    )
+                )
             }
         }
 
-        return listOf(nextState.copy(
-            pantograph =
-                currentState.pantograph
-                    .lower()
-                    .advance(nextState.time - currentState.time, context.rollingStock)
-        ))
+        return listOf(
+            nextState.copy(
+                pantograph =
+                    currentState.pantograph
+                        .lower()
+                        .advance(nextState.time - currentState.time, context.rollingStock)
+            )
+        )
     }
 
     override fun truncateStep(
