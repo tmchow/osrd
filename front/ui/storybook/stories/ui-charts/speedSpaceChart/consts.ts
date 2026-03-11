@@ -17,6 +17,7 @@ export const defaultTranslations = {
     electricalProfiles: 'Electrical Profiles',
     powerRestrictions: 'Power Restrictions',
     speedLimitTags: 'Speed Limit Tags',
+    pantographPositions: 'Pantograph positions',
   },
   etcsLayersDisplay: {
     title: 'ETCS',

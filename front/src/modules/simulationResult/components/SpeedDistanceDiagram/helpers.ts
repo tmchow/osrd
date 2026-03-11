@@ -6,6 +6,7 @@ import type {
   PowerRestrictionValues,
   SpeedLimitTagValues,
 } from '@osrd-project/ui-charts';
+import type { Data } from '@osrd-project/ui-charts/dist/speedSpaceChart/types';
 
 import type { PathPropertiesFormatted, PositionData } from 'applications/operationalStudies/types';
 import type { CoreReportTrain, SimulationResponseSuccess } from 'common/api/osrdEditoastApi';
@@ -14,7 +15,6 @@ import type { SpeedLimitTagValue } from 'modules/simulationResult/types';
 import { mmToKm, msToKmh, mToKm } from 'utils/physics';
 
 import { electricalProfilesDesignValues } from './consts';
-import type { Data } from '@osrd-project/ui-charts/dist/speedSpaceChart/types';
 
 const getTag = (source?: SpeedLimitTagValue['source']): { name: string; color: string } => {
   let name: string;
@@ -197,6 +197,13 @@ export const formatElectricalProfiles = (
   });
 };
 
+const formatPantographPositions = (positions: number[], pantographPositions: number[]) => {
+  if (positions.length !== pantographPositions.length) {
+    throw 'positions and pantographPositions are not the same length';
+  }
+  return positions.map((x, i) => ({ x, y: pantographPositions[i] }));
+};
+
 export const formatData = (
   simulation: SimulationResponseSuccess,
   trainLength: number,
@@ -223,6 +230,9 @@ export const formatData = (
   );
   const mrsp = formatMrsp(simulation.mrsp);
   const speedLimitCurves = formatSpeedLimitCurves(simulation.speed_limit_curves ?? []);
+  const pantographPositions = simulation.pantograph_positions
+    ? formatPantographPositions(simulation.final_output.positions, simulation.pantograph_positions)
+    : [];
 
   return {
     speeds,
@@ -236,5 +246,6 @@ export const formatData = (
     mrsp,
     trainLength,
     speedLimitCurves,
+    pantographPositions,
   };
 };

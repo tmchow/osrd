@@ -210,6 +210,25 @@ fun runSimulation(
                     curve
                 }
                 .toList(),
+        pantographPositions =
+            simplifiedPoints.map { simplifiedPoint ->
+                val position = simplifiedPoint.position
+                val r = trainStates.binarySearchBy(position) { state -> state.position.meters }
+                if (r >= 0) {
+                    trainStates[r].pantograph.position
+                } else if (r == -1) {
+                    trainStates[0].pantograph.position
+                } else {
+                    val i = -r - 1
+                    val prevPos = trainStates[i - 1].position.meters
+                    val nextPos = trainStates[i].position.meters
+                    val prevPantographPos = trainStates[i - 1].pantograph.position
+                    val nextPantographPos = trainStates[i].pantograph.position
+                    prevPantographPos +
+                        (position - prevPos) / (nextPos - prevPos) *
+                            (nextPantographPos - prevPantographPos)
+                }
+            },
     )
 }
 

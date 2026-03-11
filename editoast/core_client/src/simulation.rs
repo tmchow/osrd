@@ -296,6 +296,8 @@ pub struct SimulationSuccess {
     pub electrical_profiles: ElectricalProfiles,
     #[serde(default)]
     pub speed_limit_curves: Vec<Curve>,
+    #[serde(default)]
+    pub pantograph_positions: Vec<f64>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]

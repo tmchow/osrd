@@ -13,6 +13,7 @@ import {
   DeclivityLayer,
   ElectricalProfileLayer,
   FrontInteractivityLayer,
+  PantographPositionsLayer,
   PowerRestrictionsLayer,
   ReticleLayer,
   SpeedLimitsLayer,
@@ -50,6 +51,7 @@ export type SpeedSpaceChartProps = {
       electricalProfiles: string;
       powerRestrictions: string;
       speedLimitTags: string;
+      pantographPositions: string;
     };
     etcsLayersDisplay: {
       title: string;
@@ -91,6 +93,7 @@ const SpeedSpaceChart = ({
     powerRestrictions: undefined,
     electricalProfiles: undefined,
     speedLimitTags: undefined,
+    pantographPositions: [],
     trainLength: 0,
     ratioX: 1,
     leftOffset: 0,
@@ -113,6 +116,7 @@ const SpeedSpaceChart = ({
       electricalProfiles: false,
       powerRestrictions: false,
       speedLimitTags: false,
+      pantographPositions: true,
     },
     etcsLayersDisplay: DEFAULT_ETCS_LAYERS_DISPLAY,
     isSettingsPanelOpened: false,
@@ -328,6 +332,13 @@ const SpeedSpaceChart = ({
       <TickLayerX width={adjustedWidthRightAxis} height={height} store={store} />
       {store.layersDisplay.declivities && (
         <TickLayerYRight width={width} height={mainChartHeight} store={store} />
+      )}
+      {store.layersDisplay.pantographPositions && (
+        <PantographPositionsLayer
+          width={adjustedWidthRightAxis}
+          height={mainChartHeight}
+          store={store}
+        />
       )}
       {!isMouseHoveringSettingsPanel && (
         <ReticleLayer

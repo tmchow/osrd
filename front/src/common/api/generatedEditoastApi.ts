@@ -4584,6 +4584,7 @@ export type SimulationResponseSuccess = {
       speed: number;
     }[];
   };
+  pantograph_positions?: number[];
   /** Simulation that takes into account the regularity margins */
   provisional: CoreReportTrain;
   speed_limit_curves?: {

@@ -632,6 +632,7 @@
       "slopes": "Slopes",
       "speedLimitTags": "Speed limit tags",
       "speedLimits": "Speed limits",
+      "pantographPositions": "Pantograph positions",
       "steps": "operational points",
       "temporarySpeedLimits": "Temporary speed limits.",
       "tractionStatus": "Traction status"

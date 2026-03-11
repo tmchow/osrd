@@ -71,6 +71,7 @@ const SpeedDistanceDiagramWrapper = ({
       electricalProfiles: t('speedDistanceSettings.electricalProfiles'),
       powerRestrictions: t('speedDistanceSettings.powerRestrictions'),
       speedLimitTags: t('speedDistanceSettings.speedLimitTags'),
+      pantographPositions: t('speedDistanceSettings.pantographPositions'),
     },
     etcsLayersDisplay: {
       title: t('speedDistanceSettings.etcs.title'),

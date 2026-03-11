@@ -172,5 +172,6 @@ export const formatData = (
     powerRestrictions,
     speedLimitTags,
     trainLength,
+    pantographPositions: [], // TODO
   };
 };

@@ -4,6 +4,7 @@ export { default as CurveLayer } from './CurveLayer';
 export { default as DeclivityLayer } from './DeclivityLayer';
 export { default as ElectricalProfileLayer } from './ElectricalProfileLayer';
 export { default as FrontInteractivityLayer } from './FrontInteractivityLayer';
+export { default as PantographPositionsLayer } from './PantographPositionsLayer';
 export { default as PowerRestrictionsLayer } from './PowerRestrictionsLayer';
 export { default as ReticleLayer } from './ReticleLayer';
 export { default as SpeedLimitTagsLayer } from './SpeedLimitTagsLayer';

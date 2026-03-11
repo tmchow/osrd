@@ -71,6 +71,8 @@ pub struct SimulationResponseSuccess {
     #[schema(inline)]
     #[serde(default)]
     pub speed_limit_curves: Vec<Curve>,
+    #[serde(default)]
+    pub pantograph_positions: Vec<f64>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, ToSchema)]
@@ -246,6 +248,7 @@ impl From<core_client::simulation::SimulationSuccess> for SimulationResponseSucc
             mrsp: response.mrsp,
             electrical_profiles: response.electrical_profiles,
             speed_limit_curves: response.speed_limit_curves.into_iter().map(Curve::from).collect(),
+            pantograph_positions: response.pantograph_positions,
         }
     }
 }

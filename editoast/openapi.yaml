@@ -13169,6 +13169,11 @@ components:
                     format: double
                     description: in meters per second
               description: List of `n+1` values associated to the ranges
+        pantograph_positions:
+          type: array
+          items:
+            type: number
+            format: double
         provisional:
           $ref: '#/components/schemas/core.ReportTrain'
           description: Simulation that takes into account the regularity margins

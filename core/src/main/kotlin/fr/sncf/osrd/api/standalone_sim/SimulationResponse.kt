@@ -30,6 +30,7 @@ class SimulationSuccess(
     val mrsp: RangeValues<SpeedLimitProperty>,
     @Json(name = "electrical_profiles") val electricalProfiles: RangeValues<ElectricalProfileValue>,
     @Json(name = "speed_limit_curves") val speedLimitCurves: List<Curve> = listOf(),
+    @Json(name = "pantograph_positions") val pantographPositions: List<Double> = listOf(),
 ) : SimulationResponse
 
 sealed class ElectricalProfileValue {

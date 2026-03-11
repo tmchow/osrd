@@ -35,6 +35,7 @@ const store: Store = {
   powerRestrictions: [],
   electricalProfiles: [],
   speedLimitTags: [],
+  pantographPositions: [],
   trainLength: 400,
   ratioX: 1,
   leftOffset: 0,
@@ -58,6 +59,7 @@ const store: Store = {
     declivities: false,
     speedLimitTags: false,
     steps: true,
+    pantographPositions: true,
   },
   etcsLayersDisplay: DEFAULT_ETCS_LAYERS_DISPLAY,
   isSettingsPanelOpened: false,
@@ -190,6 +192,7 @@ describe('getLinearLayersDisplayedHeight', () => {
     electricalProfiles: false,
     powerRestrictions: false,
     speedLimitTags: false,
+    pantographPositions: false,
   };
 
   it('should return the sum of the heights of the linear layers that are displayed', () => {

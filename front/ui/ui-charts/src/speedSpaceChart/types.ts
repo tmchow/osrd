@@ -72,6 +72,7 @@ export type Data = {
   speedLimitTags?: LayerData<SpeedLimitTagValues>[];
   // The length of the train in meters.
   trainLength: number;
+  pantographPositions: { x: number; y: number }[];
 };
 
 export type Store = Data & {
@@ -96,6 +97,7 @@ export type Store = Data & {
     electricalProfiles: boolean;
     powerRestrictions: boolean;
     speedLimitTags: boolean;
+    pantographPositions: boolean;
   };
   etcsLayersDisplay: EtcsLayersDisplay;
   isSettingsPanelOpened: boolean;
