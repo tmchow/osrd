@@ -71,5 +71,22 @@
   },
   "LoadingGaugeLimit": {
     "description": "Diese Klasse wird verwendet, um die Begrenzung des Lichtraumprofils zu definieren.\nSie stellt eine Einschränkung für Züge entsprechend ihrer Lichtraumprofilkategorien und dem Typ des entsprechenden Rollmaterials dar."
+  },
+  "TrackEndpoint": {
+    "properties": {
+      "track": {
+        "title": "Gleis"
+      }
+    }
+  },
+  "TrackSection": {
+    "description": "Ein Gleisabschnitt ist ein lineares Objekt, das durch die Koordinaten seiner Punkte (Endpunkte und Zwischenpunkte) definiert ist.\nDie Gesamtheit aller Gleisabschnitte bildet das Schienennetz.",
+    "properties": {
+      "length": {
+        "description": "Länge des Gleisabschnitts (in Metern)",
+        "title": "Länge"
+      }
+    },
+    "title": "Gleisabschnitt"
   }
 }
