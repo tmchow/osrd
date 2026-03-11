@@ -916,6 +916,11 @@ fun step(
                 decision.merge(currentState, mostConstrained)
             } ?: return currentState.accelerate(context)
 
+    val maxSpeed = context.rollingStock.maxSpeed.metersPerSecond
+    require(mergedState.speed <= maxSpeed || currentState.speed > maxSpeed) {
+        "train is going too fast"
+    }
+
     return constraints
         .fold(mergedState) { mergedState, constraint ->
             val truncatedState = constraint.truncateStep(context, currentState, mergedState)
