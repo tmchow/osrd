@@ -20,6 +20,7 @@ import {
   type PostTimetableByIdStdcmApiResponse,
   type RelatedOperationalPoint,
   type SimulationResponse,
+  type PostTimetableByIdStdcmApiArg,
 } from './generatedEditoastApi';
 
 // Type extension for PostTimetableByIdStdcm to include traceId
@@ -227,6 +228,65 @@ const osrdEditoastApi = generatedEditoastApi
           return { data: result };
         },
         providesTags: ['catalog_entry'],
+      }),
+
+      postTimetableByIdStdcm: builder.mutation<
+        PostTimetableByIdStdcmApiResponseWithTraceId,
+        PostTimetableByIdStdcmApiArg
+      >({
+        // This definition is required for RTK, but useless in our case
+        // This part of the code is inspired from https://redux-toolkit.js.org/rtk-query/usage/streaming-updates
+        query: (_args) => ({ url: 'dummy' }),
+        onCacheEntryAdded: async (args, { cacheDataLoaded, cacheEntryRemoved }) => {
+          const controller = new AbortController();
+          try {
+            await cacheDataLoaded;
+            const response = await fetch(
+              `/timetable/${args.id}/stdcm?infra=${args.infra}${args.returnDebugPayloads === true ? '&return_debug_payloads' : ''}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  // Ajoute d'autres headers si nécessaire
+                },
+                body: JSON.stringify(args.body),
+                signal: controller.signal,
+              }
+            );
+
+            if (!response.ok) {
+              console.error('Bad response from stdcm stream endpoint');
+              throw new Error('Bad response from stdcm stream endpoint');
+            }
+
+            const reader = response.body!.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n').filter((line) => line.trim() !== '');
+
+              for (const line of lines) {
+                try {
+                  const data = JSON.parse(line) as PostTimetableByIdStdcmApiResponseWithTraceId;
+                  console.log(data);
+                  // updateCachedData((draft) => {
+                  // });
+                } catch (e) {
+                  console.error('Erreur de parsing:', e);
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Erreur de stream:', err);
+          } finally {
+            await cacheEntryRemoved;
+            controller.abort();
+          }
+        },
       }),
     }),
   })

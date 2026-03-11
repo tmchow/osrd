@@ -38,14 +38,13 @@ import StdcmLinkedTrainSearch from './StdcmLinkedTrainSearch';
 import StdcmOrigin from './StdcmOrigin';
 import useStaticPathfinding from '../../hooks/useStaticPathfinding';
 import type { StdcmConfigErrors, ConsistErrors } from '../../types';
+import StdcmMapProgressLayer from '../StdcmResults/StdcmMapProgressLayer';
 import StdcmSimulationParams from '../StdcmSimulationParams';
 import StdcmVias from './StdcmVias';
 import { ArrivalTimeTypes, StdcmConfigErrorTypes } from '../../types';
 import checkStdcmConfigErrors from '../../utils/checkStdcmConfigErrors';
 import StdcmLoader from '../StdcmLoader';
 import StdcmWarningBox from '../StdcmWarningBox';
-import StdcmDefaultCard from './StdcmDefaultCard';
-import StdcmMapProgressLayer from '../StdcmResults/StdcmMapProgressLayer';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions

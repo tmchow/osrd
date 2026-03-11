@@ -188,8 +188,8 @@ const useStdcm = ({
         const downstreamInputs = adjustInputByDirection(currentSimulationInputs, 'downstream');
 
         const [downstreamSimulation, upstreamSimulation] = await Promise.all([
-          createSimulation(downstreamInputs, payloadDownstream, resDown, 'downstream'),
-          createSimulation(upstreamInputs, payloadUpstream, resUp, 'upstream'),
+          // createSimulation(downstreamInputs, payloadDownstream, resDown, 'downstream'),
+          // createSimulation(upstreamInputs, payloadUpstream, resUp, 'upstream'),
         ]);
 
         simulationsToAdd.push(downstreamSimulation, upstreamSimulation);
