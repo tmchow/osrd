@@ -227,6 +227,7 @@ pub fn add_roles(subject: Subject, roles: HashSet<Role>) -> Protected<'static, (
     })
 }
 
+// TODO: move somewhere more appropriate
 /// Removes some members from a group
 ///
 /// Idempotent but not atomic due to the lack of transactions in OpenFGA.
@@ -301,6 +302,53 @@ pub fn remove_roles(subject: Subject, roles: HashSet<Role>) -> Protected<'static
     .with_check(match &subject {
         Subject::User(user) => SanityCheck::UserExists(*user),
         Subject::Group(group) => SanityCheck::GroupExists(*group),
+    })
+}
+
+/// Lists the roles of a user.
+///
+/// Idempotent but not atomic due to the lack of transactions in OpenFGA.
+pub fn user_roles(user: User) -> Protected<'static, HashSet<Role>> {
+    Protected::new(move |openfga| {
+        async move {
+            // no need to check for user inexistence, an empty set will be returned in this case
+            let roles = Role::list_roles(openfga, User::role(), &user).await?;
+            Ok(roles.into_iter().collect::<HashSet<_>>())
+        }
+        .boxed()
+    })
+}
+
+// TODO: move somewhere more appropriate
+/// Lists the roles of a group.
+///
+/// Idempotent but not atomic due to the lack of transactions in OpenFGA.
+pub fn group_roles(group: Group) -> Protected<'static, HashSet<Role>> {
+    Protected::new(move |openfga| {
+        async move {
+            // no need to check for group inexistence, an empty set will be returned in this case
+            let roles = Role::list_roles(openfga, Group::role(), &group).await?;
+            Ok(roles.into_iter().collect::<HashSet<_>>())
+        }
+        .boxed()
+    })
+}
+
+// TODO: move somewhere more appropriate
+/// Lists the roles of a subject.
+///
+/// Idempotent but not atomic due to the lack of transactions in OpenFGA.
+pub fn subject_roles(subject: Subject) -> Protected<'static, HashSet<Role>> {
+    Protected::new(move |openfga| {
+        async move {
+            // no need to check for subject inexistence, an empty set will be returned in this case
+            let roles = match subject {
+                Subject::User(user) => Role::list_roles(openfga, User::role(), &user).await?,
+                Subject::Group(group) => Role::list_roles(openfga, Group::role(), &group).await?,
+            };
+            Ok(roles.into_iter().collect::<HashSet<_>>())
+        }
+        .boxed()
     })
 }
 

@@ -401,10 +401,16 @@ mod tests {
 
         // unknown group
         assert_eq!(
-            regulator()
-                .group_roles(&Group(i64::MAX))
+            // regulator()
+            //     .group_roles(&Group(i64::MAX))
+            //     .await
+            //     .expect("should query roles successfully"),
+            v2::group_roles(Group(i64::MAX))
+                .authorize(&test_authorizers::Authorize(regulator().openfga()))
                 .await
-                .expect("should query roles successfully"),
+                .expect("should query group roles successfully")
+                .unwrap_authorized()
+                .await,
             HashSet::new()
         );
     }

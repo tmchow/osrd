@@ -84,7 +84,7 @@ impl Subject {
         }
     }
 
-    fn into_authz(self) -> authz::Subject {
+    fn into_authz(&self) -> authz::Subject {
         match self.info {
             SubjectInfo::User(_) => authz::Subject::User(authz::User(self.id)),
             SubjectInfo::Group(_) => authz::Subject::Group(authz::Group(self.id)),
@@ -136,17 +136,32 @@ pub async fn list_subject_roles(
     pool: Arc<DbConnectionPoolV2>,
     openfga_config: OpenfgaConfig,
 ) -> anyhow::Result<()> {
-    let regulator = openfga_config.into_regulator(pool).await?;
-    let roles = match parse_and_fetch_subject(&subject, regulator.driver()).await? {
-        Subject {
-            id,
-            info: SubjectInfo::User(_),
-        } => regulator.user_roles(&authz::User(id)).await?,
-        Subject {
-            id,
-            info: SubjectInfo::Group(_),
-        } => regulator.group_roles(&authz::Group(id)).await?,
+    // let regulator = openfga_config.into_regulator(pool).await?;
+    // let roles = match parse_and_fetch_subject(&subject, regulator.driver()).await? {
+    //     Subject {
+    //         id,
+    //         info: SubjectInfo::User(_),
+    //     } => regulator.user_roles(&authz::User(id)).await?,
+    //     Subject {
+    //         id,
+    //         info: SubjectInfo::Group(_),
+    //     } => regulator.group_roles(&authz::Group(id)).await?,
+    // };
+
+    let openfga = &openfga_config.into_client().await?;
+    let system = SystemAuthorizer {
+        openfga,
+        conn: pool.get().await?,
     };
+    let subject = parse_and_fetch_subject(&subject, &PgAuthDriver::new(pool)).await?;
+    let subject_roles = authz::v2::subject_roles(subject.into_authz());
+    let roles = match system.authorize(subject_roles).await?.access().await? {
+        Ok(roles) => roles,
+        Err(Rejection::NoSuchUser(_)) | Err(Rejection::NoSuchGroup(_)) => {
+            unreachable!("checked by parse_and_fetch_subject")
+        }
+    };
+
     if roles.is_empty() {
         info!("{subject} has no roles assigned");
         return Ok(());
