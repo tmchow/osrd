@@ -155,6 +155,9 @@ data class TrainState(
         require(speed >= 0.micrometersPerSecond) { "train speed must be positive or zero" }
     }
 
+    fun isBefore(other: TrainState): Boolean =
+        this.position <= other.position && this.time <= other.time
+
     fun toEnvelopePoint(): EnvelopeTimeInterpolate.EnvelopePoint {
         return EnvelopeTimeInterpolate.EnvelopePoint(
             this.time.seconds,
@@ -255,6 +258,9 @@ data class TrainState(
     }
 
     fun truncate(oldState: TrainState, newEndPos: PreciseDistance): TrainState {
+        require(oldState.isBefore(this))
+        require(oldState.position <= newEndPos)
+
         if (position <= newEndPos || time == oldState.time) {
             return this
         }
@@ -276,15 +282,16 @@ data class TrainState(
                 pantograph = pantograph,
             )
 
-        require(truncated.time <= time)
-        require(truncated.position <= position)
-        require((oldState.time <= truncated.time) == (oldState.time <= time))
-        require((oldState.position <= truncated.position) == (oldState.position <= position))
+        require(truncated.isBefore(this))
+        require(oldState.isBefore(truncated))
 
         return truncated
     }
 
     fun truncate(oldState: TrainState, newEndTime: PreciseDuration): TrainState {
+        require(oldState.isBefore(this))
+        require(oldState.time <= newEndTime)
+
         if (time <= newEndTime || time == oldState.time) {
             return this
         }
@@ -306,23 +313,22 @@ data class TrainState(
                 pantograph = pantograph,
             )
 
-        require(truncated.time <= time)
-        require(truncated.position <= position)
-        require((oldState.time < truncated.time) == (oldState.time < time))
-        require((oldState.position < truncated.position) == (oldState.position < position))
+        require(truncated.isBefore(this))
+        require(oldState.isBefore(truncated))
 
         return truncated
     }
 
     fun truncate(oldState: TrainState, speedCurve: Curve): TrainState {
-        val segment =
-            Segment(
-                oldState.position.micrometers,
-                oldState.speed.micrometersPerSecond,
-                position.micrometers,
-                speed.micrometersPerSecond,
-            )
-        val point = speedCurve.intersectsAt(segment) ?: return this
+        require(oldState.isBefore(this))
+
+        val point =
+            speedCurve.intersectsAt(
+                x1 = oldState.position.micrometers,
+                y1 = oldState.speed.micrometersPerSecond,
+                x2 = position.micrometers,
+                y2 = speed.micrometersPerSecond,
+            ) ?: return this
 
         val newEndPos = point.x.micrometers
         val newEndSpeed = point.y.micrometersPerSecond
@@ -336,7 +342,13 @@ data class TrainState(
                     oldState.position / (newEndSpeed + oldState.speed)
             }
 
-        return copy(time = oldState.time + newTimeDelta, position = newEndPos, speed = newEndSpeed)
+        val truncated =
+            copy(time = oldState.time + newTimeDelta, position = newEndPos, speed = newEndSpeed)
+
+        require(oldState.isBefore(truncated))
+        require(truncated.isBefore(this))
+
+        return truncated
     }
 }
 
