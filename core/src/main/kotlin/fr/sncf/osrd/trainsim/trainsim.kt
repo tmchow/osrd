@@ -359,7 +359,7 @@ class Driver(
      * This may be higher than the rolling stock's maximum acceleration, in which case this value
      * has no effect.
      */
-    val maxAcceleration: PreciseAcceleration,
+    val maxAcceleration: PreciseAcceleration? = null,
 
     /**
      * Maximum deceleration in the driver can perform.
@@ -367,7 +367,7 @@ class Driver(
      * This may be higher than the rolling stock's maximum deceleration, in which case this value
      * has no effect.
      */
-    val maxDeceleration: PreciseAcceleration,
+    val maxDeceleration: PreciseAcceleration? = null,
 
     /**
      * Ratio between the self-imposed speed limit and the railway-imposed speed limit.
@@ -376,18 +376,18 @@ class Driver(
      * speed limits. When [vMaxFactor] is lower, the driver won't reach speed limits. When higher,
      * the driver will violate speed limits.
      */
-    val vMaxFactor: Double,
+    val vMaxFactor: Double = 1.0,
 
     /**
      * Length of the rolling stock according to the driver.
      *
      * Used e.g. when instructions only apply after the full rolling stock has passed a signal.
      */
-    val perceivedStockLength: PreciseDistance,
+    val perceivedStockLength: PreciseDistance? = null,
 
     /** Factor between `0.0` and `1.0` to apply to the path's sight distance */
-    val sightDistanceFactor: Double,
-    val sightDistance: PreciseDistance,
+    val sightDistanceFactor: Double = 1.0,
+    val sightDistance: PreciseDistance? = null,
 ) {
     init {
         assert(vMaxFactor > 0.0)

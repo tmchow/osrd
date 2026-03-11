@@ -47,7 +47,7 @@ fun runSimulation(
     initialSpeed: Double,
     margins: RangeValues<MarginValue>,
     pathItemPositions: List<Offset<PhysicsPath>>,
-    driver: Driver = Driver.default(),
+    driverBehaviour: DriverBehaviour = DriverBehaviour(),
 ): SimulationSuccess {
     val electrificationMap =
         trainPath.getElectrificationMap(
