@@ -43,6 +43,7 @@ data class CachedBlockMaxSpeedEnvBuilder(
     private val rawInfra: RawInfra,
     val blockInfra: BlockInfra,
     private val rollingStock: PhysicsRollingStock,
+    // Explorer steps must have unique block locations per block.
     private val steps: List<ExplorerStep>,
     private val timeStep: Double,
     private val comfort: Comfort? = null,
@@ -62,14 +63,8 @@ data class CachedBlockMaxSpeedEnvBuilder(
 
     init {
         for (stop in steps.filterIndexed { index, it -> it.stop || index == 0 }) {
-            val blockToLocationMap = mutableMapOf<BlockId, Offset<Block>>()
             for (location in stop.locations) {
-                val currentOffset = blockToLocationMap.getOrPut(location.edge) { location.offset }
-                if (location.offset < currentOffset)
-                    blockToLocationMap[location.edge] = location.offset
-            }
-            blockToLocationMap.forEach { (block, stopOffset) ->
-                blockToStopMap.getOrPut(block) { mutableListOf() }.add(stopOffset)
+                blockToStopMap.getOrPut(location.edge) { mutableListOf() }.add(location.offset)
             }
         }
     }
@@ -99,9 +94,9 @@ data class CachedBlockMaxSpeedEnvBuilder(
             // Return fastest block envelope by maximising its end speed.
             return maxSpeedEnvCache[CachedBlock(block, blockToMaxSpeedMap[block])]!!
         }
-        val cachedMrsp = getMrspAndContext(block)
-        if (cachedMrsp.mrsp.beginPos == cachedMrsp.mrsp.endPos) return cachedMrsp.mrsp
-        val actualEndSpeed = min(cachedMrsp.mrsp.endSpeed, endSpeed ?: Double.POSITIVE_INFINITY)
+        val (cachedMrsp, cachedContext) = getMrspAndContext(block)
+        if (cachedMrsp.beginPos == cachedMrsp.endPos) return cachedMrsp
+        val actualEndSpeed = min(cachedMrsp.endSpeed, endSpeed ?: Double.POSITIVE_INFINITY)
         blockToMaxSpeedMap.compute(block) { _, oldSpeed ->
             max(actualEndSpeed, oldSpeed ?: Double.NEGATIVE_INFINITY)
         }
@@ -111,12 +106,12 @@ data class CachedBlockMaxSpeedEnvBuilder(
                     SimStop(Offset(it.distance), RJSTrainStop.RJSReceptionSignal.SHORT_SLIP_STOP)
                 } ?: listOf()
             val newMrsp =
-                if (actualEndSpeed < cachedMrsp.mrsp.endSpeed)
-                    addEndBrakingPart(cachedMrsp.context, actualEndSpeed, cachedMrsp.mrsp)
-                else cachedMrsp.mrsp
+                if (actualEndSpeed < cachedMrsp.endSpeed)
+                    addEndBrakingPart(cachedContext, actualEndSpeed, cachedMrsp)
+                else cachedMrsp
             // TODO: Look into adding accelerations to the max speed envelope and benchmark it to
             // see if it improves the computing time.
-            maxSpeedEnvelopeFrom(cachedMrsp.context, stops, newMrsp)
+            maxSpeedEnvelopeFrom(cachedContext, stops, newMrsp)
         }
     }
 
