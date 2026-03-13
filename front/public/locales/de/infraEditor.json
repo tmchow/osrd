@@ -27,8 +27,8 @@
   "BalSystem": {
     "properties": {
       "conditional_parameters": {
-        "description": "BAL-Signalparamter für die gewählte Strecke",
-        "title": "Vorausgesetzte Parameter"
+        "description": "BAL-Signalparameter für die gewählte Strecke",
+        "title": "Bedingte Parameter"
       },
       "default_parameters": {
         "description": "BAL-Signalparameter"
@@ -184,7 +184,7 @@
     "title": "SNCF-Erweiterung des Achszählers"
   },
   "Direction": {
-    "description": "Richtung (steigendes oder fallendes Profil).",
+    "description": "Richtung (steigende oder fallende Kilometrierung).",
     "title": "Richtung"
   },
   "DirectionalTrackRange": {
@@ -314,17 +314,17 @@
         "title": "Typ"
       }
     },
-    "title": "Linie aus Punkten"
+    "title": "Linienzug"
   },
   "LoadingGaugeLimit": {
-    "description": "Diese Klasse wird verwendet, um die Begrenzung des Lichtraumprofils zu definieren.\nSie stellt eine Einschränkung für Züge entsprechend ihrer Lichtraumprofilkategorien und dem Typ des entsprechenden Rollmaterials dar.",
+    "description": "Diese Klasse wird verwendet, um die Begrenzung des Lichtraumprofils zu definieren.\nSie stellt eine Einschränkung für Züge entsprechend ihrer Lichtraumprofilkategorien und dem Typ des entsprechenden Schienenfahrzeugs dar.",
     "properties": {
       "begin": {
         "description": "Versatz in Metern, der dem Anfang der Lichtraumprofil-Begrenzung entspricht",
         "title": "Anfang"
       },
       "category": {
-        "description": "Lichtraumprofilkategorie für das entsprechende Rollmaterial"
+        "description": "Lichtraumprofilkategorie für das entsprechende Schienenfahrzeug"
       },
       "end": {
         "description": "Versatz in Metern, der dem Ende der Lichtraumprofil-Begrenzung entspricht",
@@ -979,7 +979,7 @@
   "__main____Tvm430System__Settings": {
     "properties": {
       "Nf": {
-        "description": "Ist das Signal nicht überfahrbar"
+        "description": "Nicht überfahrbares Signal"
       }
     },
     "title": "Einstellungen"
