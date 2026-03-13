@@ -1,20 +1,20 @@
 {
   "ApplicableDirections": {
-    "description": "Wird verwendet, um die Anwendungsrichtung bestimmter Objekte zu kennen",
-    "title": "Verwendbare Ausrichtung"
+    "description": "Gibt an, in welcher Fahrtrichtung ein Objekt gültig ist",
+    "title": "Gültigkeitsrichtung"
   },
   "ApplicableDirectionsTrackRange": {
-    "description": "Ein Gleisbereich mit anwendbaren Richtungen ist ein Gleisbereich mit zugehörigen Richtungen.",
+    "description": "Ein Gleisbereich mit zugeordneter Gültigkeitsrichtung.",
     "properties": {
       "applicable_directions": {
-        "description": "Richtung, in der das entsprechende Objekt angewendet wird"
+        "description": "Fahrtrichtung, in der das Objekt gilt"
       },
       "begin": {
-        "description": "Versatz am Anfang des entsprechenden Gleisabschnitts (in Metern)",
+        "description": "Abstand vom Anfang des Gleisabschnitts (in Metern)",
         "title": "Anfang"
       },
       "end": {
-        "description": "Versatz am Ende des entsprechenden Gleisabschnitts (in Metern)",
+        "description": "Abstand vom Anfang des Gleisabschnitts (in Metern)",
         "title": "Ende"
       },
       "track": {
@@ -22,7 +22,7 @@
         "title": "Gleis"
       }
     },
-    "title": "Fahrtrichtung des Gleisabschnitts"
+    "title": "Gleisbereich mit Gültigkeitsrichtung"
   },
   "BalSystem": {
     "properties": {
@@ -610,22 +610,22 @@
     "title": "Zugsicherungssystem"
   },
   "Slope": {
-    "description": "Gibt die Gradiente eines Gleisabschnitts an. Der Gradient kann positiv (Steigung) oder negativ (Gefälle) sein.",
+    "description": "Gibt die Längsneigung eines Gleisabschnitts an. Die Längsneigung kann positiv (Steigung) oder negativ (Gefälle) sein.",
     "properties": {
       "begin": {
-        "description": "Versatz in Metern vom Anfang des Gleisabschnitts bis zum Beginn der Gradiente",
+        "description": "Versatz in Metern vom Anfang des Gleisabschnitts bis zum Beginn der Längsneigung",
         "title": "Anfang"
       },
       "end": {
-        "description": "Versatz in Metern vom Anfang des Gleisabschnitts bis zum Ende der Gradiente",
+        "description": "Versatz in Metern vom Anfang des Gleisabschnitts bis zum Ende der Längsneigung",
         "title": "Ende"
       },
       "gradient": {
-        "description": "Gradiente (in Promille)",
-        "title": "Gradiente"
+        "description": "Längsneigung (in Promille)",
+        "title": "Längsneigung"
       }
     },
-    "title": "Gradiente"
+    "title": "Längsneigung"
   },
   "SpeedSection": {
     "description": "Geschwindigkeitsbegrenzungen werden durch ihre Kennungen identifiziert (in Metern pro Sekunde).",
@@ -774,8 +774,8 @@
         "title": "Lichtraumprofil-Begrenzungen"
       },
       "slopes": {
-        "description": "Liste der Gradienten des Gleisabschnitts",
-        "title": "Gradienten"
+        "description": "Liste der Längsneigungen des Gleisabschnitts",
+        "title": "Längsneigungen"
       }
     },
     "title": "Gleisabschnitt"
