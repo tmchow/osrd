@@ -27,7 +27,7 @@
       "AuthError": "Interner Authentifizierungs-/Autorisierungsfehler, bitte erneut versuchen oder den Support kontaktieren",
       "Authorizer": "Interner Fehler",
       "Authz": "Interner Authentifizierungs-/Autorisierungsfehler, bitte erneut versuchen oder den Support kontaktieren",
-      "Database": "Interner Fehler (Datenbank)",
+      "Database": "Interner Datenbankfehler",
       "DbError": "Interner Datenbankfehler, bitte erneut versuchen oder den Support kontaktieren",
       "Driver": "Interner Authentifizierungs-/Autorisierungsfehler, bitte erneut versuchen oder den Support kontaktieren",
       "Forbidden": "Zugriff verweigert",
