@@ -739,7 +739,7 @@
     "title": "Weichentyp"
   },
   "TrackEndpoint": {
-    "description": "Endpunkt eines Gleises (Anfang oder Ende).",
+    "description": "Gibt an, an welchem Ende des Gleisabschnitts die Weiche anschließt (Anfang oder Ende).",
     "properties": {
       "endpoint": {
         "description": "Relative Position des betrachteten Gleisendpunkts"
