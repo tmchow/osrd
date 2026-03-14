@@ -6,7 +6,7 @@
       "STOP_TO_START": "Ende nach Anfang"
     },
     "entities": {
-      "errors-linked": "Zugehörige Anomalien"
+      "errors-linked": "Zugehörige Probleme"
     },
     "infra-errors": {
       "corrector-modal": {
@@ -15,8 +15,8 @@
         "loading-loader": "Mögliche Korrekturen werden berechnet",
         "no-fixes-found": "Keine Korrekturen gefunden.",
         "saving-loader": "Korrekturen werden auf die Infrastruktur angewendet",
-        "text": "Die folgenden Aktionen werden ausgeführt, um einige Infrastruktur-Anomalien zu beheben:",
-        "title": "Automatische Anomaliebehebung",
+        "text": "Die folgenden Aktionen werden ausgeführt, um einige Infrastrukturprobleme zu beheben:",
+        "title": "Automatische Problembehebung",
         "update-actions": "{{update_count}} Änderungen bestehender Objekte"
       },
       "error-level": {
@@ -98,15 +98,15 @@
       "infra-locked": "Achtung: Sie können keine Änderungen speichern.",
       "infra-readonly": "Achtung: Sie befinden sich im Lesemodus für diese Infrastruktur",
       "label": {
-        "title-with-filter_one": "{{count}} Anomalie von {{total}}",
-        "title-with-filter_other": "{{count}} Anomalien von {{total}}",
-        "title-with-filter_zero": "keine Anomalie von {{total}}",
-        "title_one": "{{count}} Anomalie",
-        "title_other": "{{count}} Anomalien",
-        "title_zero": "Keine Anomalie"
+        "title-with-filter_one": "{{count}} Probleme von {{total}}",
+        "title-with-filter_other": "{{count}} Probleme von {{total}}",
+        "title-with-filter_zero": "keine Problem von {{total}}",
+        "title_one": "{{count}} Problem",
+        "title_other": "{{count}} Probleme",
+        "title_zero": "Keine Probleme"
       },
       "list": {
-        "filter-type": "Anomalietyp",
+        "filter-type": "Problemtyp",
         "goto-error": "Auf der Karte auswählen und anzeigen",
         "total-all_one": "Ein Fehler oder eine Warnung gefunden",
         "total-all_other": "{{count}} Fehler und Warnungen gefunden",
@@ -119,7 +119,7 @@
         "total-warnings_zero": "Keine Warnungen gefunden"
       },
       "modal": {
-        "title": "Anomalien der Infrastruktur {{id}}"
+        "title": "Probleme der Infrastruktur {{id}}"
       }
     },
     "item-statuses": {
@@ -152,8 +152,8 @@
     },
     "nav": {
       "choose-infra": "Infrastruktur auswählen",
-      "infra-error-corrector": "Automatische Anomaliebehebung",
-      "infra-errors-list": "Verwaltung und Anzeige der Anomalien"
+      "infra-error-corrector": "Automatische Problembehebung",
+      "infra-errors-list": "Verwaltung und Anzeige der Probleme"
     },
     "obj-types": {
       "BufferStop": "Prellbock",
@@ -449,13 +449,13 @@
   },
   "applications": {
     "infrastructures-editor": "Infrastruktur-Editor",
-    "operational-studies": "Betriebliche Studien",
-    "reference-map": "Kartographie",
+    "operational-studies": "Betriebsstudien",
+    "reference-map": "Karte",
     "rolling-stocks-editor": "Schienenfahrzeug-Editor",
-    "stdcm": "Ad-hoc-Trassen"
+    "stdcm": "Schnellauftrag"
   },
   "authorization": {
-    "addGrantToUser": "Benutzer Rechte hinzufügen",
+    "addGrantToUser": "Benutzerrechte hinzufügen",
     "grants": {
       "edit": "Schreibzugriff",
       "full": "Vollzugriff",
@@ -491,7 +491,7 @@
     "leaveEditionMode": "Sie verlassen den Bearbeitungsmodus. Alle nicht gespeicherten Änderungen gehen verloren.",
     "map-actions": {
       "help-legend": "Legende anzeigen",
-      "reset-north": "Kamera zurücksetzen"
+      "reset-north": "Sicht zurücksetzen"
     },
     "navigation": {
       "goBack": "Zur vorherigen Seite zurückkehren",
@@ -512,7 +512,7 @@
         "title": "Änderungen gespeichert"
       }
     },
-    "toggleInfraErrors": "Anzeige der Infrastruktur-Anomalien umschalten",
+    "toggleInfraErrors": "Anzeige der Infrastrukturprobleme umschalten",
     "units": {
       "day": "T",
       "hour": "h",
