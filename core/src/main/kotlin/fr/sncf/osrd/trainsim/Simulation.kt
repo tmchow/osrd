@@ -113,13 +113,7 @@ fun runSimulation(
         constraints.add(section)
     }
 
-    var trainState =
-        TrainState(
-            0.microseconds,
-            0.micrometers,
-            initialSpeed.metersPerSecond,
-            PantographState.up(),
-        )
+    var trainState = TrainState.zero
     val trainStates = mutableListOf(trainState)
     while (trainState.position < trainPath.length.meters) {
         val nextTrainState = step(context, constraints, Driver(), trainState)
@@ -195,11 +189,7 @@ fun runSimulation(
                 .flatMap {
                     it.speedCurves(
                         context,
-                        TrainState(
-                            time = 0.microseconds,
-                            position = 0.micrometers,
-                            speed = 0.micrometersPerSecond,
-                        ),
+                        TrainState.zero,
                     )
                 }
                 .map { curve ->

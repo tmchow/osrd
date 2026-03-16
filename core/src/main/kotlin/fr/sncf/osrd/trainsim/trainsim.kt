@@ -155,6 +155,15 @@ data class TrainState(
         require(speed >= 0.micrometersPerSecond) { "train speed must be positive or zero" }
     }
 
+    companion object {
+        val zero: TrainState = TrainState(
+            time = 0.microseconds,
+            position = 0.micrometers,
+            speed = 0.micrometersPerSecond,
+            pantograph = PantographState.up(),
+        )
+    }
+
     fun isBefore(other: TrainState): Boolean =
         this.position <= other.position && this.time <= other.time
 
