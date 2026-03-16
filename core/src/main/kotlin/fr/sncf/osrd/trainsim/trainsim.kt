@@ -408,15 +408,12 @@ class Driver(
 
 /** A constraint that may influence the driving of the train. */
 interface Constraint {
-    /** Whether the constraint applies */
-    fun doesApply(context: EnvelopeSimContext, currentState: TrainState, driver: Driver): Boolean =
-        true
-
     /**
      * Apply the constraint given the [currentState] of the train and return potential states of the
      * train after `dt` where `dt` is between 0.0 exclusive and `context.timeStep` inclusive.
      */
-    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState>
+    fun enactDecision(context: EnvelopeSimContext, currentState: TrainState): List<TrainState> =
+        listOf()
 
     /**
      * Apply the constraint given the [currentState] of the train and return the state of the train
@@ -426,7 +423,7 @@ interface Constraint {
         context: EnvelopeSimContext,
         currentState: TrainState,
         mergedState: TrainState,
-    ): TrainState
+    ): TrainState = mergedState
 }
 
 interface Updatable {
@@ -445,14 +442,6 @@ data class SpeedLimitedZone(
 ) : SpeedConstraint {
     init {
         require(start < end) { "speed limit zone start must be strictly lower than end" }
-    }
-
-    override fun doesApply(
-        context: EnvelopeSimContext,
-        currentState: TrainState,
-        driver: Driver,
-    ): Boolean {
-        return currentState.position in (start)..<end
     }
 
     override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> =

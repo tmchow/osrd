@@ -24,12 +24,6 @@ interface SpeedConstraint : Constraint {
         speedCurves(context, currentState).mapNotNull { curve ->
             enactCurveDecision(context, currentState, curve)
         }
-
-    override fun truncateStep(
-        context: EnvelopeSimContext,
-        currentState: TrainState,
-        mergedState: TrainState,
-    ): TrainState = mergedState
 }
 
 fun enactCurveDecision(
