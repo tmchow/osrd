@@ -242,6 +242,30 @@ const PathStepItem = ({
     ? visibleSuggestions.length + 1
     : visibleSuggestions.length;
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Enter') return;
+
+    if (visibleSuggestions.length === 0) return;
+
+    const activeSuggestion = document.querySelector('.suggestion-item.active');
+    if (activeSuggestion) return;
+
+    const firstSuggestion = visibleSuggestions[0];
+
+    if (!firstSuggestion || typeof firstSuggestion === 'string') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const defaultSecondaryCode =
+      firstSuggestion.secondaryCodeList.find((sc) => sc.isBestSuggestion)?.code ??
+      firstSuggestion.secondaryCodeList[0]?.code;
+
+    onSelectOpSuggestion(firstSuggestion, defaultSecondaryCode);
+    resetOpSuggestions();
+    blurActiveElement();
+  };
+
   return (
     <div className={cx('path-step-wrapper', { 'is-placeholder': isTrailingPlaceHolder })}>
       <div
@@ -290,6 +314,7 @@ const PathStepItem = ({
           className={cx('path-step-op-name', {
             invalid: isInvalidAndIsEditing,
           })}
+          onKeyDownCapture={handleKeyDown}
           onMouseDownCapture={(e) => {
             const target = e.target as HTMLElement | null;
             if (target?.closest('.chevron-icon')) {
