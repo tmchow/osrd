@@ -246,4 +246,12 @@ class Curve(val xs: LongArray, val ys: LongArray) {
             }
             .firstOrNull()
     }
+
+    override fun toString(): String =
+        when (size) {
+            1 -> "{(${xs.first()},${ys.first()})}"
+            2 -> "{(${xs.first()},${ys.first()}), (${xs.last()},${ys.last()})}"
+            else ->
+                "{(${xs.first()},${ys.first()}), ..., (${xs.last()},${ys.last()})} ($size items)"
+        }
 }
