@@ -320,6 +320,10 @@ data class TrainState(
     fun truncate(oldState: TrainState, speedCurve: Curve): TrainState {
         require(oldState.isBefore(this))
 
+        if (position <= oldState.position) {
+            return this
+        }
+
         val point =
             speedCurve.intersectsAt(
                 x1 = oldState.position.micrometers,
@@ -585,43 +589,50 @@ sealed class ShortSlipStop(val position: PreciseDistance) : SpeedConstraint {
  *
  * The train must stop at [position] for the duration of [duration].
  */
-data class Stop(val position: PreciseDistance, var duration: PreciseDuration) :
-    SpeedConstraint, Updatable {
+class Stop(val position: PreciseDistance, duration: PreciseDuration) : SpeedConstraint, Updatable {
+    /** The stop duration, or `null` if the stop doesn't apply. */
+    var duration: PreciseDuration? = duration.takeIf { it >= 0.microseconds }
+
     /** Deceleration curve cache */
     var stopCurve: Curve? = null
 
-    /** Whether the train is or has stopped at this stop */
-    var trainStopped = false
-
-    private fun getCurve(context: EnvelopeSimContext): Curve {
-        if (stopCurve == null) {
-            stopCurve = makeCurve(context, Pair(position, 0.micrometersPerSecond))
-        }
-
-        // This is safe because makeCurve never returns a null value
-        return stopCurve!!
-    }
-
     override fun speedCurves(context: EnvelopeSimContext, currentState: TrainState): List<Curve> {
-        if (trainStopped && duration <= 0.microseconds) {
+        if (duration == null) {
             return listOf()
         }
-        return listOf(getCurve(context))
+
+        if (stopCurve == null) {
+            stopCurve =
+                decelerationCurve(context, position, 0.micrometersPerSecond) +
+                    Vec2(Long.MAX_VALUE, 0)
+        }
+
+        // This is safe because [Stop.speedCurves] isn't used in a multithreaded context
+        return listOf(stopCurve!!)
     }
 
     override fun update(oldState: TrainState, newState: TrainState) {
+        val duration = duration ?: return
+
         val trainCurrentlyStopped =
             oldState.speed == 0.micrometersPerSecond && newState.speed == 0.micrometersPerSecond
-        if (trainStopped) {
-            if (trainCurrentlyStopped) {
-                val dt = newState.time - oldState.time
-                duration = duration saturatedMinus dt
-            }
-        } else if (newState.position > position && trainCurrentlyStopped) {
+        val trainPassedStop = position <= newState.position
+
+        if (trainPassedStop && trainCurrentlyStopped) {
             val dt = newState.time - oldState.time
-            duration = duration saturatedMinus dt
+
+            // Contrary to where [this.duration] is initialized we filter with a strict inequality
+            // here
+            this.duration = (duration - dt).takeIf { it > 0.microseconds }
         }
     }
+
+    override fun toString(): String =
+        if (duration != null) {
+            "Stop(position=$position, duration=$duration)"
+        } else {
+            "Stop(position=$position, passed)"
+        }
 }
 
 /**

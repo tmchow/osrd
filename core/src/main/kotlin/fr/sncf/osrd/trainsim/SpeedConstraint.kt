@@ -90,7 +90,11 @@ private fun tryEnactCurveDecision(
         val positionDelta = endPosition - currentState.position
         val timeDelta =
             if (endSpeed + startSpeed == 0.micrometersPerSecond) {
-                TODO()
+                return TrainState(
+                    time = currentState.time + context.timeStep.seconds,
+                    position = currentState.position,
+                    speed = 0.micrometersPerSecond,
+                )
             } else {
                 (2 * positionDelta) / (endSpeed + startSpeed)
             }
