@@ -1,7 +1,4 @@
 {
-  "ApplicableDirections": {
-    "title": ""
-  },
   "LevelCrossing": {
     "description": "Questa classe descrive i passaggi a livello dell'infrastruttura corrispondente.",
     "properties": {
