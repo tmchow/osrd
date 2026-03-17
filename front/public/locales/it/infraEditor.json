@@ -33,5 +33,34 @@
       }
     },
     "title": "Sequenza di punti"
+  },
+  "LoadingGaugeLimit": {
+    "description": "Questa classe serve a definire la sagoma limite.\nEssa rappresenta una restrizione applicabile ai treni in base alle loro categorie di sagoma\ne al tipo del materiale rotabile corrispondente.",
+    "properties": {
+      "begin": {
+        "description": "Offset in metri corrispondente all'inizio del corrispondente sagoma limite",
+        "title": "Inizio"
+      },
+      "category": {
+        "description": "Categoria di sagoma per il materiale rotabile corrispondente"
+      },
+      "end": {
+        "description": "Distanza in metri corrispondente all'estremità della sagoma limite",
+        "title": "Fine"
+      }
+    },
+    "title": "Sagoma limite"
+  },
+  "LoadingGaugeType": {
+    "description": "Questa classe consente di conoscere la categoria della sagoma.",
+    "title": "Tipo di sagoma"
+  },
+  "LogicalSignal": {
+    "description": "Un segnale logico è ciò che rappresenta qualcosa, mentre un segnale fisico è un insieme di segnali logici",
+    "properties": {
+      "conditional_parameters": {
+        "description": "Un elenco di parametri condizionali, definiti per ciascun sistema di segnalazione"
+      }
+    }
   }
 }
