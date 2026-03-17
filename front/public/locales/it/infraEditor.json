@@ -59,8 +59,52 @@
     "description": "Un segnale logico è ciò che rappresenta qualcosa, mentre un segnale fisico è un insieme di segnali logici",
     "properties": {
       "conditional_parameters": {
-        "description": "Un elenco di parametri condizionali, definiti per ciascun sistema di segnalazione"
+        "description": "Un elenco di parametri condizionali, definiti per ciascun sistema di segnalazione",
+        "title": "Parametri condizionali"
       }
     }
+  },
+  "NeutralSection": {
+    "description": "I tratti neutri sono porzioni di binario in cui i treni non possono attingere energia dall'impianto di elettrificazione.\nPer attraversare tali tratti devono fare affidamento sull'inerzia.\n\nIn pratica, le tratte neutre sono delimitate da segnali. In OSRD, le tratte neutre sono direzionali\nper consentire di tenere conto della diversa collocazione dei segnali a seconda della direzione.\n\nPer maggiori dettagli, consultare [la documentazione](https://osrd.fr/it/docs/explanation/neutral_sections/).",
+    "properties": {
+      "announcement_track_ranges": {
+        "description": "Elenco dei punti in cui è stata segnalato il prossimo tratto neutro, ma che non sono ancora stati superati"
+      },
+      "id": {
+        "description": "Identificatore univoco dell'oggetto",
+        "title": "Id"
+      },
+      "lower_pantograph": {
+        "description": "Se i treni debbano o meno abbassare il pantografo in quel tratto",
+        "title": "Abbassare il pantografo"
+      },
+      "track_ranges": {
+        "description": "Elenco delle località in cui il treno non può alimentarsi dall'impianto di elettrificazione"
+      }
+    },
+    "title": "Tratto neutro"
+  },
+  "NeutralSectionExtensions": {
+    "title": "Prolungamenti del tratto neutro"
+  },
+  "NeutralSectionNeutralSncfExtension": {
+    "properties": {
+      "announcement": {
+        "description": "Precisare che è presente un tratto neutro bp/cc",
+        "title": "Annuncio"
+      },
+      "end": {
+        "description": "Fine del tratto neutro bp/cc",
+        "title": "Fine"
+      },
+      "exe": {
+        "description": "Inizio del tratto neutro bp/cc"
+      },
+      "rev": {
+        "description": "Revisione del tratto neutro bp/cc",
+        "title": "Revisione"
+      }
+    },
+    "title": "Tratto neutro - Estensione sncf"
   }
 }
