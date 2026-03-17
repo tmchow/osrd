@@ -1,1 +1,40 @@
-{}
+{
+  "ApplicableDirections": {
+    "title": ""
+  },
+  "LevelCrossing": {
+    "description": "Questa classe descrive i passaggi a livello dell'infrastruttura corrispondente.",
+    "properties": {
+      "id": {
+        "description": "Identificatore univoco dell'oggetto",
+        "title": "Id"
+      },
+      "name": {
+        "description": "Nome del passaggio a livello",
+        "title": "Nome"
+      },
+      "parts": {
+        "title": "Parti di un passaggio a livello"
+      }
+    },
+    "title": "Passaggio a livello"
+  },
+  "LevelCrossingPart": {
+    "description": "Un punto di passaggio a livello è un punto specifico dell'infrastruttura.\nContiene informazioni sulla distanza dei binari rispetto a tale punto.\nÈ associato a un passaggio a livello."
+  },
+  "LineString": {
+    "description": "Modello LineString",
+    "properties": {
+      "bbox": {
+        "title": "Bbox"
+      },
+      "coordinates": {
+        "title": "Coordinate"
+      },
+      "type": {
+        "title": "Tipo"
+      }
+    },
+    "title": "Sequenza di punti"
+  }
+}
