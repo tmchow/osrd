@@ -1,1 +1,162 @@
-{}
+{
+  "401": "Utente non autenticato",
+  "403": "Accesso negato",
+  "404": "Risorsa non trovata",
+  "500": "Errori del server",
+  "502": "Errori del server",
+  "503": "Errori del server",
+  "504": "Il server non ha risposto.",
+  "core": {
+    "assert_error": "Errore di verifica in {{file_location}}: {{assert_message}}",
+    "missing_last_stdcm_stop": "Le richieste STDCM che non terminano con uno stop non sono attualmente supportate"
+  },
+  "default": "Si è verificato un errore.",
+  "editoast": {
+    "DatabaseAccessError": "Errore irreversibile nell'accesso al database",
+    "app_health": {
+      "Core": "Si è verificato un errore in Core",
+      "Database": "Si è verificato un errore nel Database",
+      "Openfga": "Si è verificato un errore in OpenFGA",
+      "Timeout": "Il servizio non ha risposto in tempo",
+      "Valkey": "Si è verificato un errore in Valkey"
+    },
+    "authz": {
+      "AuthError": "Errore interno di autenticazione/autorizzazione: riprova o contatta l'assistenza",
+      "Authorizer": "Errore interno",
+      "Authz": "Errore interno di autenticazione/autorizzazione: riprova o contatta l'assistenza",
+      "Database": "Errore interno (database)",
+      "DbError": "Errore irreversibile nell'accesso al database",
+      "Driver": "Errore interno di autenticazione/autorizzazione: riprova o contatta l'assistenza",
+      "Forbidden": "Accesso negato",
+      "GrantsApiMisuse": "Uso improprio dell'API",
+      "ImpersonatedUserNotFound": "Utente con identità sconosciuta",
+      "NoSuchUser": "Utente sconosciuto",
+      "Unauthorized": "Utente non autenticato",
+      "UnknownIdentity": "Identità sconosciuta «{{identity}}»",
+      "UnknownResource": "Risorsa sconosciuta",
+      "UnknownResourceType": "Tipo di risorsa sconosciuto",
+      "UnknownSubject": "Soggetto sconosciuto",
+      "UnknownUser": "Utente sconosciuto '{{id}}'"
+    },
+    "auto_fixes": {
+      "ConflictingFixesOnSameObject": "Modifiche in conflitto per lo stesso oggetto nella stessa iterazione di modifica",
+      "FixTrialFailure": "Tentativo fallito di applicare le correzioni",
+      "MaximumIterationReached": "È stato raggiunto il numero massimo di iterazioni per correggere l'infrastruttura senza applicare tutte le possibili correzioni",
+      "MissingErrorObject": "Impossibile individuare l'oggetto dell'errore"
+    },
+    "cache_operation": {
+      "DuplicateIdsProvided": "{{obj_type}} {{obj_id}}: esiste già un duplicato",
+      "ObjectNotFound": "{{obj_type}} {{obj_id}} non è stato trovato in nessuna parte della cache dell'infrastruttura"
+    },
+    "catalog_entry": {
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare la voce di catalogo '{{catalog_entry_id}}'"
+    },
+    "core": {
+      "pathfinding": {
+        "ZeroLengthPath": "La lunghezza del percorso non può essere nulla."
+      }
+    },
+    "coreclient": {
+      "BrokenPipe": "Connessione a Core interrotta. Riprovare.",
+      "CannotExtractResponseBody": "Core : Impossibile estrarre il corpo della risposta: {{msg}}",
+      "CoreResponseFormatError": "Core: Impossibile analizzare la risposta: {{msg}}",
+      "MqClientError": "Core: errore del client MQ",
+      "UnparsableErrorOutput": "Core : restituito un errore in un formato sconosciuto"
+    },
+    "delimited_area": {
+      "InvalidLocations": "Alcune posizioni non sono valide"
+    },
+    "document": {
+      "Database": "Errore interno (database)",
+      "NotFound": "Documento ‘{{document_key}}’ non trovato"
+    },
+    "electrical_profiles": {
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare il set di profili elettrici «{{electrical_profile_set_id}}»"
+    },
+    "fonts": {
+      "FileNotFound": "File del font richiesto non trovato"
+    },
+    "geometry": {
+      "UnexpectedGeometry": "Geometria prevista {{expected}} ma ottenuta {{actual}}"
+    },
+    "infra": {
+      "Database": "Errore interno",
+      "NotFound": "Impossibile trovare l'infrastruttura «{{infra_id}}»",
+      "edition": {
+        "InfraIsLocked": "L'infrastruttura è bloccata",
+        "SplitTrackSectionBadOffset": "La distanza dalla sezione di binario “{{tracksection_id}}” nell'infrastruttura “{{infra_id}}” non è valida. Deve essere compresa tra 0 e {{tracksection_length}} metri."
+      },
+      "errors": {
+        "WrongErrorTypeProvided": "Tipo di errore errato specificato"
+      },
+      "lines": {
+        "LineNotFound": "Non è stata trovata alcuna riga con il codice {{line_code}}"
+      },
+      "objects": {
+        "DuplicateIdsProvided": "Sono stati forniti id oggetto duplicati",
+        "ObjectIdNotFound": "Oggetto ‘{{object_id}}’ non trovato"
+      },
+      "pathfinding": {
+        "InvalidNumberOfPaths": "Il calcolo del percorso non può restituire più di 5 percorsi (previsti: [1-5])"
+      }
+    },
+    "infra_cache": {
+      "ObjectNotFound": "{{obj_type}} ‘{{obj_id}}’ non è stato trovato in nessuna parte della cache dell'infrastruttura"
+    },
+    "infra_state": {
+      "FetchError": "Errore durante il recupero dello stato di caricamento dell'infrastruttura"
+    },
+    "layers": {
+      "LayerNotFound": "Non è stato trovato il livello {{layer_name}}.",
+      "ViewNotFound": "La vista {{view_name}} non è stata trovata."
+    },
+    "level_crossing": {
+      "Database": "Errore interno (database)",
+      "InfraNotFound": "Impossibile trovare l'infrastruttura '{{infra_id}}'.",
+      "LevelCrossingBatchNotFound": "Non è stato possibile individuare ‘{{count}}’ passaggi a livello.",
+      "TrainBatchNotFound": "Non è stato possibile trovare ‘{{count}}’ treni a cadenza regolare."
+    },
+    "macro_node": {
+      "Database": "Errore interno",
+      "NotFound": "Nodo {{node_id}} non trovato.",
+      "ScenarioNotFound": "Scenario “{{scenario_id}}” non trovato"
+    },
+    "macro_note": {
+      "Database": "Errore interno (database)",
+      "NotFound": "Nota: '{{note_id}}' non trovata.",
+      "ScenarioNotFound": "Scenario '{{scenario_id}}' non trovato",
+      "WrongScenario": "La nota '{note_id}' non appartiene allo scenario '{scenario_id}'"
+    },
+    "model": {
+      "ModelError": "Errore interno (query del database)"
+    },
+    "operation": {
+      "EmptyId": "Non è consentito utilizzare un id costituito da una stringa vuota",
+      "InvalidPatch": "Si è verificato un errore nel file json",
+      "ModifyId": "L'operazione di aggiornamento tenta di modificare l'id dell'oggetto, operazione non consentita",
+      "ObjectNotFound": "Impossibile trovare l'oggetto ‘{{obj_id}}’ nell'infrastruttura '{{infra_id}}'"
+    },
+    "operationalPointProjection": {
+      "InvalidNumberOfDistances": "Mi aspettavo {{expected}} distanze, ma ne ho ottenute {{found}}"
+    },
+    "paced_train": {
+      "BatchNotFound": "Non è stato possibile trovare '{{count}}' orari dei treni",
+      "Database": "Errore interno (database)",
+      "ExceptionNotFound": "Impossibile trovare l'eccezione '{{exception_key}}'",
+      "InfraNotFound": "Impossibile trovare l'infrastruttura '{{infra_id}}'",
+      "NotFound": "Impossibile trovare l'orario dei treni '{{train_schedule_id}}'",
+      "PathfindingFailed": "Impossibile individuare il percorso per l'orario dei treni '{{train_schedule_id}}'",
+      "RollingStockNotFound": "Impossibile trovare il materiale rotabile '{{rolling_stock_name}}'",
+      "SimulationFailed": "Simulazione non riuscita per l'orario del treno '{{train_schedule_id}}'",
+      "TrainScheduleSetNotFound": "Impossibile trovare il set di orari dei treni '{{train_schedule_set_id}}'"
+    },
+    "pathfinding": {
+      "Database": "Errore interno (database)",
+      "ElectricalProfilesOverlap": "Il profilo elettrico si sovrappone ad altri",
+      "ElectrificationOverlap": "L'elettrificazione '{{electrification_id}}' si sovrappone ad altre elettrificazioni",
+      "InfraNotFound": "L'infrastruttura '{{infra_id}}' non esiste"
+    }
+  }
+}
