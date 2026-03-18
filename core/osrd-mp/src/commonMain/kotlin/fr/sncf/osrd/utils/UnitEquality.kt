@@ -37,6 +37,6 @@ fun isTimeStrictlyPositive(time: Double): Boolean {
     return time > TIME_EPSILON
 }
 
-private fun areDoublesEqual(a: Double, b: Double, delta: Double): Boolean {
+fun areDoublesEqual(a: Double, b: Double, delta: Double): Boolean {
     return abs(a - b) < delta
 }

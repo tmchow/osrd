@@ -31,10 +31,11 @@ class STDCMSimulations(private val cachedBlockMaxSpeedEnvBuilder: CachedBlockMax
      * simulatedEnvelopes, otherwise computes the matching envelope and adds it to the STDCMGraph.
      */
     fun simulateBlock(blockParams: BlockSimulationParameters): Envelope? {
-        val cached = simulatedEnvelopes.getOrDefault(blockParams, null)?.get()
+        val roundedBlockParams = blockParams.round()
+        val cached = simulatedEnvelopes.getOrDefault(roundedBlockParams, null)?.get()
         if (cached != null) return cached
-        val simulatedEnvelope = simulateBlockNoCache(blockParams)
-        simulatedEnvelopes[blockParams] = SoftReference(simulatedEnvelope)
+        val simulatedEnvelope = simulateBlockNoCache(roundedBlockParams)
+        simulatedEnvelopes[roundedBlockParams] = SoftReference(simulatedEnvelope)
         return simulatedEnvelope
     }
 
