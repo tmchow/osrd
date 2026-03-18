@@ -250,6 +250,31 @@
     "temporary_speed_limit": {
       "Database": "Errore interno (database)",
       "NameAlreadyUsed": "Esiste già un gruppo di limiti di velocità temporanei denominato '{{name}}'"
+    },
+    "timetable": {
+      "BatchTrainScheduleSetNotFound": "Non sono stati trovati gli orari dei treni '{{count}}'",
+      "Database": "Errore interno (database)",
+      "InfraNotFound": "L'infrastruttura '{{infra_id}}' non esiste",
+      "InfraNotLoaded": "L'infrastruttura '{{infra_id}}' non è stata caricata",
+      "NotFound": "Impossibile trovare l'orario treni '{{timetable_id}}'",
+      "ParseError": "Impossibile analizzare train_id: '{{train_id}}'",
+      "TrainScheduleSetsNotFound": "Non sono stati trovati gli orari dei treni '{{ids}}'",
+      "similar_trains": {
+        "Database": "Errore interno (database)",
+        "EmptyTrainsTraffic": "I dati sul traffico ferroviario sono vuoti",
+        "InvalidPath": "Percorso non valido nella pianificazione",
+        "RollingStockNotFound": "Il materiale rotabile '{{rolling_stock_name}}' non esiste",
+        "SpeedLimitNotFound": "Il tag relativo al limite di velocità '{{speed_limit_tag}}' non esiste"
+      }
+    },
+    "towedrollingstocks": {
+      "Database": "Errore interno",
+      "IdNotFound": "Impossibile trovare il materiale rotabile rimorchiato '{{towed_rolling_stock_id}}'",
+      "IsLocked": "Il materiale rotabile rimorchiato '{{towed_rolling_stock_id}}' è bloccato"
+    },
+    "train_schedule_exception": {
+      "BatchNotFound": "Non è stato possibile trovare ‘{{count}}’ eccezioni relative agli orari dei treni",
+      "Database": "Errore interno (database)"
     }
   }
 }
