@@ -13,7 +13,7 @@ import { useManageTimetableItemContext } from 'applications/operationalStudies/h
 import { useOperationalPointSearch } from 'applications/operationalStudies/hooks/useOperationalPointSearch';
 import { useScenarioContext } from 'applications/operationalStudies/hooks/useScenarioContext';
 import AlertBox from 'common/AlertBox';
-import { type PathProperties, type PathItemLocation } from 'common/api/osrdEditoastApi';
+import type { PathProperties, PathItemLocation, TrainCategory } from 'common/api/osrdEditoastApi';
 import { computeBBoxViewport } from 'common/Map/WarpedMap/core/helpers';
 import IncompatibleConstraints from 'modules/pathfinding/components/IncompatibleConstraints';
 import TypeAndPath from 'modules/pathfinding/components/Pathfinding/TypeAndPath';
@@ -21,7 +21,7 @@ import reversePathSteps from 'modules/pathfinding/helpers/reversePathSteps';
 import usePathfindingV2 from 'modules/pathfinding/hooks/usePathfindingV2';
 import type { RootState } from 'reducers';
 import { useMapSettings, useMapSettingsActions } from 'reducers/commonMap';
-import { updatePathSteps } from 'reducers/osrdconf/operationalStudiesConf';
+import { updateItineraryForm } from 'reducers/osrdconf/operationalStudiesConf';
 import {
   getCategory,
   getName,
@@ -55,6 +55,13 @@ type ItineraryModalProps = {
   displayTimetableItemManagement: string;
 };
 
+export type ItineraryModalContext = {
+  name?: string;
+  rollingStockId?: number;
+  speedLimitTag?: string;
+  category?: TrainCategory;
+};
+
 const ItineraryModal = ({
   itineraryModalIsOpen,
   setItineraryModalIsOpen,
@@ -67,12 +74,20 @@ const ItineraryModal = ({
   const category = useSelector(getCategory);
   const { workerStatus } = useScenarioContext();
   const rollingStockId = useSelector(getOperationalStudiesRollingStockID);
+  const name = useSelector(getName);
   const speedLimitTag = useSelector(getOperationalStudiesSpeedLimitByTag);
   const mapSettings = useMapSettings();
   const dispatch = useAppDispatch();
   const { updateViewport } = useMapSettingsActions();
 
-  const { categoryColors, currentSubCategory } = useCategoryColors(category);
+  const [modalContext, setModalContext] = useState<ItineraryModalContext>({
+    name,
+    rollingStockId,
+    speedLimitTag,
+    category: category ?? undefined,
+  });
+
+  const { categoryColors, currentSubCategory } = useCategoryColors(modalContext.category);
 
   const modalRef = useRef<HTMLDialogElement>(null);
   const editingStepIdRef = useRef<string>('');
@@ -277,7 +292,8 @@ const ItineraryModal = ({
   }, [pathfindingStepsWithLocations]);
 
   useEffect(() => {
-    if (workerStatus !== 'READY' || !rollingStockId || pathfindingSteps.length < 2) return;
+    if (workerStatus !== 'READY' || !modalContext.rollingStockId || pathfindingSteps.length < 2)
+      return;
 
     const pathfindingLocations = pathfindingSteps.map((s) => s.location!);
     const metadataByPathStepId = new Map(
@@ -287,10 +303,10 @@ const ItineraryModal = ({
     launchPathfindingV2({
       pathSteps: pathfindingLocations,
       pathStepsMetadataById: metadataByPathStepId,
-      rollingStockId,
-      speedLimitTag,
+      rollingStockId: modalContext.rollingStockId,
+      speedLimitTag: modalContext.speedLimitTag ?? null,
     });
-  }, [workerStatus, rollingStockId, speedLimitTag, pathfindingSteps]);
+  }, [workerStatus, modalContext.rollingStockId, modalContext.speedLimitTag, pathfindingSteps]);
 
   const onPathfindingLoad = useEffectEvent((geometry: PathProperties['geometry']) => {
     const newViewport = computeBBoxViewport(bbox(geometry), mapSettings.viewport, {
@@ -359,7 +375,7 @@ const ItineraryModal = ({
 
     if (cPathSteps.length < 2) return;
 
-    launchPathfinding(reversePathSteps(cPathSteps));
+    launchPathfinding(reversePathSteps(cPathSteps), modalContext.rollingStockId);
   };
 
   const submitItinerary = () => {
@@ -382,8 +398,17 @@ const ItineraryModal = ({
 
     if (compacted.length < 2) return;
 
-    dispatch(updatePathSteps(compacted));
-    launchPathfinding(compacted, rollingStockId, { isInitialization: true });
+    dispatch(
+      updateItineraryForm({
+        name: modalContext.name ?? '',
+        category: modalContext.category ?? null,
+        rollingStockId: modalContext.rollingStockId,
+        speedLimitTag: modalContext.speedLimitTag,
+        pathSteps: compacted,
+      })
+    );
+
+    launchPathfinding(compacted, modalContext.rollingStockId, { isInitialization: true });
     closeModal();
   };
 
@@ -406,8 +431,9 @@ const ItineraryModal = ({
       <div className="itinerary-modal-form">
         <div className="itinerary-modal-form-header">
           <ItineraryModalFormHeader
+            modalContext={modalContext}
+            onModalContextChange={setModalContext}
             onCategoryWarningChange={setCategoryWarning}
-            category={category}
             currentSubCategory={currentSubCategory}
             categoryColors={categoryColors}
             submitAttempted={submitAttempted}
@@ -420,7 +446,7 @@ const ItineraryModal = ({
           {!hasInvalidPathStepDisplay && pathfindingError && (
             <AlertBox type="error" message={pathfindingError} />
           )}
-          <TypeAndPath rollingStockId={rollingStockId} isInNewModal />
+          <TypeAndPath rollingStockId={modalContext.rollingStockId} isInNewModal />
           <div className="path-step-list">
             <button
               data-testid="reverse-itinerary-button"
