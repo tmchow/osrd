@@ -1,6 +1,7 @@
 package fr.sncf.osrd.stdcm.graph
 
 import fr.sncf.osrd.envelope.Envelope
+import fr.sncf.osrd.utils.areDoublesEqual
 
 /**
  * This class contains all the methods used to backtrack in the graph. We need to backtrack to
@@ -25,7 +26,7 @@ class BacktrackingManager(private val graph: STDCMGraph) {
             assert(edge.beginSpeed == 0.0)
             return edge
         }
-        if (edge.previousNode.speed == edge.beginSpeed) {
+        if (areDoublesEqual(edge.previousNode.speed, edge.beginSpeed, 1e-1)) {
             // No need to backtrack any further
             return edge
         }
