@@ -274,7 +274,34 @@
     },
     "train_schedule_exception": {
       "BatchNotFound": "Non è stato possibile trovare ‘{{count}}’ eccezioni relative agli orari dei treni",
-      "Database": "Errore interno (database)"
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare l'eccezione relativa all'orario dei treni '{{exception_id}}'",
+      "NotPacedTrain": "L'orario del treno '{{train_schedule_id}}' non è un treno a cadenza regolare",
+      "TimetableNotFound": "Impossibile trovare l'orario treni '{{timetable_id}}'",
+      "TrainScheduleNotFound": "Impossibile trovare l'orario dei treni '{{train_schedule_id}}'"
+    },
+    "train_schedule_set": {
+      "CatalogEntryNotFound": "Impossibile trovare la voce di catalogo '{{catalog_entry_id}}'",
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare il set di orari dei treni '{{train_schedule_set_id}}'"
+    },
+    "url": {
+      "InvalidUrl": "Url non valido '{{url}}'"
+    },
+    "valkey": {
+      "Url": "Url non valido '{{url}}'"
+    },
+    "work_schedule": {
+      "Database": "Errore interno (database)",
+      "NameAlreadyUsed": "Esiste già un gruppo di turni di lavoro con il nome '{{name}}'",
+      "WorkScheduleGroupNotFound": "Non esiste alcun gruppo di turni con id '{{id}}'"
+    },
+    "worker_load": {
+      "Database": "Errore interno (database)",
+      "FetchStatusError": "Errore interno (osrdyne)",
+      "InfraNotFound": "Impossibile trovare l'infrastruttura '{{infra_id}}'",
+      "TimetableNotFound": "Impossibile trovare l'orario treni “{{timetable_id}}”"
     }
-  }
+  },
+  "pageNotFound": "La pagina che stai cercando non esiste."
 }
