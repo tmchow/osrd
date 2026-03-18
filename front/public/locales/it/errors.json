@@ -156,7 +156,100 @@
       "Database": "Errore interno (database)",
       "ElectricalProfilesOverlap": "Il profilo elettrico si sovrappone ad altri",
       "ElectrificationOverlap": "L'elettrificazione '{{electrification_id}}' si sovrappone ad altre elettrificazioni",
-      "InfraNotFound": "L'infrastruttura '{{infra_id}}' non esiste"
+      "InfraNotFound": "L'infrastruttura '{{infra_id}}' non esiste",
+      "NotFound": "Il percorso {{pathfinding_id}} non esiste",
+      "RollingStockNotFound": "Il materiale rotabile con id ‘{{rolling_stock_id}}’ non esiste"
+    },
+    "postgres": {
+      "Host": "Host non valido '{{hostname}}'",
+      "Password": "Password non valida",
+      "Port": "Porta non valida '{{port}}'",
+      "Username": "Nome utente non valido"
+    },
+    "project": {
+      "Database": "Errore interno",
+      "ImageError": "L'immagine fornita non è valida",
+      "ImageNotFound": "Impossibile trovare il documento immagine '{{document_key}}'",
+      "NotFound": "Impossibile trovare il progetto '{{project_id}}'"
+    },
+    "railjson": {
+      "UnsupportedVersion": "Versione di railjson non supportata"
+    },
+    "rollingstocks": {
+      "BasePowerClassEmpty": "La potenza elettrica di base è una stringa vuota",
+      "CannotCreateCompoundImage": "Non è possibile copiare l'immagine separata sull'immagine composita",
+      "CannotReadImage": "Impossibile leggere l'immagine separata",
+      "Database": "Errore interno (database)",
+      "IsLocked": "Il materiale rotabile '{{rolling_stock_id}}' è bloccato",
+      "IsUsed": "Viene utilizzato il materiale rotabile '{{rolling_stock_id}}'",
+      "KeyNotFound": "Impossibile trovare il materiale rotabile '{{rolling_stock_key.key}}'",
+      "NameAlreadyUsed": "Il nome '{{name}}' è già in uso"
+    },
+    "round_trips": {
+      "Database": "Errore interno (database)",
+      "TimetableNotFound": "Orario treni ‘{{timetable_id}}’ non trovato"
+    },
+    "scenario": {
+      "Database": "Errore interno (database)",
+      "InfraNotFound": "Infrastruttura ‘{{infra_id}}’ non trovata",
+      "NotFound": "Scenario non trovato",
+      "TimetableNotFound": "Orario treni ‘{{timetable_id}}’ non trovato"
+    },
+    "search": {
+      "ArgMissing": "Manca l'argomento previsto di tipo {{expected}} nella posizione {{arg_pos}}",
+      "ArgTypeMismatch": "Ci si aspettava un argomento di tipo {{expected}} nella posizione {{arg_pos}}, ma è stato ricevuto {{actual}}",
+      "EmptyArray": "Gli array vuoti non sono sintatticamente corretti",
+      "IntegerConversion": "Impossibile convertire in i64",
+      "InvalidColumnName": "Nome colonna non valido",
+      "InvalidFunctionIdentifier": "L'identificatore della funzione deve essere una stringa",
+      "InvalidSyntax": "Sintassi non valida",
+      "ObjectType": "Il tipo di oggetto non è valido",
+      "QueryAst": "È richiesto un tipo booleano per la query",
+      "RuntimeTypeCheckFail": "Tipo previsto {{expected}}, ma è stato ricevuto il valore ‘{{value}}’ di tipo {{actual}}",
+      "SearchEngineError": "Errore interno del motore di ricerca",
+      "UndefinedFunction": "Funzione non definita",
+      "UndefinedOverload": "Nessun sovraccarico ammissibile",
+      "UnexpectedArg": "Rilevato un argomento di tipo non previsto",
+      "UnexpectedColumn": "Colonna inaspettata",
+      "UnexpectedErsatz": "Valore atteso di tipo {{expected}}, ma ottenuto il valore sostitutivo '{{value}}'",
+      "VariadicArgTypeMismatch": "Ci si aspettava un argomento variabile di tipo {{expected}}, ma è stato ricevuto {{actual}}"
+    },
+    "single_simulation": {
+      "ElectricalProfileSetNotFound": "Impossibile trovare il set di profili elettrici '{{electrical_profile_set_id}}'",
+      "PathNotFound": "Impossibile trovare il percorso '{{path_id}}'",
+      "RollingStockNotFound": "Impossibile trovare il materiale rotabile '{{rolling_stock_id}}'",
+      "WrongCoreResponseFormat": "Ho ricevuto un formato di risposta errato dal core"
+    },
+    "sprites": {
+      "FileNotFound": "File non trovato",
+      "UnknownSignalingSystem": "Sistema di segnalazione sconosciuto"
+    },
+    "stdcm": {
+      "Database": "Errore interno (database)",
+      "InfraNotFound": "L'infrastruttura '{{infra_id}}' non esiste",
+      "InvalidConsistLength": "Lunghezza del convoglio non valida {{provided_consist_length}}: dovrebbe essere superiore a '{{expected_min}}'",
+      "InvalidConsistMass": "Massa del convoglio non valida {{provided_consist_mass}}: dovrebbe essere superiore a '{{expected_min}}'",
+      "RollingStockNotFound": "Il materiale rotabile '{{rolling_stock_id}}' non esiste",
+      "TimetableNotFound": "L'orario treni '{{timetable_id}}' non esiste",
+      "TowedRollingStockNotFound": "Il materiale rotabile rimorchiato {towed_rolling_stock_id} non esiste",
+      "TrainSimulationFail": "Simulazione del treno non riuscita"
+    },
+    "stdcm_search_env": {
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare l'ambiente di ricerca Stdcm '{{env_id}}'"
+    },
+    "study": {
+      "Database": "Errore interno (database)",
+      "ProjectNotFound": "Progetto ‘{{project_id}}’ non trovato"
+    },
+    "sub_categories": {
+      "CodeAlreadyUsed": "Il codice della sottocategoria '{{code}}' è già in uso",
+      "Database": "Errore interno (database)",
+      "NotFound": "Impossibile trovare la sottocategoria '{{code}}'"
+    },
+    "temporary_speed_limit": {
+      "Database": "Errore interno (database)",
+      "NameAlreadyUsed": "Esiste già un gruppo di limiti di velocità temporanei denominato '{{name}}'"
     }
   }
 }
