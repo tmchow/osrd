@@ -134,6 +134,7 @@
           position: relative;
           height: 28px;
           margin-top: -28px;
+          pointer-events: none;
         }
 
         .path-step-gap-hitbox {
@@ -142,6 +143,7 @@
           top: 12px;
           width: 56px;
           height: 100%;
+          pointer-events: auto;
         }
 
         .path-step-gap:has(.path-step-gap-hitbox:hover) {
