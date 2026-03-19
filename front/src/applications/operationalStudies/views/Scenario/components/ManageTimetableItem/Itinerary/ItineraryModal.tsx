@@ -313,28 +313,48 @@ const ItineraryModal = ({
 
   const buildPathSteps = (steps: PathStepV2[], metadataById: Map<string, PathStepMetadata>) =>
     steps.map<PathStep | null>((step) => {
-      if (!step.location) return null;
-
-      const metadata = metadataById.get(step.id);
-      if (!metadata || metadata.isInvalid) return null;
-
-      const coordinates =
-        metadata.type === 'trackOffset' ? metadata.coordinates : metadata.parts[0]?.coordinates;
-
-      const secondary_code = metadata.type === 'opRef' ? metadata.secondaryCode : undefined;
-
-      return {
-        id: step.id,
-        location: step.location,
-        arrival: step.arrival,
-        stopFor: step.stopFor,
+      const baseStep = {
+        ...step,
         theoreticalMargin: step.theoreticalMargin ?? undefined,
         receptionSignal: step.receptionSignal ?? undefined,
+      };
 
-        name: metadata.type === 'opRef' ? metadata.name : undefined,
-        uic: metadata.type === 'opRef' ? metadata.uic : undefined,
-        secondary_code,
-        coordinates,
+      if (step.location) {
+        const metadata = metadataById.get(step.id);
+
+        if (!metadata || metadata.isInvalid) {
+          return {
+            ...baseStep,
+            location: step.location,
+          };
+        }
+
+        return {
+          ...step,
+          theoreticalMargin: step.theoreticalMargin ?? undefined,
+          receptionSignal: step.receptionSignal ?? undefined,
+          location: step.location,
+          coordinates:
+            metadata.type === 'trackOffset' ? metadata.coordinates : metadata.parts[0]?.coordinates,
+          name: metadata.type === 'opRef' ? metadata.name : undefined,
+          uic: metadata.type === 'opRef' ? metadata.uic : undefined,
+        };
+      }
+
+      const inputValue = getInputForStep(step.id)?.trim();
+      if (!inputValue) return null;
+
+      return {
+        ...baseStep,
+        location: {
+          operational_point: {
+            type: 'trigram',
+            trigram: inputValue,
+            secondary_code: null,
+          },
+          local_track_name: null,
+        },
+        isInvalid: true,
       };
     });
 
@@ -358,13 +378,9 @@ const ItineraryModal = ({
 
     launchPathfinding(reversePathSteps(cPathSteps));
   };
-
   const submitItinerary = () => {
     setSubmitAttempted(true);
     if (isNameEmpty) return;
-    if (locatedStepsCount < 2) {
-      return;
-    }
 
     const filledSteps = pathSteps.filter((step) => !isEmptyStep(step, getInputForStep(step.id)));
     if (filledSteps.length < 2) return;
@@ -373,10 +389,7 @@ const ItineraryModal = ({
       i === filledSteps.length - 1 ? { ...step, stopFor: new Duration({ minutes: 0 }) } : step
     );
 
-    const updatedPathSteps = buildPathSteps(stepsWithStopAtDestination, pathStepsMetadataById);
-
-    const compacted = compact(updatedPathSteps);
-
+    const compacted = compact(buildPathSteps(stepsWithStopAtDestination, pathStepsMetadataById));
     if (compacted.length < 2) return;
 
     dispatch(updatePathSteps(compacted));
