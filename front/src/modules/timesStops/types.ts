@@ -3,6 +3,8 @@ import type { TimeString } from 'common/types';
 import type { SuggestedOP } from 'modules/timetableItem/types';
 import type { Duration } from 'utils/duration';
 
+import type { MarginUnit } from './consts';
+
 export type TimeExtraDays = {
   time: TimeString;
   daySinceDeparture?: number;
@@ -52,11 +54,11 @@ export type TimesStopsRowNew = {
   powerRestriction: string | null;
 
   // Margins
-  requestedTheoreticalMargin: string | null;
-  isTheoreticalMarginBoundary: boolean;
-  computedTheoreticalMarginSeconds: number | null;
-  realMargin: Duration | null;
-  marginsDifference: Duration | null;
+  requestedTheoreticalMargin: MarginValue | undefined;
+  isTheoreticalMarginBoundary: boolean | undefined;
+  computedTheoreticalMarginSeconds: MarginValue | undefined;
+  realMargin: MarginValue | undefined;
+  marginsDifference: MarginValue | undefined;
 
   // Travel Times
   timeFromPreviousOp: Duration | null;
@@ -140,3 +142,10 @@ export type OptimisticEdit =
   | { field: 'receptionSignal'; value: ReceptionSignal | undefined };
 
 export type PendingEdit = OptimisticEdit & { rowId: string };
+
+export type MarginUnitType = (typeof MarginUnit)[keyof typeof MarginUnit];
+
+export type MarginValue = {
+  value: number;
+  unit: MarginUnitType;
+};
