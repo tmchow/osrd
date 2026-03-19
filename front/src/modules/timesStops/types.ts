@@ -129,17 +129,25 @@ export type ReceptionSignalUpdate = {
   value: ReceptionSignal | undefined;
 };
 
+export type RequestedMarginUpdate = {
+  row: TimesStopsRowNew;
+  field: 'requestedTheoreticalMargin';
+  value: MarginValue | null;
+};
+
 export type CellUpdate =
   | ArrivalUpdate
   | StopDurationUpdate
   | DepartureUpdate
   | ReceptionSignalUpdate;
+// | RequestedMarginUpdate; // TODO: properly implement the cell update for requestedTheoreticalMargin
 
 export type OptimisticEdit =
   | { field: 'requestedArrival'; value: Date | null }
   | { field: 'requestedDeparture'; value: Date | null }
   | { field: 'stopDuration'; value: Duration | null }
   | { field: 'receptionSignal'; value: ReceptionSignal | undefined };
+// | { field: 'requestedTheoreticalMargin'; value: MarginValue | null }; // TODO: properly implement the optimistic edit for requestedTheoreticalMargin
 
 export type PendingEdit = OptimisticEdit & { rowId: string };
 

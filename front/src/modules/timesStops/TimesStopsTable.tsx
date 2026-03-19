@@ -16,8 +16,9 @@ import { formatLocalTime } from 'utils/date';
 
 import DurationCell, { type DurationCellHandle } from './DurationCell';
 import { onStopSignalToReceptionSignal } from './helpers/utils';
+import MarginCell from './MarginCell';
 import TimeCell, { type TimeCellHandle } from './TimeCell';
-import { type TimesStopsRowNew } from './types';
+import { type MarginValue, type TimesStopsRowNew } from './types';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/no-unused-vars
@@ -34,6 +35,7 @@ declare module '@tanstack/react-table' {
     onStopDurationChange: (row: TimesStopsRowNew, durationSeconds: number | null) => void;
     onDepartureChange: (row: TimesStopsRowNew, departure: Date | null) => void;
     onReceptionSignalChange: (row: TimesStopsRowNew, signal: ReceptionSignal | undefined) => void;
+    onRequestedMarginChange: (row: TimesStopsRowNew, requestedMargin: MarginValue | null) => void;
   }
 }
 
@@ -81,6 +83,7 @@ type TimesStopsTableProps = {
   onStopDurationChange: (row: TimesStopsRowNew, durationSeconds: number | null) => void;
   onDepartureChange: (row: TimesStopsRowNew, departure: Date | null) => void;
   onReceptionSignalChange: (row: TimesStopsRowNew, signal: ReceptionSignal | undefined) => void;
+  onRequestedMarginChange: (row: TimesStopsRowNew, value: MarginValue | null) => void;
 };
 
 const columnHelper = createColumnHelper<TimesStopsRowNew>();
@@ -101,6 +104,7 @@ const TimesStopsTable = ({
   onStopDurationChange,
   onDepartureChange,
   onReceptionSignalChange,
+  onRequestedMarginChange,
 }: TimesStopsTableProps) => {
   const { t } = useTranslation('translation', { keyPrefix: 'timeStopTable' });
   const scheduleNotHonored = rows.some((row) => row.stepStatus === 'scheduleNotHonored');
@@ -376,24 +380,37 @@ const TimesStopsTable = ({
       }),
       columnHelper.accessor('requestedTheoreticalMargin', {
         header: () => t('requestedTheoreticalMargin'),
+        cell: (info) => {
+          const row = info.row.original;
+          return (
+            <MarginCell
+              {...info}
+              editable
+              onCommit={(value) => info.table.options.meta!.onRequestedMarginChange(row, value)}
+            />
+          );
+        },
         meta: {
           className: 'col-requested-theoretical-margin',
         },
       }),
       columnHelper.accessor('computedTheoreticalMarginSeconds', {
         header: () => t('computedTheoreticalMargin'),
+        cell: (info) => <MarginCell {...info} editable={false} />,
         meta: {
           className: 'col-computed-theoretical-margin computed',
         },
       }),
       columnHelper.accessor('realMargin', {
         header: () => t('realMargin'),
+        cell: (info) => <MarginCell {...info} editable={false} />,
         meta: {
           className: 'col-real-margin computed',
         },
       }),
       columnHelper.accessor('marginsDifference', {
         header: () => t('diffMargins'),
+        cell: (info) => <MarginCell showPolarity {...info} editable={false} />,
         meta: {
           className: 'col-margins-difference computed',
         },
@@ -426,6 +443,7 @@ const TimesStopsTable = ({
       onStopDurationChange,
       onDepartureChange,
       onReceptionSignalChange,
+      onRequestedMarginChange,
     },
   });
 
