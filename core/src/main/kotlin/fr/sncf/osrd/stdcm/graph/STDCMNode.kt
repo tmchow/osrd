@@ -8,7 +8,9 @@ import fr.sncf.osrd.stdcm.infra_exploration.PlannedTimingData
 import fr.sncf.osrd.utils.SoftLazy
 import fr.sncf.osrd.utils.areTimesEqual
 import fr.sncf.osrd.utils.cacheable
+import fr.sncf.osrd.utils.round
 import fr.sncf.osrd.utils.units.Offset
+import java.lang.ref.SoftReference
 import kotlin.math.min
 
 data class STDCMNode(
@@ -34,6 +36,29 @@ data class STDCMNode(
     // Reference to the main graph. Only null in some unit tests, where we don't have a full graph
     val graph: STDCMGraph?,
 ) : Comparable<STDCMNode> {
+
+    // Map of the possible end edge speeds to their corresponding edges that lead to this node
+    val cachedPrevEdges = HashMap<Double, SoftReference<STDCMEdge>>()
+
+    init {
+        if (previousEdge != null) {
+            cachedPrevEdges.getOrPut(speed.round()) { SoftReference(previousEdge) }
+        }
+    }
+
+    fun getCachedPrevEdge(endSpeed: Double): STDCMEdge? {
+        return cachedPrevEdges[endSpeed.round()]?.get()
+    }
+
+    fun addCachedPrevEdges(cachedEdges: Map<Double, SoftReference<STDCMEdge>>) {
+        cachedEdges.forEach { (endSpeed, cachedEdge) ->
+            cachedPrevEdges.getOrPut(endSpeed) { cachedEdge }
+        }
+    }
+
+    fun addCachedPrevEdge(edge: STDCMEdge) {
+        cachedPrevEdges.getOrPut(edge.endSpeed.round()) { SoftReference(edge) }
+    }
 
     /**
      * Defines the estimated better path between 2 nodes, in the following priority:
@@ -78,7 +103,7 @@ data class STDCMNode(
         // If equal, take the train which has the smallest time since its departure.
         // Unlike the first check, this includes stop time.
         else if (!areTimesEqual(timeData.timeSinceDeparture, other.timeData.timeSinceDeparture))
-            return timeData.timeSinceDeparture.compareTo(other.timeData.timeSinceDeparture)
+            timeData.timeSinceDeparture.compareTo(other.timeData.timeSinceDeparture)
 
         // If equal, take the train which departs first
         else if (timeData.earliestReachableTime != other.timeData.earliestReachableTime)

@@ -1,6 +1,7 @@
 package fr.sncf.osrd.stdcm.graph
 
 import fr.sncf.osrd.envelope.Envelope
+import fr.sncf.osrd.utils.areDoublesEqual
 
 /**
  * This class contains all the methods used to backtrack in the graph. We need to backtrack to
@@ -20,24 +21,33 @@ class BacktrackingManager(private val graph: STDCMGraph) {
      * the new edge is invalid (for example if it would cause conflicts), returns null.
      */
     fun backtrack(edge: STDCMEdge, envelope: Envelope): STDCMEdge? {
-        if (edge.previousNode.previousEdge == null) {
+        val previousNode = edge.previousNode
+        val previousEdge = previousNode.previousEdge
+        if (previousEdge == null) {
             // First edge of the path
             assert(edge.beginSpeed == 0.0)
             return edge
         }
-        if (edge.previousNode.speed == edge.beginSpeed) {
+        if (areDoublesEqual(previousNode.speed, edge.beginSpeed, 1e-1)) {
+            // No need to backtrack any further
+            return edge
+        }
+        val cachedEdge = previousNode.getCachedPrevEdge(edge.beginSpeed)
+        if (cachedEdge != null) {
             // No need to backtrack any further
             return edge
         }
 
         // We try to create a new previous edge with the end speed we need
-        val previousEdge = edge.previousNode.previousEdge
         val newPreviousEdge =
             rebuildEdgeBackward(previousEdge, edge.beginSpeed)
                 ?: return null // No valid result was found
 
+        // Add new previous edge to existing node's cache
+        edge.previousNode.addCachedPrevEdge(newPreviousEdge)
+
         // Create the new edge
-        val newNode = newPreviousEdge.getEdgeEnd(graph)
+        val newNode = newPreviousEdge.getEdgeEnd(graph, edge.previousNode.cachedPrevEdges)
         return STDCMEdgeBuilder.fromNode(graph, newNode, edge.infraExplorer)
             .setEnvelope(envelope)
             .findEdgeSameNextOccupancy(edge.timeData.timeOfNextConflictAtLocation)
