@@ -20,6 +20,9 @@
       "Timeout": "Il servizio non ha risposto in tempo",
       "Valkey": "Si è verificato un errore in Valkey"
     },
+    "attached": {
+      "TrackNotFound": "Binario {{track_id}} non trovato"
+    },
     "authz": {
       "AuthError": "Errore interno di autenticazione/autorizzazione: riprova o contatta l'assistenza",
       "Authorizer": "Errore interno",
