@@ -16,6 +16,84 @@
     "properties": {
       "conditional_parameters": {
         "title": "Parametri condizionali"
+      },
+      "signaling_system": {
+        "title": "Sistema di segnalamento"
+      }
+    }
+  },
+  "BaprSystem": {
+    "properties": {
+      "conditional_parameters": {
+        "title": "Parametri condizionali"
+      },
+      "signaling_system": {
+        "title": "Sistemi di segnalamento"
+      }
+    }
+  },
+  "BufferStop": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "BufferStopReference": {
+    "properties": {
+      "type": {
+        "title": "Tipo"
+      }
+    }
+  },
+  "ConditionalParameter": {
+    "properties": {
+      "parameters": {
+        "title": "Parametri"
+      }
+    }
+  },
+  "Curve": {
+    "properties": {
+      "begin": {
+        "title": "Inizio"
+      },
+      "end": {
+        "title": "Fine"
+      }
+    }
+  },
+  "Detector": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "DetectorReference": {
+    "properties": {
+      "type": {
+        "title": "Tipo"
+      }
+    }
+  },
+  "DirectionalTrackRange": {
+    "properties": {
+      "begin": {
+        "title": "Inizio"
+      },
+      "end": {
+        "title": "Fine"
+      },
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "EtcsLevel2System": {
+    "properties": {
+      "conditional_parameters": {
+        "title": "Parametri condizionali"
       }
     }
   },
@@ -37,7 +115,12 @@
     "title": "Passaggio a livello"
   },
   "LevelCrossingPart": {
-    "description": "Un punto di passaggio a livello è un punto specifico dell'infrastruttura.\nContiene informazioni sulla distanza dei binari rispetto a tale punto.\nÈ associato a un passaggio a livello."
+    "description": "Un punto di passaggio a livello è un punto specifico dell'infrastruttura.\nContiene informazioni sulla distanza dei binari rispetto a tale punto.\nÈ associato a un passaggio a livello.",
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
   },
   "LineString": {
     "description": "Modello LineString",
@@ -126,5 +209,95 @@
       }
     },
     "title": "Tratto neutro - Estensione sncf"
+  },
+  "OperationalPointPart": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "Sign": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      },
+      "type": {
+        "title": "Tipo"
+      },
+      "value": {
+        "title": "Valore"
+      }
+    }
+  },
+  "Signal": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "Slope": {
+    "properties": {
+      "begin": {
+        "title": "Inizio"
+      }
+    }
+  },
+  "TrackEndpoint": {
+    "properties": {
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "Tvm300System": {
+    "properties": {
+      "conditional_parameters": {
+        "title": "Parametri condizionali"
+      }
+    }
+  },
+  "Tvm430System": {
+    "properties": {
+      "conditional_parameters": {
+        "title": "Parametri condizionali"
+      }
+    }
+  },
+  "__main____BalSystem__ConditionalParameters": {
+    "title": "Parametri condizionali"
+  },
+  "__main____BalSystem__Parameters": {
+    "title": "Parametri"
+  },
+  "__main____BaprSystem__ConditionalParameters": {
+    "title": "Parametri condizionali"
+  },
+  "__main____BaprSystem__Parameters": {
+    "title": "Parametri"
+  },
+  "__main____EtcsLevel2System__ConditionalParameters": {
+    "title": "Parametri condizionali"
+  },
+  "__main____EtcsLevel2System__Parameters": {
+    "title": "Parametri"
+  },
+  "__main____Tvm300System__ConditionalParameters": {
+    "title": "Parametri condizionali"
+  },
+  "__main____Tvm300System__Parameters": {
+    "title": "Parametri"
+  },
+  "__main____Tvm430System__ConditionalParameters": {
+    "title": "Parametri condizionali"
+  },
+  "__main____Tvm430System__Parameters": {
+    "title": "Parametri"
+  },
+  "properties": {
+    "version": {
+      "title": "Versione"
+    }
   }
 }
