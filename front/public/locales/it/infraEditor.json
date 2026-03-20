@@ -1,4 +1,24 @@
 {
+  "ApplicableDirectionsTrackRange": {
+    "properties": {
+      "begin": {
+        "title": "Inizio"
+      },
+      "end": {
+        "title": "Fine"
+      },
+      "track": {
+        "title": "Binario"
+      }
+    }
+  },
+  "BalSystem": {
+    "properties": {
+      "conditional_parameters": {
+        "title": "Parametri condizionali"
+      }
+    }
+  },
   "LevelCrossing": {
     "description": "Questa classe descrive i passaggi a livello dell'infrastruttura corrispondente.",
     "properties": {
