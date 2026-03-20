@@ -1,5 +1,8 @@
 {
   "Editor": {
+    "directions": {
+      "BOTH": "Entrambe"
+    },
     "infra-errors": {
       "corrector-modal": {
         "text": "Le seguenti azioni saranno applicate per correggere alcune anomalie dell'infrastruttura:"
@@ -7,7 +10,60 @@
       "error-level": {
         "all": "Tutto",
         "errors": "Errori"
+      },
+      "error-type": {
+        "all": "Tutto",
+        "empty_object": {
+          "description": "L’oggetto « {{obj_id}} » ha il campo « {{field}} » vuoto",
+          "name": "Oggetto vuoto"
+        }
+      }
+    },
+    "layers": {
+      "errors": "Errori"
+    },
+    "tools": {
+      "speed-edition": {
+        "sign-type": "Tipo"
       }
     }
+  },
+  "common": {
+    "add": "Aggiungere",
+    "and": "e",
+    "saveEdits": "Salvare le modifiche"
+  },
+  "infraManagement": {
+    "infraChoice": "Infrastrutture"
+  },
+  "interval-editor": {
+    "add": "Aggiungere",
+    "end": "Fine",
+    "value": "Valore"
+  },
+  "mapSearch": {
+    "all": "Tutti",
+    "results-count_other": "{{ count }} risultati",
+    "type": "Tipo"
+  },
+  "mapSettings": {
+    "layers": {
+      "errors": "Errori"
+    }
+  },
+  "nav-bar": {
+    "information": {
+      "application": "Applicazione",
+      "version": "Versione"
+    }
+  },
+  "rollingStock": {
+    "add": "Aggiungere",
+    "metadata": {
+      "type": "Tipo"
+    }
+  },
+  "timeStopTable": {
+    "trackName": "binario"
   }
 }
