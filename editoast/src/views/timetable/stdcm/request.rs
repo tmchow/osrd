@@ -309,7 +309,9 @@ impl Request {
             .filter(move || WorkSchedule::WORK_SCHEDULE_GROUP_ID.eq(work_schedule_group_id));
         WorkSchedule::list(conn, selection_setting).await
     }
+}
 
+impl ConsistConfiguration {
     pub(super) async fn get_towed_rolling_stock(
         &self,
         conn: &mut DbConnection,

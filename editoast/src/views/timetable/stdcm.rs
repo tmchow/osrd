@@ -19,6 +19,7 @@ use core_client::stdcm::Request as StdcmRequest;
 use core_client::stdcm::UndirectedTrackRange;
 use database::DbConnectionPoolV2;
 use editoast_derive::EditoastError;
+use itertools::Itertools;
 use request::Request;
 use request::convert_steps;
 use schemas::primitives::PositiveDuration;
@@ -79,7 +80,7 @@ pub(in crate::views) enum StdcmResponse {
 #[derive(Debug, Error, EditoastError, Serialize, derive_more::From)]
 #[editoast_error(base_id = "stdcm")]
 enum StdcmError {
-    #[error("Infrastrcture {infra_id} does not exist")]
+    #[error("Infrastructure {infra_id} does not exist")]
     InfraNotFound { infra_id: i64 },
     #[error("Timetable {timetable_id} does not exist")]
     #[editoast_error(status = 404)]
@@ -123,6 +124,12 @@ pub(in crate::views) struct StdcmQueryParams {
     #[serde(default)]
     #[param(nullable)]
     return_debug_payloads: bool,
+}
+
+#[allow(clippy::large_enum_variant)]
+enum ResultSimulation {
+    SimulationSuccess(u64),
+    SimulationError(simulation::Response),
 }
 
 /// This function computes a STDCM and returns the result.
@@ -242,54 +249,87 @@ pub(in crate::views) async fn stdcm_handler(
     let work_schedules = request.get_work_schedules(&mut conn).await?;
 
     // 3. Get RollingStock
-    let rolling_stock =
-        RollingStock::retrieve_or_fail(conn.clone(), request.rolling_stock_id, || {
-            StdcmError::RollingStockNotFound {
-                rolling_stock_id: request.rolling_stock_id,
-            }
-        })
-        .await?
-        .into();
-
-    let towed_rolling_stock = request
-        .get_towed_rolling_stock(&mut conn)
-        .await?
-        .map(From::from);
-
-    request.validate_consist(&rolling_stock, towed_rolling_stock.as_ref())?;
-
-    let physics_consist_parameters = PhysicsConsistParameters {
-        max_speed: request.max_speed,
-        total_length: request.total_length,
-        total_mass: request.total_mass,
-        towed_rolling_stock,
-        traction_engine: rolling_stock,
+    let mut physics_consists_parameters = vec![];
+    let consist_configs = if request.consist_schedule.values.is_empty() {
+        vec![request::ConsistConfiguration {
+            rolling_stock_id: request.rolling_stock_id,
+            towed_rolling_stock_id: request.towed_rolling_stock_id,
+            total_mass: request.total_mass,
+            total_length: request.total_length,
+            max_speed: request.max_speed,
+            speed_limit_tag: request.speed_limit_tags.clone(),
+            loading_gauge_type: request.loading_gauge_type,
+        }]
+    } else {
+        request.consist_schedule.values.clone()
     };
 
+    for consist in &consist_configs {
+        let rolling_stock =
+            RollingStock::retrieve_or_fail(conn.clone(), consist.rolling_stock_id, || {
+                StdcmError::RollingStockNotFound {
+                    rolling_stock_id: consist.rolling_stock_id,
+                }
+            })
+            .await?
+            .into();
+
+        let towed_rolling_stock = consist
+            .get_towed_rolling_stock(&mut conn)
+            .await?
+            .map(From::from);
+
+        consist.validate_consist(&rolling_stock, towed_rolling_stock.as_ref())?;
+        physics_consists_parameters.push(PhysicsConsistParameters {
+            max_speed: consist.max_speed,
+            total_length: consist.total_length,
+            total_mass: consist.total_mass,
+            towed_rolling_stock,
+            traction_engine: rolling_stock,
+        });
+    }
+
     // 4. Compute the earliest start time and maximum departure delay
-    let virtual_train_run = VirtualTrainRun::simulate(
+    let consists_simulation = VirtualTrainRun::simulate_consists_sequence(
         db_pool.clone(),
         valkey_client.clone(),
         core_client.clone(),
         config.app_version.as_deref(),
         &request,
         &infra,
-        &physics_consist_parameters,
+        &physics_consists_parameters,
     )
     .await?;
 
-    let Some(simulation_run_time) = virtual_train_run.simulation.simulation_run_time().or_else(||
-        // Default 12h value when the simulation fails
-        matches!(virtual_train_run.simulation, simulation::Response::SimulationFailed { .. }).then_some(12 * 3_600_000))
-    else {
-        return Ok(Json(StdcmResponse::PreprocessingSimulationError {
-            error: virtual_train_run.simulation,
-            core_payload: None,
-        }))
+    let simulation_run_time = match consists_simulation {
+        ResultSimulation::SimulationSuccess(total_run_time) => total_run_time,
+        ResultSimulation::SimulationError(simulation) => {
+            return Ok(Json(StdcmResponse::PreprocessingSimulationError {
+                error: simulation,
+                core_payload: None,
+            }));
+        }
     };
 
     let earliest_departure_time = request.get_earliest_departure_time(simulation_run_time);
     let latest_simulation_end = request.get_latest_simulation_end(simulation_run_time);
+
+    let stdcm_consist_schedule_values = consist_configs
+        .iter()
+        .zip(physics_consists_parameters.iter())
+        .map(
+            |(consist_config, physics_consist_param)| ConsistConfiguration {
+                loading_gauge_type: consist_config
+                    .loading_gauge_type
+                    .unwrap_or(physics_consist_param.traction_engine.loading_gauge),
+                supported_signaling_systems: physics_consist_param
+                    .traction_engine
+                    .supported_signaling_systems(),
+                speed_limit_tag: consist_config.speed_limit_tag.clone(),
+                physics_consist: physics_consist_param.clone().into(),
+            },
+        )
+        .collect_vec();
 
     // 5. Build STDCM request
     let stdcm_request = StdcmRequest {
@@ -298,17 +338,8 @@ pub(in crate::views) async fn stdcm_handler(
         timetable_id,
         allowed_track_sections: request.allowed_track_sections.clone(),
         consist_schedule: ConsistSchedule {
-            boundaries: vec![],
-            values: vec![ConsistConfiguration {
-                loading_gauge_type: request
-                    .loading_gauge_type
-                    .unwrap_or(physics_consist_parameters.traction_engine.loading_gauge),
-                supported_signaling_systems: physics_consist_parameters
-                    .traction_engine
-                    .supported_signaling_systems(),
-                speed_limit_tag: request.speed_limit_tags.clone(),
-                physics_consist: physics_consist_parameters.into(),
-            }],
+            boundaries: request.consist_schedule.boundaries.clone(),
+            values: stdcm_consist_schedule_values,
         },
         temporary_speed_limits: request
             .get_temporary_speed_limits(&mut conn, simulation_run_time)
@@ -426,6 +457,51 @@ impl VirtualTrainRun {
         Ok(Self {
             simulation: Arc::unwrap_or_clone(simulation),
         })
+    }
+
+    async fn simulate_consists_sequence(
+        db_pool: Arc<DbConnectionPoolV2>,
+        valkey_client: Arc<cache::Client>,
+        core_client: Arc<CoreClient>,
+        app_version: Option<&str>,
+        stdcm_request: &Request,
+        infra: &Infra,
+        consists_parameters: &[PhysicsConsistParameters],
+    ) -> Result<ResultSimulation> {
+        let mut total_run_time = 0;
+
+        for ((start, end), consist_parameters) in itertools::chain!(
+            std::iter::once(0),
+            stdcm_request.consist_schedule.boundaries.clone(),
+            std::iter::once(stdcm_request.steps.len())
+        )
+        .tuple_windows()
+        .zip(consists_parameters.iter())
+        {
+            let mut request = stdcm_request.clone();
+            request.steps = stdcm_request.steps[start..end].to_vec();
+
+            let virtual_train_run = VirtualTrainRun::simulate(
+                db_pool.clone(),
+                valkey_client.clone(),
+                core_client.clone(),
+                app_version,
+                &request,
+                infra,
+                consist_parameters,
+            )
+            .await?;
+
+            let Some(simulation_run_time) = virtual_train_run.simulation.simulation_run_time().or_else(||
+                // Default 12h value when the simulation fails
+                matches!(virtual_train_run.simulation, simulation::Response::SimulationFailed { .. }).then_some(12 * 3_600_000))
+            else {
+                return Ok(ResultSimulation::SimulationError(virtual_train_run.simulation))
+            };
+            total_run_time += simulation_run_time;
+        }
+
+        Ok(ResultSimulation::SimulationSuccess(total_run_time))
     }
 }
 
