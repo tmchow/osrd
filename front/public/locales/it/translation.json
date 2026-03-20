@@ -1,1 +1,13 @@
-{}
+{
+  "Editor": {
+    "infra-errors": {
+      "corrector-modal": {
+        "text": "Le seguenti azioni saranno applicate per correggere alcune anomalie dell'infrastruttura:"
+      },
+      "error-level": {
+        "all": "Tutto",
+        "errors": "Errori"
+      }
+    }
+  }
+}
