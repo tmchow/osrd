@@ -2,6 +2,7 @@ package fr.sncf.osrd.stdcm.graph
 
 import fr.sncf.osrd.envelope.Envelope
 import fr.sncf.osrd.utils.areDoublesEqual
+import fr.sncf.osrd.utils.round
 
 /**
  * This class contains all the methods used to backtrack in the graph. We need to backtrack to
@@ -32,15 +33,20 @@ class BacktrackingManager(private val graph: STDCMGraph) {
             // No need to backtrack any further
             return edge
         }
-        val cachedEdge = previousNode.getCachedPrevEdge(edge.beginSpeed)
+
+        // To limit caching and improve performance as much as possible, speed should be rounded to
+        // 1e-1. Deltas related to this small approximation can and will be handled by the stdcm
+        // post-processing.
+        val roundedEdgeBeginSpeed = edge.beginSpeed.round()
+        val cachedEdge = previousNode.getCachedPrevEdge(roundedEdgeBeginSpeed)
         if (cachedEdge != null) {
             // No need to backtrack any further
             return edge
         }
 
-        // We try to create a new previous edge with the end speed we need
+        // We try to create a new previous edge with the rounded end speed we need
         val newPreviousEdge =
-            rebuildEdgeBackward(previousEdge, edge.beginSpeed)
+            rebuildEdgeBackward(previousEdge, roundedEdgeBeginSpeed)
                 ?: return null // No valid result was found
 
         // Add new previous edge to existing node's cache

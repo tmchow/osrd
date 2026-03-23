@@ -8,7 +8,6 @@ import fr.sncf.osrd.stdcm.infra_exploration.PlannedTimingData
 import fr.sncf.osrd.utils.SoftLazy
 import fr.sncf.osrd.utils.areTimesEqual
 import fr.sncf.osrd.utils.cacheable
-import fr.sncf.osrd.utils.round
 import fr.sncf.osrd.utils.units.Offset
 import java.lang.ref.SoftReference
 import kotlin.math.min
@@ -42,12 +41,12 @@ data class STDCMNode(
 
     init {
         if (previousEdge != null) {
-            cachedPrevEdges.getOrPut(speed.round()) { SoftReference(previousEdge) }
+            cachedPrevEdges.getOrPut(speed) { SoftReference(previousEdge) }
         }
     }
 
     fun getCachedPrevEdge(endSpeed: Double): STDCMEdge? {
-        return cachedPrevEdges[endSpeed.round()]?.get()
+        return cachedPrevEdges[endSpeed]?.get()
     }
 
     fun addCachedPrevEdges(cachedEdges: Map<Double, SoftReference<STDCMEdge>>) {
@@ -57,7 +56,7 @@ data class STDCMNode(
     }
 
     fun addCachedPrevEdge(edge: STDCMEdge) {
-        cachedPrevEdges.getOrPut(edge.endSpeed.round()) { SoftReference(edge) }
+        cachedPrevEdges.getOrPut(edge.endSpeed) { SoftReference(edge) }
     }
 
     /**

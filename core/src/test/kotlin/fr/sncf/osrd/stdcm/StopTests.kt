@@ -510,7 +510,7 @@ class StopTests {
         assertEquals(
             resWithConflict.stopResults.first().duration,
             10_000 - resTravelTime,
-            2 * timeStep,
+            3 * timeStep,
         )
         occupancyTest(resWithConflict, occupancy)
     }
