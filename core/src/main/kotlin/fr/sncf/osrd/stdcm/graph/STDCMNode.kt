@@ -41,7 +41,7 @@ data class STDCMNode(
 
     init {
         if (previousEdge != null) {
-            cachedPrevEdges.getOrPut(speed) { SoftReference(previousEdge) }
+            cachedPrevEdges[speed] = SoftReference(previousEdge)
         }
     }
 
@@ -51,12 +51,12 @@ data class STDCMNode(
 
     fun addCachedPrevEdges(cachedEdges: Map<Double, SoftReference<STDCMEdge>>) {
         cachedEdges.forEach { (endSpeed, cachedEdge) ->
-            cachedPrevEdges.getOrPut(endSpeed) { cachedEdge }
+            cachedPrevEdges.putIfAbsent(endSpeed, cachedEdge)
         }
     }
 
     fun addCachedPrevEdge(edge: STDCMEdge) {
-        cachedPrevEdges.getOrPut(edge.endSpeed) { SoftReference(edge) }
+        cachedPrevEdges.putIfAbsent(edge.endSpeed, SoftReference(edge))
     }
 
     /**
