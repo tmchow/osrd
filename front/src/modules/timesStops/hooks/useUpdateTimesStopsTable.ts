@@ -55,6 +55,14 @@ const useUpdateTimesStopsTable = (
 ) => {
   const [updateTrainSchedule] = osrdEditoastApi.endpoints.putTrainSchedulesById.useMutation();
 
+  const persistTrain = async (train: TimetableItem) => {
+    await updateTrainSchedule({
+      id: train.id,
+      trainSchedule: train,
+    }).unwrap();
+    upsertTimetableItems([train]);
+  };
+
   /**
    * Compute the updated path and schedule based on the cell update.
    */
@@ -165,23 +173,23 @@ const useUpdateTimesStopsTable = (
           return;
         }
         updatedOccurrence = {
-          ...buildUpdatedOccurrence(
+          ...buildUpdatedOccurrence({
             selectedTrain,
-            selectedTrain.path,
-            selectedTrain.schedule ?? [],
-            occurrenceTrainName
-          ),
+            updatedPath: selectedTrain.path,
+            updatedSchedule: selectedTrain.schedule ?? [],
+            trainName: occurrenceTrainName,
+          }),
           start_time: update.value.toISOString(),
         };
       } else {
         const result = computeUpdatedPathAndSchedule(update);
         if (!result) return;
-        updatedOccurrence = buildUpdatedOccurrence(
+        updatedOccurrence = buildUpdatedOccurrence({
           selectedTrain,
-          result.updatedPath,
-          result.updatedSchedule,
-          occurrenceTrainName
-        );
+          updatedPath: result.updatedPath,
+          updatedSchedule: result.updatedSchedule,
+          trainName: occurrenceTrainName,
+        });
       }
 
       const updatedPacedTrain = buildPacedTrainWithUpdatedException(
@@ -190,11 +198,7 @@ const useUpdateTimesStopsTable = (
         occurrenceId
       );
 
-      await updateTrainSchedule({
-        id: pacedTrainId,
-        trainSchedule: updatedPacedTrain,
-      }).unwrap();
-      upsertTimetableItems([{ ...updatedPacedTrain, id: pacedTrainId }]);
+      await persistTrain({ ...updatedPacedTrain, id: pacedTrainId });
     },
     [selectedTrain, timetableItemsWithDetails, computeUpdatedPathAndSchedule]
   );
@@ -209,37 +213,22 @@ const useUpdateTimesStopsTable = (
       // Handle first row
       if (update.field === 'requestedArrival' && update.row.opOnPathIndex === 0) {
         if (!update.value) return;
-
-        const train: TimetableItem = {
+        return persistTrain({
           ...selectedTrain,
           id: editoastId,
           start_time: update.value.toISOString(),
-        };
-
-        await updateTrainSchedule({
-          id: editoastId,
-          trainSchedule: train,
-        }).unwrap();
-        upsertTimetableItems([train]);
-        return;
+        });
       }
 
       const result = computeUpdatedPathAndSchedule(update);
       if (!result) return;
 
-      const { updatedPath, updatedSchedule } = result;
-      const train: TimetableItem = {
+      return persistTrain({
         ...selectedTrain,
-        id: extractEditoastIdFromPacedTrainId(trainId),
-        path: updatedPath,
-        schedule: updatedSchedule,
-      };
-
-      await updateTrainSchedule({
         id: editoastId,
-        trainSchedule: train,
-      }).unwrap();
-      upsertTimetableItems([train]);
+        path: result.updatedPath,
+        schedule: result.updatedSchedule,
+      });
     },
     [selectedTrain, computeUpdatedPathAndSchedule]
   );

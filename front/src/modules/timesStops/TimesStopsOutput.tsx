@@ -15,7 +15,7 @@ import { getUseNewTimesStopsTable } from 'reducers/user/userSelectors';
 import { formatLocalTime } from 'utils/date';
 import { Duration } from 'utils/duration';
 
-import { computeOptimisticSchedule } from './helpers/cellUpdate';
+import { computeOptimisticRow } from './helpers/cellUpdate';
 import useOutputTableData from './hooks/useOutputTableData';
 import useTimesStopsTableData from './hooks/useTimesStopsTableData';
 import useUpdateTimesStopsTable from './hooks/useUpdateTimesStopsTable';
@@ -98,7 +98,7 @@ const TimesStopsOutput = ({
       optimisticEdit
         ? newRows.map((row) =>
             row.id === optimisticEdit.rowId
-              ? { ...row, ...computeOptimisticSchedule(row, optimisticEdit) }
+              ? { ...row, ...computeOptimisticRow(row, optimisticEdit) }
               : row
           )
         : newRows,

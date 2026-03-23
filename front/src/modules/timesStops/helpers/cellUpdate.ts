@@ -115,7 +115,7 @@ export const applyScheduleEdit = (
     }
 
     case 'receptionSignal': {
-      // receptionSignal doesn't affect arrival/stop/departure values
+      // TODO: receptionSignal doesn't affect arrival/stop/departure values
       return {
         arrival,
         stop,
@@ -165,9 +165,9 @@ export const insertScheduleItemInOrder = (
 };
 
 /**
- * Compute the optimistic display values for all schedule fields when a cell is edited.
+ * Compute the optimistic display values for all row fields when a cell is edited.
  */
-export const computeOptimisticSchedule = (
+export const computeOptimisticRow = (
   row: TimesStopsRowNew,
   edit: OptimisticEdit
 ): Pick<
@@ -191,12 +191,17 @@ export const computeOptimisticSchedule = (
 };
 
 /** Build a TrainSchedule object from a Train with updated path and schedule. */
-export const buildUpdatedOccurrence = (
-  selectedTrain: Train,
-  updatedPath: PathItem[],
-  updatedSchedule: ScheduleItem[],
-  trainName: string
-): TrainSchedule => ({
+export const buildUpdatedOccurrence = ({
+  selectedTrain,
+  updatedPath,
+  updatedSchedule,
+  trainName,
+}: {
+  selectedTrain: Train;
+  updatedPath: PathItem[];
+  updatedSchedule: ScheduleItem[];
+  trainName: string;
+}): TrainSchedule => ({
   category: selectedTrain.category,
   comfort: selectedTrain.comfort,
   constraint_distribution: selectedTrain.constraint_distribution,
