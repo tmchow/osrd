@@ -32,22 +32,25 @@ const Origin = ({ zoomToFeaturePoint }: OriginProps) => {
     >
       <strong data-testid="origin-op-info" className="mr-1 text-nowrap">
         {/* If origin doesn't have name, we know that it has been added by click on map and has a track property */}
-        {origin?.name || (location && 'track' in location && location.track.split('-')[0])}
+        {origin?.name ||
+          (location && location.type === 'track_offset' && location.track.split('-')[0])}
       </strong>
-      {location && 'operational_point' in location && location.operational_point.type !== 'id' && (
-        <>
-          {location.operational_point.secondary_code && (
-            <small data-testid="origin-ch" className="ml-1">
-              {location.operational_point.secondary_code}
-            </small>
-          )}
-          {location.operational_point.type === 'uic' && (
-            <small data-testid="origin-uic" className="text-muted ml-3">
-              {formatUicToCi(location.operational_point.uic)}
-            </small>
-          )}
-        </>
-      )}
+      {location &&
+        location.type === 'operational_point_part_reference' &&
+        location.operational_point.type !== 'id' && (
+          <>
+            {location.operational_point.secondary_code && (
+              <small data-testid="origin-ch" className="ml-1">
+                {location.operational_point.secondary_code}
+              </small>
+            )}
+            {location.operational_point.type === 'uic' && (
+              <small data-testid="origin-uic" className="text-muted ml-3">
+                {formatUicToCi(location.operational_point.uic)}
+              </small>
+            )}
+          </>
+        )}
     </div>
   );
 

@@ -135,6 +135,7 @@ const ItineraryModal = ({
     if (!chosenCh) return;
     pendingStepIdRef.current = stepId;
     const newLocation: PathItemLocation = {
+      type: 'operational_point_part_reference',
       operational_point: {
         type: 'trigram',
         trigram: suggestion.trigram,
@@ -581,8 +582,7 @@ const ItineraryModal = ({
                       setPathSteps((prev) =>
                         prev.map((step) => {
                           if (step.id !== pathStep.id) return step;
-                          if (!step.location || !('operational_point' in step.location))
-                            return step;
+                          if (!step.location || step.location.type === 'track_offset') return step;
                           return {
                             ...step,
                             location: {

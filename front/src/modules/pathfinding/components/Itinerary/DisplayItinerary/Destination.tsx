@@ -49,10 +49,11 @@ const Destination = ({ zoomToFeaturePoint }: DestinationProps) => {
         >
           <strong data-testid="destination-op-info" className="mr-1 text-nowrap">
             {/* If destination doesn't have name, we know that it has been added by click on map and has a track property */}
-            {destination?.name || (location && 'track' in location && location.track.split('-')[0])}
+            {destination?.name ||
+              (location && location.type === 'track_offset' && location.track.split('-')[0])}
           </strong>
           {location &&
-            'operational_point' in location &&
+            location.type === 'operational_point_part_reference' &&
             location.operational_point.type !== 'id' && (
               <>
                 {location.operational_point.secondary_code && (

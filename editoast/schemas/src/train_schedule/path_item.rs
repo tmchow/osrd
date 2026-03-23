@@ -35,7 +35,7 @@ impl PathItem {
 
 /// The location of a path waypoint
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema, Hash)]
-#[serde(untagged, deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PathItemLocation {
     TrackOffset(TrackOffset),
     OperationalPointPartReference(OperationalPointPartReference),
