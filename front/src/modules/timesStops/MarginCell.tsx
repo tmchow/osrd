@@ -67,7 +67,10 @@ const MarginCellEditable = ({
         onWheel={(e) => e.currentTarget.blur()}
         onBlur={() => onCommit?.(value !== null ? { value, unit } : null)}
       />
-      <UnitToggle value={unit} onChange={setUnit} />
+      <UnitToggle value={unit} onChange={(u) => {
+        setUnit(u);
+        onCommit?.(value !== null ? { value, unit: u } : null);
+      }} />
     </div>
   );
 };
