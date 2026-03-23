@@ -1,6 +1,10 @@
 .margin-cell {
-  &-polarity {
+  &-positive {
     color: var(--success60);
+  }
+
+  &-negative {
+    color: var(--error60);
   }
 
   &-unit-letter {
