@@ -25,8 +25,6 @@ const frTranslations = {
 };
 
 test.describe('@op @nge @round-trips', () => {
-  test.use({ ignorePageErrors: true });
-
   let project: Project;
   let study: Study;
   let scenarioItems: Scenario;
