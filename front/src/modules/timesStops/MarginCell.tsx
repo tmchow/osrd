@@ -91,8 +91,10 @@ const MarginCellEditable = ({
           }
         }}
         onWheel={(e) => e.currentTarget.blur()}
-        onBlur={() => {
-          commit();
+        onBlur={(e) => {
+          if (!e.relatedTarget?.classList.contains('margin-cell-unit')) {
+            commit();
+          }
         }}
       />
       {!isEmpty && (
