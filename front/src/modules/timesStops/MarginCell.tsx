@@ -76,9 +76,11 @@ const MarginCellEditable = ({
         ref={inputRef}
         className="margin-cell-input"
         value={raw}
-        style={{ width: `${Math.max(1, raw.length || 1)}ch` }}
+        style={{ width: `${Math.max(1, raw.length || 1)}ch`, pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
           const v = e.target.value;
+          if (e.target.value.length == 0)
+            e.currentTarget.blur();
           setRaw(v);
         }}
         onKeyDown={(e) => {
