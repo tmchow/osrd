@@ -39,14 +39,15 @@ const MarginCellEditable = ({
 }) => {
   const initial = getValue();
   const [unit, setUnit] = useState<MarginUnitType>(initial?.unit ?? MarginUnit.percent);
-  const [raw, setRaw] = useState<string>(initial?.value?.toString() ?? '');
+  const [raw, setRaw] = useState<string | null>(initial?.value?.toString() ?? null);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const isEmpty: boolean = raw === '';
+  const isEmpty: boolean = raw == null;
 
-  const commit = (overrideRaw: string = raw, overrideUnit: MarginUnitType = unit) => {
-    if (overrideRaw === '') {
+  const commit = (overrideRaw: string | null = raw, overrideUnit: MarginUnitType = unit) => {
+    if (!overrideRaw || overrideRaw === '') {
       onCommit?.(null);
+      setRaw(null);
     } else {
       const normalized = overrideRaw.replace(',', '.').replace(/\.$/, '');
       const parsed = parseFloat(normalized);
@@ -65,7 +66,7 @@ const MarginCellEditable = ({
       {isEmpty && (
         <CellPlaceholder
           onClick={() => {
-            setRaw('0');
+            setRaw('');
             inputRef?.current?.focus();
           }}
         />
@@ -75,12 +76,10 @@ const MarginCellEditable = ({
         inputMode="numeric"
         ref={inputRef}
         className="margin-cell-input"
-        value={raw}
-        style={{ width: `${Math.max(1, raw.length || 1)}ch`, pointerEvents: isEmpty ? 'none' : 'auto' }}
+        value={raw ?? ''}
+        style={{ width: `${Math.max(1, raw?.length || 1)}ch`, pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
           const v = e.target.value;
-          if (e.target.value.length == 0)
-            e.currentTarget.blur();
           setRaw(v);
         }}
         onKeyDown={(e) => {
