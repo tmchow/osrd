@@ -15,10 +15,21 @@ import { Duration } from 'utils/duration';
 import { NO_BREAK_SPACE } from 'utils/strings';
 
 import { marginRegExValidation } from '../consts';
-import { disabledTextColumn } from '../helpers/utils';
 import ReadOnlyTime from '../ReadOnlyTime';
 import TimeInput from '../TimeInput';
 import { TableType, type TimeExtraDays, type TimesStopsRow } from '../types';
+
+function disabledTextColumn(
+  key: string,
+  title: string,
+  options?: Parameters<typeof createTextColumn>[0]
+) {
+  return {
+    ...keyColumn(key, createTextColumn(options)),
+    title,
+    disabled: true,
+  };
+}
 
 const timeColumn = (isOutputTable: boolean) =>
   ({

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { keyColumn, createTextColumn } from '@sdziadkowiec/react-datasheet-grid';
 import dayjs from 'dayjs';
 import type { TFunction } from 'i18next';
 import { round, isEqual, isNil } from 'lodash';
@@ -117,18 +116,6 @@ export function formatDigitsAndUnit(fullValue: string | number | undefined, unit
   const extractedUnit = splitValue[3];
   const digits = getDigits(extractedUnit);
   return `${round(extractedValue, digits)}${NO_BREAK_SPACE}${extractedUnit}`;
-}
-
-export function disabledTextColumn(
-  key: string,
-  title: string,
-  options?: Parameters<typeof createTextColumn>[0]
-) {
-  return {
-    ...keyColumn(key, createTextColumn(options)),
-    title,
-    disabled: true,
-  };
 }
 
 /**
