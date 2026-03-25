@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import type { CellContext } from '@tanstack/react-table';
 
@@ -37,40 +37,71 @@ const MarginCellEditable = ({
 }: CellContext<TimesStopsRowNew, MarginValue | undefined> & {
   onCommit?: (value: MarginValue | null) => void;
 }) => {
-  const [unit, setUnit] = useState<MarginUnitType>(getValue()?.unit ?? MarginUnit.percent);
-  const [value, setValue] = useState<number | null>(getValue()?.value ?? null);
+  const initial = getValue();
+  const [unit, setUnit] = useState<MarginUnitType>(initial?.unit ?? MarginUnit.percent);
+  const [raw, setRaw] = useState<string>(initial?.value?.toString() ?? '');
 
-  if (value === null) {
-    return <CellPlaceholder onClick={() => setValue(0)} />;
-  }
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isEmpty: boolean = raw === '';
+
+  const commit = (overrideRaw: string = raw, overrideUnit: MarginUnitType = unit) => {
+    if (overrideRaw === '') {
+      onCommit?.(null);
+    } else {
+      const normalized = overrideRaw.replace(',', '.').replace(/\.$/, '');
+      const parsed = parseFloat(normalized);
+      if (isNaN(parsed) || normalized === '' || normalized === '-') {
+        onCommit?.(null);
+        setRaw('');
+      } else {
+        onCommit?.({ value: parsed, unit: overrideUnit });
+        setRaw(String(parsed));
+      }
+    }
+  };
 
   return (
     <div className="margin-cell-editable">
+      {isEmpty && (
+        <CellPlaceholder
+          onClick={() => {
+            setRaw('0');
+            inputRef?.current?.focus();
+          }}
+        />
+      )}
       <input
-        type="number"
+        type="text"
+        inputMode="numeric"
+        ref={inputRef}
         className="margin-cell-input"
-        value={value}
-        style={{ width: `${Math.max(1, String(value).length)}ch` }}
+        value={raw}
+        style={{ width: `${Math.max(1, raw.length || 1)}ch` }}
         onChange={(e) => {
-          if (e.target.value.length === 0) setValue(null);
-          const parsed = parseFloat(e.target.value);
-          if (!isNaN(parsed)) setValue(parsed);
+          const v = e.target.value;
+          setRaw(v);
         }}
         onKeyDown={(e) => {
-          if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
           if (e.key === 'Enter') e.currentTarget.blur();
           if (e.key === 'Escape') {
-            setValue(getValue()?.value ?? null);
+            setRaw(initial?.value?.toString() ?? '');
             e.currentTarget.blur();
           }
         }}
         onWheel={(e) => e.currentTarget.blur()}
-        onBlur={() => onCommit?.(value !== null ? { value, unit } : null)}
+        onBlur={() => {
+          commit();
+        }}
       />
-      <UnitToggle value={unit} onChange={(u) => {
-        setUnit(u);
-        onCommit?.(value !== null ? { value, unit: u } : null);
-      }} />
+      {!isEmpty && (
+        <UnitToggle
+          value={unit}
+          onChange={(u) => {
+            setUnit(u);
+            commit(raw, u);
+          }}
+        />
+      )}
     </div>
   );
 };
