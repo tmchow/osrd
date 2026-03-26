@@ -62,7 +62,7 @@ const MarginCellEditable = ({
   };
 
   return (
-    <div className='margin-cell'>
+    <div className="margin-cell">
       {isEmpty && (
         <CellPlaceholder
           onClick={() => {
@@ -124,7 +124,7 @@ const MarginCellReadOnly = ({
   const seconds = String(Math.floor(abs % 60)).padStart(2, '0');
 
   return (
-    <div className='margin-cell'>
+    <div className="margin-cell">
       {showPolarity && <span className={`${polarityClassname}`}>{!isZero && polarity}</span>}
       <span className="mono">{minutes}</span>
       <span className="margin-cell-unit-letter">m</span>
