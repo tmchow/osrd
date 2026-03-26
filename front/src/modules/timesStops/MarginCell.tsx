@@ -45,7 +45,7 @@ const MarginCellEditable = ({
   const isEmpty: boolean = raw == null;
 
   const commit = (overrideRaw: string | null = raw, overrideUnit: MarginUnitType = unit) => {
-    if (!overrideRaw || overrideRaw === '') {
+    if (!overrideRaw) {
       onCommit?.(null);
       setRaw(null);
     } else {
@@ -67,7 +67,7 @@ const MarginCellEditable = ({
         <CellPlaceholder
           onClick={() => {
             setRaw('');
-            inputRef?.current?.focus();
+            inputRef.current?.focus();
           }}
         />
       )}
@@ -80,7 +80,7 @@ const MarginCellEditable = ({
         style={{ pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
           const v = e.target.value;
-          setRaw(v);
+          if (/^-?\d*[.,]?\d*$/.test(v) || v === '') setRaw(v);
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
