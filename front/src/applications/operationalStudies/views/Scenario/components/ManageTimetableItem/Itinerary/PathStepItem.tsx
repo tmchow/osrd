@@ -245,23 +245,25 @@ const PathStepItem = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'Enter') return;
 
-    if (visibleSuggestions.length === 0) return;
-
-    const activeSuggestion = document.querySelector('.suggestion-item.active');
+    const activeSuggestion = e.currentTarget.querySelector('.suggestion-item.active');
     if (activeSuggestion) return;
-
-    const firstSuggestion = visibleSuggestions[0];
-
-    if (!firstSuggestion || typeof firstSuggestion === 'string') return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const defaultSecondaryCode =
-      firstSuggestion.secondaryCodeList.find((sc) => sc.isBestSuggestion)?.code ??
-      firstSuggestion.secondaryCodeList[0]?.code;
+    const firstSuggestion = visibleSuggestions[0];
 
-    onSelectOpSuggestion(firstSuggestion, defaultSecondaryCode);
+    if (firstSuggestion && typeof firstSuggestion !== 'string') {
+      const defaultSecondaryCode =
+        firstSuggestion.secondaryCodeList.find((sc) => sc.isBestSuggestion)?.code ??
+        firstSuggestion.secondaryCodeList[0]?.code;
+
+      onSelectOpSuggestion(firstSuggestion, defaultSecondaryCode);
+      resetOpSuggestions();
+      blurActiveElement();
+      return;
+    }
+
     resetOpSuggestions();
     blurActiveElement();
   };
