@@ -2,6 +2,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
 
   &-positive {
     color: var(--success60);
@@ -17,7 +18,16 @@
     line-height: 9px;
     text-align: right;
     width: 100%;
-    
+    cursor: pointer;
+
+    &:hover:not(&-active) {
+      color: rgba(60, 138, 255, 1);
+    }
+
+    &:hover {
+      color: rgba(31, 15, 150, 1);
+    }
+
     &-selection {
       position: absolute;
       right: 0;
