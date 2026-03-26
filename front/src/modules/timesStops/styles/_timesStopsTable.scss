@@ -165,7 +165,8 @@
     }
 
     th.col-requested-theoretical-margin {
-        width: 72px;
+        min-width: 72px;
+        max-width: 72px;
     }
 
     /* comfortable padding */
@@ -208,7 +209,8 @@
       }
 
       td.col-requested-theoretical-margin {
-        width: 88px;
+        min-width: 88px;
+        max-width: 88px;
         padding-inline: 12px;
       }
 
