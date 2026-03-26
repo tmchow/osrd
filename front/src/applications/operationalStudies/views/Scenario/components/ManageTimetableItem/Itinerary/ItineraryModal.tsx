@@ -312,7 +312,7 @@ const ItineraryModal = ({
   };
 
   const buildPathSteps = (steps: PathStepV2[], metadataById: Map<string, PathStepMetadata>) =>
-    steps.map<PathStep | null>((step) => {
+    steps.map<PathStep>((step) => {
       const baseStep = {
         ...step,
         theoreticalMargin: step.theoreticalMargin ?? undefined,
@@ -329,21 +329,18 @@ const ItineraryModal = ({
           };
         }
 
+        const isOpRef = metadata.type === 'opRef';
         return {
-          ...step,
-          theoreticalMargin: step.theoreticalMargin ?? undefined,
-          receptionSignal: step.receptionSignal ?? undefined,
+          ...baseStep,
           location: step.location,
-          coordinates:
-            metadata.type === 'trackOffset' ? metadata.coordinates : metadata.parts[0]?.coordinates,
-          name: metadata.type === 'opRef' ? metadata.name : undefined,
-          uic: metadata.type === 'opRef' ? metadata.uic : undefined,
+          coordinates: isOpRef ? metadata.parts[0]?.coordinates : metadata.coordinates,
+          name: isOpRef ? metadata.name : undefined,
+          uic: isOpRef ? metadata.uic : undefined,
         };
       }
 
       const inputValue = getInputForStep(step.id)?.trim();
-      if (!inputValue) return null;
-
+      // We want to display the input value as the step name for invalid steps, but the model still needs to have a location for the pathfinding, so we set a false location with the input value as trigram. We will later have a new model allowing us to set this invalid location to the correct type.
       return {
         ...baseStep,
         location: {
@@ -382,18 +379,23 @@ const ItineraryModal = ({
     setSubmitAttempted(true);
     if (isNameEmpty) return;
 
-    const filledSteps = pathSteps.filter((step) => !isEmptyStep(step, getInputForStep(step.id)));
-    if (filledSteps.length < 2) return;
-
-    const stepsWithStopAtDestination = filledSteps.map((step, i) =>
-      i === filledSteps.length - 1 ? { ...step, stopFor: new Duration({ minutes: 0 }) } : step
+    const stepsWithLocationOrInput = pathSteps.filter(
+      (step) => !isEmptyStep(step, getInputForStep(step.id))
     );
+    if (stepsWithLocationOrInput.length < 2) return;
 
-    const compacted = compact(buildPathSteps(stepsWithStopAtDestination, pathStepsMetadataById));
-    if (compacted.length < 2) return;
+    const stepsWithStopAtDestination = stepsWithLocationOrInput.map((step, i) =>
+      i === stepsWithLocationOrInput.length - 1
+        ? { ...step, stopFor: new Duration({ minutes: 0 }) }
+        : step
+    );
+    //TODO this variable name should be changed when we no longer have to convert from v2 to v1 for path steps
+    const pathStepsFromV2 = buildPathSteps(stepsWithStopAtDestination, pathStepsMetadataById);
 
-    dispatch(updatePathSteps(compacted));
-    launchPathfinding(compacted, rollingStockId, { isInitialization: true });
+    if (pathStepsFromV2.length < 2) return;
+
+    dispatch(updatePathSteps(pathStepsFromV2));
+    launchPathfinding(pathStepsFromV2, rollingStockId, { isInitialization: true });
     closeModal();
   };
 
