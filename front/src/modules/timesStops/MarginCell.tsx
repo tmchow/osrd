@@ -62,7 +62,7 @@ const MarginCellEditable = ({
   };
 
   return (
-    <div className="margin-cell-editable">
+    <div className='margin-cell'>
       {isEmpty && (
         <CellPlaceholder
           onClick={() => {
@@ -77,7 +77,7 @@ const MarginCellEditable = ({
         ref={inputRef}
         className="margin-cell-input"
         value={raw ?? ''}
-        style={{ width: `${Math.max(1, raw?.length || 1)}ch`, pointerEvents: isEmpty ? 'none' : 'auto' }}
+        style={{ pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
           const v = e.target.value;
           setRaw(v);
@@ -124,13 +124,13 @@ const MarginCellReadOnly = ({
   const seconds = String(Math.floor(abs % 60)).padStart(2, '0');
 
   return (
-    <>
+    <div className='margin-cell'>
       {showPolarity && <span className={`${polarityClassname}`}>{!isZero && polarity}</span>}
       <span className="mono">{minutes}</span>
       <span className="margin-cell-unit-letter">m</span>
       <span className="mono">{seconds}</span>
       <span className="margin-cell-unit-letter">s</span>
-    </>
+    </div>
   );
 };
 

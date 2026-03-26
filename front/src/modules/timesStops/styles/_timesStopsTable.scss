@@ -164,6 +164,10 @@
       max-width: 36px;
     }
 
+    th.col-requested-theoretical-margin {
+        width: 72px;
+    }
+
     /* comfortable padding */
     @media (min-width: 784px) {
       th[class^='col-'] {
@@ -203,11 +207,17 @@
         padding-inline: 10px;
       }
 
+      td.col-requested-theoretical-margin {
+        width: 88px;
+        padding-inline: 12px;
+      }
+
       td[class^='col-']:not(
           .col-index,
           .col-step-status,
           .col-closed-signal,
-          .col-short-slip-distance
+          .col-short-slip-distance,
+          .col-requested-theoretical-margin
         ) {
         padding-inline: 12px;
       }

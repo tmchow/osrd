@@ -1,58 +1,50 @@
 .margin-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+
   &-positive {
     color: var(--success60);
   }
-
+  
   &-negative {
     color: var(--error60);
   }
-
-  &-unit-letter {
-    color: var(--grey50);
-  }
-
+  
   &-unit {
     color: var(--grey30);
     font-size: 10px;
     line-height: 9px;
     text-align: right;
-
+    width: 100%;
+    
     &-selection {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
       display: flex;
       flex-direction: column;
-      white-space-collapse: preserve;
     }
-
+    
     &-active {
       color: var(--grey90);
     }
+    
+    &-letter {
+      color: var(--grey50);
+    }
   }
 
-  &-editable {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  &-value,
   &-input {
     color: rgba(24, 68, 239, 1);
-    text-align: right;
-    cursor: pointer;
-  }
-
-  &-input {
-    border: none;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    max-width: 32px;
+    text-align: center;
     background: transparent;
     outline: none;
-    padding: 0;
-    appearance: none;
-    -moz-appearance: textfield;
-
-    &::-webkit-outer-spin-button,
-    &::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-    }
   }
 }
