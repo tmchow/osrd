@@ -19,7 +19,7 @@ use core_client::stdcm::Request as StdcmRequest;
 use core_client::stdcm::UndirectedTrackRange;
 use database::DbConnectionPoolV2;
 use editoast_derive::EditoastError;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use request::Request;
 use request::convert_steps;
 use schemas::primitives::PositiveDuration;
@@ -31,7 +31,6 @@ use schemas::train_schedule::TrainOccurrence;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cmp::max;
-use std::slice;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::Span;
@@ -85,8 +84,9 @@ enum StdcmError {
     #[error("Timetable {timetable_id} does not exist")]
     #[editoast_error(status = 404)]
     TimetableNotFound { timetable_id: i64 },
-    #[error("Rolling stock {rolling_stock_id} does not exist")]
-    RollingStockNotFound { rolling_stock_id: i64 },
+    #[error("{count} rolling stock(s) could not be found")]
+    #[editoast_error(status = 404)]
+    BatchRollingStockNotFound { count: usize },
     #[error("Towed rolling stock {towed_rolling_stock_id} does not exist")]
     TowedRollingStockNotFound { towed_rolling_stock_id: i64 },
     #[error("Train simulation fail")]
@@ -124,12 +124,6 @@ pub(in crate::views) struct StdcmQueryParams {
     #[serde(default)]
     #[param(nullable)]
     return_debug_payloads: bool,
-}
-
-#[allow(clippy::large_enum_variant)]
-enum ResultSimulation {
-    SimulationSuccess(u64),
-    SimulationError(simulation::Response),
 }
 
 /// This function computes a STDCM and returns the result.
@@ -225,6 +219,8 @@ pub(in crate::views) async fn stdcm_handler(
 
     let timetable_id = id;
     let infra_id = query.infra;
+    // Default 12h value when the simulation fails
+    let default_value_failed_simulation = 12 * 3_600_000;
 
     // 1. Get Infra
     let infra = Infra::retrieve_or_fail(conn.clone(), infra_id, || StdcmError::InfraNotFound {
@@ -264,16 +260,23 @@ pub(in crate::views) async fn stdcm_handler(
         request.consist_schedule.values.clone()
     };
 
-    for consist in &consist_configs {
-        let rolling_stock =
-            RollingStock::retrieve_or_fail(conn.clone(), consist.rolling_stock_id, || {
-                StdcmError::RollingStockNotFound {
-                    rolling_stock_id: consist.rolling_stock_id,
-                }
-            })
-            .await?
-            .into();
+    let rolling_stock_ids: Vec<i64> = consist_configs
+        .iter()
+        .map(|consist_config| consist_config.rolling_stock_id)
+        .collect();
 
+    let rolling_stocks_models: Vec<RollingStock> =
+        RollingStock::retrieve_batch_or_fail(&mut conn.clone(), rolling_stock_ids, |missing| {
+            StdcmError::BatchRollingStockNotFound {
+                count: missing.len(),
+            }
+        })
+        .await?;
+
+    let rolling_stocks: Vec<schemas::RollingStock> =
+        rolling_stocks_models.into_iter().map(Into::into).collect();
+
+    for (consist, rolling_stock) in consist_configs.iter().zip(rolling_stocks.into_iter()) {
         let towed_rolling_stock = consist
             .get_towed_rolling_stock(&mut conn)
             .await?
@@ -290,7 +293,7 @@ pub(in crate::views) async fn stdcm_handler(
     }
 
     // 4. Compute the earliest start time and maximum departure delay
-    let consists_simulation = VirtualTrainRun::simulate_consists_sequence(
+    let virtual_train_runs = VirtualTrainRun::simulate_consists_sequence(
         db_pool.clone(),
         valkey_client.clone(),
         core_client.clone(),
@@ -301,18 +304,26 @@ pub(in crate::views) async fn stdcm_handler(
     )
     .await?;
 
-    let simulation_run_time = match consists_simulation {
-        ResultSimulation::SimulationSuccess(total_run_time) => total_run_time,
-        ResultSimulation::SimulationError(simulation) => {
-            return Ok(Json(StdcmResponse::PreprocessingSimulationError {
-                error: simulation,
-                core_payload: None,
-            }));
+    let mut total_simulation_run_time = 0;
+    for virtual_train_run in &virtual_train_runs {
+        match virtual_train_run.simulation.simulation_run_time() {
+            Some(simulation_run_time) => total_simulation_run_time += simulation_run_time,
+            None => match virtual_train_run.simulation.clone() {
+                simulation::Response::SimulationFailed { .. } => {
+                    total_simulation_run_time += default_value_failed_simulation
+                }
+                simulation => {
+                    return Ok(Json(StdcmResponse::PreprocessingSimulationError {
+                        error: simulation,
+                        core_payload: None,
+                    }));
+                }
+            },
         }
-    };
+    }
 
-    let earliest_departure_time = request.get_earliest_departure_time(simulation_run_time);
-    let latest_simulation_end = request.get_latest_simulation_end(simulation_run_time);
+    let earliest_departure_time = request.get_earliest_departure_time(total_simulation_run_time);
+    let latest_simulation_end = request.get_latest_simulation_end(total_simulation_run_time);
 
     let stdcm_consist_schedule_values = consist_configs
         .iter()
@@ -342,13 +353,13 @@ pub(in crate::views) async fn stdcm_handler(
             values: stdcm_consist_schedule_values,
         },
         temporary_speed_limits: request
-            .get_temporary_speed_limits(&mut conn, simulation_run_time)
+            .get_temporary_speed_limits(&mut conn, total_simulation_run_time)
             .await?,
         comfort: request.comfort,
         path_items: request.get_stdcm_path_items(conn, infra_id).await?,
         start_time: earliest_departure_time,
-        maximum_departure_delay: request.get_maximum_departure_delay(simulation_run_time),
-        maximum_run_time: request.get_maximum_run_time(simulation_run_time),
+        maximum_departure_delay: request.get_maximum_departure_delay(total_simulation_run_time),
+        maximum_run_time: request.get_maximum_run_time(total_simulation_run_time),
         time_gap_before: request.time_gap_before,
         time_gap_after: request.time_gap_after,
         margin: request.margin,
@@ -398,67 +409,6 @@ struct VirtualTrainRun {
 
 impl VirtualTrainRun {
     #[allow(clippy::too_many_arguments)]
-    async fn simulate(
-        db_pool: Arc<DbConnectionPoolV2>,
-        valkey_client: Arc<cache::Client>,
-        core_client: Arc<CoreClient>,
-        app_version: Option<&str>,
-        stdcm_request: &Request,
-        infra: &Infra,
-        consist_parameters: &PhysicsConsistParameters,
-    ) -> Result<Self> {
-        // Doesn't matter for now, but eventually it will affect tmp speed limits
-        let approx_start_time = stdcm_request.get_earliest_step_time();
-
-        let path = convert_steps(&stdcm_request.steps);
-        let last_step = path.last().expect("empty step list");
-
-        let train_schedule = TrainOccurrence {
-            train_name: "".to_string(),
-            labels: vec![],
-            rolling_stock_name: consist_parameters.traction_engine.name.clone(),
-            start_time: approx_start_time,
-            schedule: vec![ScheduleItem {
-                // Make the train stop at the end
-                at: last_step.id.clone(),
-                arrival: None,
-                stop_for: Some(PositiveDuration::try_from(Duration::zero()).unwrap()),
-                reception_signal: ReceptionSignal::Open,
-            }],
-            margins: build_single_margin(stdcm_request.margin),
-            initial_speed: 0.0,
-            comfort: stdcm_request.comfort,
-            path,
-            constraint_distribution: Default::default(),
-            speed_limit_tag: stdcm_request
-                .speed_limit_tags
-                .clone()
-                .map(schemas::primitives::NonBlankString::from),
-            power_restrictions: vec![],
-            options: Default::default(),
-            category: None,
-        };
-
-        // Compute simulation of a train schedule
-        let (simulation, _) = consist_train_simulation_batch(
-            &mut db_pool.get().await?,
-            valkey_client,
-            core_client,
-            infra,
-            slice::from_ref(&train_schedule),
-            slice::from_ref(consist_parameters),
-            None,
-            app_version,
-        )
-        .await?
-        .pop()
-        .ok_or(StdcmError::TrainSimulationFail)?;
-
-        Ok(Self {
-            simulation: Arc::unwrap_or_clone(simulation),
-        })
-    }
-
     async fn simulate_consists_sequence(
         db_pool: Arc<DbConnectionPoolV2>,
         valkey_client: Arc<cache::Client>,
@@ -467,8 +417,10 @@ impl VirtualTrainRun {
         stdcm_request: &Request,
         infra: &Infra,
         consists_parameters: &[PhysicsConsistParameters],
-    ) -> Result<ResultSimulation> {
-        let mut total_run_time = 0;
+    ) -> Result<Vec<Self>> {
+        // Doesn't matter for now, but eventually it will affect tmp speed limits
+        let approx_start_time = stdcm_request.get_earliest_step_time();
+        let mut train_schedules = vec![];
 
         for ((start, end), consist_parameters) in itertools::chain!(
             std::iter::once(0),
@@ -478,30 +430,59 @@ impl VirtualTrainRun {
         .tuple_windows()
         .zip(consists_parameters.iter())
         {
-            let mut request = stdcm_request.clone();
-            request.steps = stdcm_request.steps[start..end].to_vec();
+            let path = convert_steps(&stdcm_request.steps[start..end]);
+            let last_step = path.last().expect("empty step list");
 
-            let virtual_train_run = VirtualTrainRun::simulate(
-                db_pool.clone(),
-                valkey_client.clone(),
-                core_client.clone(),
-                app_version,
-                &request,
-                infra,
-                consist_parameters,
-            )
-            .await?;
-
-            let Some(simulation_run_time) = virtual_train_run.simulation.simulation_run_time().or_else(||
-                // Default 12h value when the simulation fails
-                matches!(virtual_train_run.simulation, simulation::Response::SimulationFailed { .. }).then_some(12 * 3_600_000))
-            else {
-                return Ok(ResultSimulation::SimulationError(virtual_train_run.simulation))
-            };
-            total_run_time += simulation_run_time;
+            train_schedules.push(TrainOccurrence {
+                train_name: "".to_string(),
+                labels: vec![],
+                rolling_stock_name: consist_parameters.traction_engine.name.clone(),
+                start_time: approx_start_time,
+                schedule: vec![ScheduleItem {
+                    // Make the train stop at the end
+                    at: last_step.id.clone(),
+                    arrival: None,
+                    stop_for: Some(PositiveDuration::try_from(Duration::zero()).unwrap()),
+                    reception_signal: ReceptionSignal::Open,
+                }],
+                margins: build_single_margin(stdcm_request.margin),
+                initial_speed: 0.0,
+                comfort: stdcm_request.comfort,
+                path,
+                constraint_distribution: Default::default(),
+                speed_limit_tag: stdcm_request
+                    .speed_limit_tags
+                    .clone()
+                    .map(schemas::primitives::NonBlankString::from),
+                power_restrictions: vec![],
+                options: Default::default(),
+                category: None,
+            });
         }
 
-        Ok(ResultSimulation::SimulationSuccess(total_run_time))
+        // Compute simulation of a train schedule
+        let simulations: Vec<Self> = consist_train_simulation_batch(
+            &mut db_pool.get().await?,
+            valkey_client,
+            core_client,
+            infra,
+            &train_schedules,
+            consists_parameters,
+            None,
+            app_version,
+        )
+        .await?
+        .into_iter()
+        .map(|(simulation, _)| Self {
+            simulation: Arc::unwrap_or_clone(simulation),
+        })
+        .collect();
+
+        if simulations.len() != train_schedules.len() {
+            return Err(StdcmError::TrainSimulationFail.into());
+        }
+
+        Ok(simulations)
     }
 }
 
