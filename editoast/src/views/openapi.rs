@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use itertools::Itertools as _;
 use tracing::debug;
@@ -13,6 +14,95 @@ use utoipa::openapi::path::PathItemBuilder;
 use crate::error::ErrorDefinition;
 use crate::views::router::FlattenedPath;
 use crate::views::service_router;
+
+// Converts a string to PascalCase, splitting on `_` and `.`
+// Examples: `START_TO_STOP` → `StartToStop`, `notFound` → `NotFound`,
+// `core.PathfindingError` → `CorePathfindingError`.
+fn to_pascal_case(s: &str) -> String {
+    s.split(['_', '.'])
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => {
+                    let rest = chars.as_str();
+                    let normalized_rest = if rest.chars().all(|c| c.is_uppercase()) {
+                        rest.to_lowercase()
+                    } else {
+                        rest.to_string()
+                    };
+                    format!("{}{}", first.to_uppercase(), normalized_rest)
+                }
+            }
+        })
+        .collect()
+}
+
+// Reads the variant value from a variant object.
+// For example:
+// - `{ status: { enum: [success] } }`       → `"success"`
+// - `{ error_type: { enum: [not_found] } }` → `"not_found"`
+fn extract_discriminator_value(obj: &utoipa::openapi::Object) -> Option<String> {
+    obj.properties.values().find_map(|prop| {
+        let RefOr::T(Schema::Object(prop_obj)) = prop else {
+            return None;
+        };
+        let enum_vals = prop_obj.enum_values.as_ref()?;
+        if enum_vals.len() == 1 {
+            enum_vals[0].as_str().map(String::from)
+        } else {
+            None
+        }
+    })
+}
+
+// Builds `<EnumName><VariantName>` in PascalCase. Appends `"Variant"` if the result
+// collides with an existing schema name.
+fn derive_title(enum_name: &str, discriminator: &str, existing_names: &BTreeSet<String>) -> String {
+    let title = format!(
+        "{}{}",
+        to_pascal_case(enum_name),
+        to_pascal_case(discriminator)
+    );
+    if existing_names.contains(&title) {
+        format!("{}Variant", title)
+    } else {
+        title
+    }
+}
+
+// Adds a title like "SimulationResponseSuccess" to a variant.
+// Does nothing if the variant already has a title.
+// Handles two formats:
+// - plain object:  { status: { enum: [success] } }
+// - allOf:         [ $ref, { status: { enum: [success] } } ]
+fn add_title_to_variant(
+    item: &mut RefOr<Schema>,
+    enum_name: &str,
+    existing_names: &BTreeSet<String>,
+) {
+    let RefOr::T(schema) = item else { return };
+    match schema {
+        Schema::Object(obj) if obj.title.is_none() => {
+            if let Some(discriminator) = extract_discriminator_value(obj) {
+                obj.title = Some(derive_title(enum_name, &discriminator, existing_names));
+            }
+        }
+        Schema::AllOf(all_of) if all_of.title.is_none() => {
+            let discriminator = all_of.items.iter().find_map(|item| {
+                let RefOr::T(Schema::Object(obj)) = item else {
+                    return None;
+                };
+                extract_discriminator_value(obj)
+            });
+            if let Some(discriminator) = discriminator {
+                all_of.title = Some(derive_title(enum_name, &discriminator, existing_names));
+            }
+        }
+        _ => {}
+    }
+}
 
 fn concat_path<A: AsRef<str>, B: AsRef<str>>(a: A, b: B) -> String {
     let (a, b) = (a.as_ref(), b.as_ref());
@@ -241,11 +331,31 @@ impl OpenApiRoot {
         }
     }
 
+    fn add_enum_variant_titles(openapi: &mut utoipa::openapi::OpenApi) {
+        let Some(components) = openapi.components.as_mut() else {
+            return;
+        };
+        let existing_names: BTreeSet<String> = components.schemas.keys().cloned().collect();
+        for (name, schema) in components.schemas.iter_mut() {
+            let RefOr::T(schema) = schema else { continue };
+            match schema {
+                // Nothing to name if there is only one variant.
+                Schema::OneOf(one_of) if one_of.items.len() > 1 => {
+                    for item in one_of.items.iter_mut() {
+                        add_title_to_variant(item, name, &existing_names);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub fn build_openapi() -> utoipa::openapi::OpenApi {
         let mut openapi = OpenApiRoot::openapi();
         let routes_schemas = Self::insert_routes(&mut openapi);
         Self::insert_schemas(&mut openapi, routes_schemas);
         Self::add_errors_in_schema(&mut openapi);
+        Self::add_enum_variant_titles(&mut openapi);
         Self::remove_operation_id(&mut openapi);
         openapi
     }
@@ -253,10 +363,203 @@ impl OpenApiRoot {
 
 #[cfg(test)]
 mod tests {
+    use utoipa::openapi::ObjectBuilder;
+    use utoipa::openapi::OneOfBuilder;
+    use utoipa::openapi::RefOr;
+    use utoipa::openapi::Schema;
+    use utoipa::openapi::schema::SchemaType;
+    use utoipa::openapi::schema::Type;
+
     use super::*;
 
     #[test]
     fn openapi_building_goes_well() {
         let _ = OpenApiRoot::build_openapi(); // panics if something is wrong
+    }
+
+    #[test]
+    fn enum_variant_titles_are_added_to_one_of_items() {
+        let variant1 = ObjectBuilder::new()
+            .property(
+                "type",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["Var1"])),
+            )
+            .build();
+        let variant2 = ObjectBuilder::new()
+            .property(
+                "type",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["Var2"])),
+            )
+            .build();
+        let one_of = OneOfBuilder::new()
+            .item(Schema::Object(variant1))
+            .item(Schema::Object(variant2))
+            .build();
+
+        let mut openapi = OpenApiRoot::openapi();
+        openapi
+            .components
+            .as_mut()
+            .unwrap()
+            .schemas
+            .insert("Enum".to_string(), Schema::OneOf(one_of).into());
+
+        OpenApiRoot::add_enum_variant_titles(&mut openapi);
+
+        let schema = openapi
+            .components
+            .as_ref()
+            .unwrap()
+            .schemas
+            .get("Enum")
+            .unwrap();
+        let RefOr::T(Schema::OneOf(one_of)) = schema else {
+            panic!("expected OneOf");
+        };
+        let RefOr::T(Schema::Object(obj)) = &one_of.items[0] else {
+            panic!("expected Object item");
+        };
+        assert_eq!(obj.title.as_deref(), Some("EnumVar1"));
+    }
+
+    #[test]
+    fn existing_enum_variant_titles_are_not_overwritten() {
+        let variant = ObjectBuilder::new()
+            .title(Some("ExistingTitle"))
+            .property(
+                "type",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["Var1"])),
+            )
+            .build();
+        let one_of = OneOfBuilder::new().item(Schema::Object(variant)).build();
+
+        let mut openapi = OpenApiRoot::openapi();
+        openapi
+            .components
+            .as_mut()
+            .unwrap()
+            .schemas
+            .insert("Enum".to_string(), Schema::OneOf(one_of).into());
+
+        OpenApiRoot::add_enum_variant_titles(&mut openapi);
+
+        let schema = openapi
+            .components
+            .as_ref()
+            .unwrap()
+            .schemas
+            .get("Enum")
+            .unwrap();
+        let RefOr::T(Schema::OneOf(one_of)) = schema else {
+            panic!("expected OneOf");
+        };
+        let RefOr::T(Schema::Object(obj)) = &one_of.items[0] else {
+            panic!("expected Object item");
+        };
+        assert_eq!(obj.title.as_deref(), Some("ExistingTitle"));
+    }
+
+    #[test]
+    fn to_pascal_case_handles_screaming_snake_case() {
+        assert_eq!(to_pascal_case("START_TO_STOP"), "StartToStop");
+        assert_eq!(to_pascal_case("NOT_FOUND"), "NotFound");
+    }
+
+    #[test]
+    fn to_pascal_case_handles_camel_case() {
+        assert_eq!(to_pascal_case("notFound"), "NotFound");
+        assert_eq!(to_pascal_case("myVariant"), "MyVariant");
+    }
+
+    #[test]
+    fn to_pascal_case_handles_dot_separator() {
+        assert_eq!(
+            to_pascal_case("core.PathfindingError"),
+            "CorePathfindingError"
+        );
+        assert_eq!(to_pascal_case("core.NOT_FOUND"), "CoreNotFound");
+    }
+
+    #[test]
+    fn title_colliding_with_existing_schema_gets_variant_suffix() {
+        let variant = ObjectBuilder::new()
+            .property(
+                "status",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["success"])),
+            )
+            .build();
+        let one_of = OneOfBuilder::new()
+            .item(Schema::Object(variant.clone()))
+            .item(Schema::Object(variant))
+            .build();
+
+        let mut openapi = OpenApiRoot::openapi();
+        let schemas = &mut openapi.components.as_mut().unwrap().schemas;
+        schemas.insert(
+            "EnumSuccess".to_string(),
+            Schema::Object(ObjectBuilder::new().build()).into(),
+        );
+        schemas.insert("Enum".to_string(), Schema::OneOf(one_of).into());
+
+        OpenApiRoot::add_enum_variant_titles(&mut openapi);
+
+        let schema = openapi
+            .components
+            .as_ref()
+            .unwrap()
+            .schemas
+            .get("Enum")
+            .unwrap();
+        let RefOr::T(Schema::OneOf(one_of)) = schema else {
+            panic!("expected OneOf");
+        };
+        let RefOr::T(Schema::Object(obj)) = &one_of.items[0] else {
+            panic!("expected Object item");
+        };
+        assert_eq!(obj.title.as_deref(), Some("EnumSuccessVariant"));
+    }
+
+    #[test]
+    fn single_item_one_of_is_skipped() {
+        let variant = ObjectBuilder::new()
+            .property(
+                "type",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["lineString"])),
+            )
+            .build();
+        let one_of = OneOfBuilder::new().item(Schema::Object(variant)).build();
+
+        let mut openapi = OpenApiRoot::openapi();
+        openapi.components.as_mut().unwrap().schemas.insert(
+            "GeoJsonLineString".to_string(),
+            Schema::OneOf(one_of).into(),
+        );
+
+        OpenApiRoot::add_enum_variant_titles(&mut openapi);
+
+        let schema = openapi
+            .components
+            .as_ref()
+            .unwrap()
+            .schemas
+            .get("GeoJsonLineString")
+            .unwrap();
+        let RefOr::T(Schema::OneOf(one_of)) = schema else {
+            panic!("expected OneOf");
+        };
+        let RefOr::T(Schema::Object(obj)) = &one_of.items[0] else {
+            panic!("expected Object item");
+        };
+        assert_eq!(obj.title, None);
     }
 }
