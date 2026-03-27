@@ -215,19 +215,6 @@
       }
     }
 
-    &:has(.user-name.is-truncated:hover) {
-      .scenario-info {
-        flex: 1;
-      }
-
-      .board-bar {
-        display: none;
-      }
-
-      .user-info {
-        flex: 2;
-      }
-    }
     // END HANDLE SCENARIO NAME AND USER NAME HOVER WHEN TRUNCATED
   }
 }

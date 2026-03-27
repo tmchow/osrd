@@ -86,7 +86,11 @@ const ScenarioHeader = ({ activeBoards, toggleBoard }: ScenarioHeaderProps) => {
   }, []);
 
   const userDropdownTitle = (
-    <span ref={usernameRef} className={cx('user-name', { 'is-truncated': isTruncated.username })}>
+    <span
+      ref={usernameRef}
+      className={cx('user-name', { 'is-truncated': isTruncated.username })}
+      title={isTruncated.username ? username : undefined}
+    >
       {username}
     </span>
   );
