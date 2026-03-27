@@ -288,6 +288,17 @@
       "IdNotFound": "Geschlepptes Schienenfahrzeug '{{towed_rolling_stock_id}}' nicht gefunden",
       "IsLocked": "Geschlepptes Schienenfahrzeug '{{towed_rolling_stock_id}}' ist gesperrt"
     },
+    "train_schedule": {
+      "BatchNotFound": "'{{count}}' Zugfahrplan(e) wurden nicht gefunden",
+      "Database": "Interner Datenbankfehler",
+      "ExceptionNotFound": "Ausnahme '{{exception_key}}' nicht gefunden",
+      "InfraNotFound": "Infrastruktur '{{infra_id}}' nicht gefunden",
+      "NotFound": "Zugfahrplan '{{train_schedule_id}}' nicht gefunden",
+      "PathfindingFailed": "Wegefindung für Zugfahrplan '{{train_schedule_id}}' fehlgeschlagen",
+      "RollingStockNotFound": "Schienenfahrzeug '{{rolling_stock_name}}' nicht gefunden",
+      "SimulationFailed": "Simulation für Zugfahrplan '{{train_schedule_id}}' fehlgeschlagen",
+      "TrainScheduleSetNotFound": "Zugpaket '{{train_schedule_set_id}}' nicht gefunden"
+    },
     "train_schedule_exception": {
       "BatchNotFound": "'{{count}}' Zugfahrplan-Ausnahme(n) nicht gefunden",
       "Database": "Interner Fehler (Datenbank)",
