@@ -235,6 +235,16 @@
       padding: 0.188rem 0.5rem 0.188rem 0.438rem;
       border-radius: 0.188rem;
 
+      /*The small variant overrides padding and loses the with-icons-* padding-right, 
+      causing text to overlap the clear/chevron buttons*/
+      &.with-icons-1 {
+        padding-right: 2.188rem;
+      }
+
+      &.with-icons-2 {
+        padding-right: 3.4rem;
+      }
+
       &.with-leading-only {
         border-radius: 0 0.25rem 0.25rem 0;
       }
