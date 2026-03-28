@@ -2551,6 +2551,7 @@ export type PostTrainSchedulesProjectPathOpApiArg = {
           uic: number;
         }
     )[];
+    timetable_id: number;
     train_ids: number[];
     use_simulation: boolean;
   };
