@@ -80,6 +80,7 @@ const ItineraryModal = ({
 
   const [pathSteps, setPathSteps] = useState<PathStepV2[]>([]);
   const [categoryWarning, setCategoryWarning] = useState<string | undefined>(undefined);
+  const [alertBoxWiggle, setAlertBoxWiggle] = useState(0);
 
   const [hoveredGapIndex, setHoveredGapIndex] = useState<number | null>(null);
 
@@ -364,10 +365,9 @@ const ItineraryModal = ({
 
   const submitItinerary = () => {
     setSubmitAttempted(true);
+    setAlertBoxWiggle((c) => c + 1);
     if (isNameEmpty) return;
-    if (locatedStepsCount < 2) {
-      return;
-    }
+    if (locatedStepsCount < 2) return;
 
     const filledSteps = pathSteps.filter((step) => !isEmptyStep(step, getInputForStep(step.id)));
     if (filledSteps.length < 2) return;
@@ -416,9 +416,29 @@ const ItineraryModal = ({
         </div>
         <div className="itinerary-modal-form-body">
           {categoryWarning && <AlertBox message={categoryWarning} closeable />}
-          {hasInvalidPathStepDisplay && <AlertBox type="error" message={t('alertInvalidOP')} />}
+          {hasInvalidPathStepDisplay && (
+            <div key={`invalid-op-${alertBoxWiggle}`}>
+              <AlertBox type="error" message={t('alertInvalidOP')} />
+            </div>
+          )}
           {!hasInvalidPathStepDisplay && pathfindingError && (
-            <AlertBox type="error" message={pathfindingError} />
+            <div key={`pathfinding-${alertBoxWiggle}`}>
+              <AlertBox type="error" message={pathfindingError} />
+            </div>
+          )}
+          {submitAttempted && (!pathSteps[0]?.location || locatedStepsCount < 2) && (
+            <div key={`missing-step-${alertBoxWiggle}`}>
+              <AlertBox
+                type="error"
+                message={t(
+                  !pathSteps[0]?.location && locatedStepsCount < 2
+                    ? 'alertMissingRequestedPoint'
+                    : !pathSteps[0]?.location
+                      ? 'alertMissingOrigin'
+                      : 'alertMissingDestination'
+                )}
+              />
+            </div>
           )}
           <TypeAndPath rollingStockId={rollingStockId} isInNewModal />
           <div className="path-step-list">

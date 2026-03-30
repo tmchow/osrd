@@ -410,6 +410,9 @@
     "itineraryModal": {
       "addLocationOnMap": "Ajouter un point remarquable sur la carte",
       "alertInvalidOP": "Au moins un des points de passage n'a pas été reconnu",
+      "alertMissingDestination": "La destination n'est pas définie",
+      "alertMissingOrigin": "L'origine n'est pas définie",
+      "alertMissingRequestedPoint": "Il faut au minimum deux points de passage pour définir un itinéraire",
       "cancel": "Annuler",
       "focusLocationOnMap": "Centrer la carte sur ce point remarquable",
       "frameAll": "Centrer sur tous les points de passage sur la carte",
