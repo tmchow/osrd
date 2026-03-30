@@ -103,17 +103,17 @@ const ItineraryModalFormHeader = ({
     dispatch(updateName(e.target.value));
   };
   // Timetable item name error
-  const [nameFocused, setNameFocused] = useState(false);
+  const [showNameError, setShowNameError] = useState(false);
 
   const nameError: StatusWithMessage | undefined = useMemo(() => {
-    const shouldShowError = (nameFocused || submitAttempted) && isNameEmpty;
+    const shouldShowError = (showNameError || submitAttempted) && isNameEmpty;
     if (!shouldShowError) return undefined;
 
     return {
       status: 'error',
       message: t('errorMessages.requiredField'),
     };
-  }, [nameFocused, submitAttempted, isNameEmpty, t]);
+  }, [showNameError, submitAttempted, isNameEmpty, t]);
 
   // Category warning
   const categoryWarningMessage = useMemo(() => {
@@ -190,7 +190,8 @@ const ItineraryModalFormHeader = ({
             value={name}
             title={name}
             onChange={handleNameChange}
-            onBlur={() => setNameFocused(true)}
+            onBlur={() => setShowNameError(true)}
+            onFocus={() => setShowNameError(false)}
             statusWithMessage={nameError}
           />
         </div>
