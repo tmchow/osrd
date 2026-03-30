@@ -449,6 +449,8 @@ const ItineraryModal = ({
               return (
                 <>
                   <div className="path-step-gap">
+                    {hoveredGapIndex === i && <div className="path-step-gap-line" />}
+
                     <div
                       className="path-step-gap-hitbox"
                       onPointerEnter={() => setHoveredGapIndex(i)}
