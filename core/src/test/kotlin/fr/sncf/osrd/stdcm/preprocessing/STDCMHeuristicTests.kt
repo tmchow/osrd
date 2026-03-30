@@ -1,6 +1,6 @@
 package fr.sncf.osrd.stdcm.preprocessing
 
-import fr.sncf.osrd.conflicts.IncrementalRequirementEnvelopeAdapter
+import fr.sncf.osrd.api.ConsistSchedule
 import fr.sncf.osrd.conflicts.SpacingResourceGenerator
 import fr.sncf.osrd.envelope.Envelope.Companion.make
 import fr.sncf.osrd.envelope.EnvelopeTestUtils
@@ -53,6 +53,7 @@ class STDCMHeuristicTests {
                 ExplorerStep(listOf(BlockLocation(blocks[3], Offset(100.meters))), 1.0, true),
             )
 
+        val consistSchedule = ConsistSchedule(List(5) { STANDARD_TRAIN }, null)
         val heuristic =
             STDCMHeuristicBuilder(
                     infra,
@@ -60,7 +61,7 @@ class STDCMHeuristicTests {
                     steps,
                     Double.POSITIVE_INFINITY,
                     maxSpeedEnvBuilder =
-                        CachedBlockMaxSpeedEnvBuilder(infra, infra, STANDARD_TRAIN, steps, 2.0),
+                        CachedBlockMaxSpeedEnvBuilder(infra, infra, consistSchedule, steps, 2.0),
                     allowance = null,
                 )
                 .build()
@@ -126,6 +127,7 @@ class STDCMHeuristicTests {
                 ExplorerStep(listOf(BlockLocation(blocks[1], Offset(100.meters))), null, true),
             )
 
+        val consistSchedule = ConsistSchedule(listOf(STANDARD_TRAIN, STANDARD_TRAIN), null)
         val heuristicWithAllowance =
             STDCMHeuristicBuilder(
                     infra,
@@ -133,7 +135,7 @@ class STDCMHeuristicTests {
                     steps,
                     Double.POSITIVE_INFINITY,
                     maxSpeedEnvBuilder =
-                        CachedBlockMaxSpeedEnvBuilder(infra, infra, STANDARD_TRAIN, steps, 2.0),
+                        CachedBlockMaxSpeedEnvBuilder(infra, infra, consistSchedule, steps, 2.0),
                     allowance = AllowanceValue.Percentage(100.0),
                 )
                 .build()
@@ -144,7 +146,7 @@ class STDCMHeuristicTests {
                     steps,
                     Double.POSITIVE_INFINITY,
                     maxSpeedEnvBuilder =
-                        CachedBlockMaxSpeedEnvBuilder(infra, infra, STANDARD_TRAIN, steps, 2.0),
+                        CachedBlockMaxSpeedEnvBuilder(infra, infra, consistSchedule, steps, 2.0),
                     allowance = null,
                 )
                 .build()
@@ -189,6 +191,7 @@ class STDCMHeuristicTests {
                 ExplorerStep(listOf(BlockLocation(blocks[3], Offset(50.meters))), 1.0, true),
             )
 
+        val consistSchedule = ConsistSchedule(List(3) { STANDARD_TRAIN }, null)
         val heuristics =
             STDCMHeuristicBuilder(
                     infra,
@@ -196,7 +199,7 @@ class STDCMHeuristicTests {
                     steps,
                     Double.POSITIVE_INFINITY,
                     maxSpeedEnvBuilder =
-                        CachedBlockMaxSpeedEnvBuilder(infra, infra, STANDARD_TRAIN, steps, 2.0),
+                        CachedBlockMaxSpeedEnvBuilder(infra, infra, consistSchedule, steps, 2.0),
                     allowance = null,
                 )
                 .build()
@@ -262,9 +265,11 @@ class STDCMHeuristicTests {
                 SpacingResourceGenerator(
                     infra.fullInfra(),
                     null,
-                    IncrementalRequirementEnvelopeAdapter(STANDARD_TRAIN, null, false),
+                    null,
+                    //
+                    // IncrementalRequirementEnvelopeAdapter(distanceRangeMapOf(DistanceRangeMap.RangeMapEntry(0.meters, Distance(), STANDARD_TRAIN)), null, false),
                 ),
-                STANDARD_TRAIN,
+                ConsistSchedule(listOf(STANDARD_TRAIN), null),
             )
         val defaultNode =
             STDCMNode(

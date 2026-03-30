@@ -26,7 +26,7 @@ class STDCMRequest(
     @Json(name = "timetable_id") var timetableId: TimetableId,
 
     // Rolling stocks
-    @Json(name = "consist_schedule") val consistSchedule: ConsistSchedule,
+    @Json(name = "consist_schedule") val consistSchedule: RequestConsistSchedule,
 
     // Pathfinding inputs
     /// List of waypoints. Each waypoint is a list of track offsets
@@ -75,7 +75,7 @@ data class StepTimingData(
     @Json(name = "arrival_time_tolerance_after") val arrivalTimeToleranceAfter: Duration,
 )
 
-data class ConsistSchedule(
+data class RequestConsistSchedule(
     @Json(name = "boundaries") val boundaries: List<Int>,
     @Json(name = "values") val values: List<ConsistConfiguration>,
 )

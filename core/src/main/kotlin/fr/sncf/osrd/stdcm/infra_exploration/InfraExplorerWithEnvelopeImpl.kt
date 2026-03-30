@@ -1,5 +1,6 @@
 package fr.sncf.osrd.stdcm.infra_exploration
 
+import fr.sncf.osrd.api.ConsistSchedule
 import fr.sncf.osrd.conflicts.IncrementalRequirementEnvelopeAdapter
 import fr.sncf.osrd.conflicts.SpacingRequirement
 import fr.sncf.osrd.conflicts.SpacingResourceGenerator
@@ -16,7 +17,9 @@ import fr.sncf.osrd.stdcm.graph.TimeData
 import fr.sncf.osrd.stdcm.preprocessing.interfaces.BlockAvailabilityInterface
 import fr.sncf.osrd.train.TrainStop
 import fr.sncf.osrd.utils.AppendOnlyLinkedList
+import fr.sncf.osrd.utils.DistanceRangeMap
 import fr.sncf.osrd.utils.appendOnlyLinkedListOf
+import fr.sncf.osrd.utils.distanceRangeMapOf
 import fr.sncf.osrd.utils.units.Distance
 import fr.sncf.osrd.utils.units.Length
 import fr.sncf.osrd.utils.units.Offset
@@ -27,12 +30,14 @@ data class InfraExplorerWithEnvelopeImpl(
     private val infraExplorer: InfraExplorer,
     private val envelopes: AppendOnlyLinkedList<LocatedEnvelopeInterpolate>,
     private val spacingRequirementAutomaton: SpacingResourceGenerator,
-    private val rollingStock: PhysicsRollingStock,
+    private val consistSchedule: ConsistSchedule,
     private var stopTimeData: List<StopTimeData> = listOf(),
 
     // Soft references tell the JVM that the values may be cleared when running out of memory
     private var spacingRequirementsCache: SoftReference<List<SpacingRequirement>>? = null,
     private var envelopeCache: SoftReference<EnvelopeInterpolate>? = null,
+    private var rollingStockRangeMapCache: SoftReference<DistanceRangeMap<PhysicsRollingStock>>? =
+        null,
 ) : InfraExplorer by infraExplorer, InfraExplorerWithEnvelope {
 
     override fun cloneAndExtendLookahead(): Collection<InfraExplorerWithEnvelope> {
@@ -41,7 +46,7 @@ data class InfraExplorerWithEnvelopeImpl(
                 explorer,
                 envelopes.shallowCopy(),
                 spacingRequirementAutomaton.clone(),
-                rollingStock,
+                consistSchedule,
                 stopTimeData,
                 spacingRequirementsCache,
             )
@@ -90,18 +95,13 @@ data class InfraExplorerWithEnvelopeImpl(
         return this
     }
 
+    override fun getCurrentRollingStock(): PhysicsRollingStock {
+        val currentStepIndex = infraExplorer.getStepTracker().getCurrentReachedStep()
+        return consistSchedule.rollingStocks[currentStepIndex]
+    }
+
     override fun withReplacedEnvelope(envelope: Envelope): InfraExplorerWithEnvelope {
-        val spacingRequirementAutomaton =
-            spacingRequirementAutomaton
-                .clone()
-                .updateCallbacks(
-                    IncrementalRequirementEnvelopeAdapter(
-                        rollingStock,
-                        EnvelopeConcat.from(listOf(envelope)),
-                        true,
-                        endAtStop(),
-                    )
-                )
+        val spacingRequirementAutomaton = spacingRequirementAutomaton.clone().updateCallbacks(null)
         return copy(
             envelopes = appendOnlyLinkedListOf(LocatedEnvelopeInterpolate(envelope, 0.0, 0.0)),
             spacingRequirementAutomaton = spacingRequirementAutomaton,
@@ -119,6 +119,37 @@ data class InfraExplorerWithEnvelopeImpl(
 
     override fun interpolateDepartureFromClamp(pathOffset: Offset<PhysicsPath>): Double {
         return getFullEnvelope().interpolateDepartureFromClamp(pathOffset.meters)
+    }
+
+    override fun getFullRollingStockRangeMap(): DistanceRangeMap<PhysicsRollingStock> {
+        val cache = rollingStockRangeMapCache?.get()
+        if (cache != null) return cache
+        val previousStepPos = 0.meters
+        return distanceRangeMapOf(
+            getStepTracker()
+                .iterateSeenStepsBackwards()
+                .filter { it.isPlanned }
+                .toList()
+                .reversed()
+                .withIndex()
+                .map { (stepIndex, step) ->
+                    val rollingStock: PhysicsRollingStock = consistSchedule.rollingStocks[stepIndex]
+                    val stepPos = step.travelledPathOffset.distance
+                    DistanceRangeMap.RangeMapEntry(previousStepPos, stepPos, rollingStock)
+                }
+                .plus(
+                    run {
+                        val lastStep =
+                            getStepTracker().iterateSeenStepsBackwards().lastOrNull { it.isPlanned }
+                        val rollingStock = getCurrentRollingStock()
+                        DistanceRangeMap.RangeMapEntry(
+                            lastStep?.travelledPathOffset?.distance ?: 0.meters,
+                            getFullEnvelope().endPos.meters,
+                            rollingStock,
+                        )
+                    }
+                )
+        )
     }
 
     override fun getSpacingRequirements(): List<SpacingRequirement> {
@@ -141,7 +172,7 @@ data class InfraExplorerWithEnvelopeImpl(
         val simulationComplete = isPathComplete && getLookahead().isEmpty()
         spacingRequirementAutomaton.callbacks =
             IncrementalRequirementEnvelopeAdapter(
-                rollingStock,
+                getFullRollingStockRangeMap(),
                 getFullEnvelope(),
                 simulationComplete,
                 endAtStop(),
@@ -165,7 +196,7 @@ data class InfraExplorerWithEnvelopeImpl(
                 spacingRequirementAutomaton.simulator,
                 spacingRequirementAutomaton.context,
                 IncrementalRequirementEnvelopeAdapter(
-                    rollingStock,
+                    getFullRollingStockRangeMap(),
                     getFullEnvelope(),
                     simulationComplete,
                     endAtStop(),
@@ -200,7 +231,7 @@ data class InfraExplorerWithEnvelopeImpl(
             infraExplorer.clone(),
             envelopes.shallowCopy(),
             spacingRequirementAutomaton.clone(),
-            rollingStock,
+            consistSchedule,
             stopTimeData,
             spacingRequirementsCache,
         )

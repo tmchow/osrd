@@ -4,13 +4,14 @@ import fr.sncf.osrd.envelope.Envelope
 import fr.sncf.osrd.envelope.EnvelopeInterpolate
 import fr.sncf.osrd.envelope_sim.PhysicsRollingStock
 import fr.sncf.osrd.path.interfaces.PhysicsPath
+import fr.sncf.osrd.utils.DistanceRangeMap
 import fr.sncf.osrd.utils.units.Offset
 import fr.sncf.osrd.utils.units.meters
 import kotlin.math.max
 import kotlin.math.min
 
 class IncrementalRequirementEnvelopeAdapter(
-    private val rollingStock: PhysicsRollingStock,
+    private val rollingStocks: DistanceRangeMap<PhysicsRollingStock>,
     private val envelopeWithStops: EnvelopeInterpolate?,
     override var simulationComplete: Boolean,
 
@@ -21,6 +22,11 @@ class IncrementalRequirementEnvelopeAdapter(
     // on closed signal).
     private val infiniteLastStop: Boolean = false,
 ) : IncrementalRequirementCallbacks {
+    init {
+        // The rolling stocks range map should cover the whole envelope:
+        require((envelopeWithStops?.endPos ?: 0.toDouble()) <= rollingStocks.upperBound().meters)
+    }
+
     override fun maxSpeedInRange(
         pathBeginOff: Offset<PhysicsPath>,
         pathEndOff: Offset<PhysicsPath>,
@@ -77,7 +83,7 @@ class IncrementalRequirementEnvelopeAdapter(
 
         val end = pathEndOff.meters
 
-        val trainBegin = -rollingStock.length
+        val trainBegin = -rollingStocks.first().value.length
         val trainEnd = 0.0
 
         if (max(trainBegin, begin) < min(trainEnd, end)) return 0.0
@@ -91,8 +97,13 @@ class IncrementalRequirementEnvelopeAdapter(
     ): Double {
         if (envelopeWithStops == null) return Double.POSITIVE_INFINITY
         val end = pathEndOff.meters
+        val rollingStock = rollingStocks.get(pathEndOff.distance)
+        if (rollingStock == null) {
+            require(envelopeWithStops.endPos < end)
+            return Double.POSITIVE_INFINITY
+        }
 
-        val criticalPoint = end + rollingStock.length
+        val criticalPoint = end + (rollingStock.length)
         if (criticalPoint >= 0.0 && criticalPoint <= envelopeWithStops.endPos)
             return envelopeWithStops.interpolateDepartureFrom(criticalPoint)
 
@@ -107,7 +118,7 @@ class IncrementalRequirementEnvelopeAdapter(
 
     override fun clone(): IncrementalRequirementCallbacks {
         return IncrementalRequirementEnvelopeAdapter(
-            rollingStock,
+            rollingStocks,
             envelopeWithStops, // This is effectively read-only, we don't need a deep copy here
             simulationComplete,
             infiniteLastStop,

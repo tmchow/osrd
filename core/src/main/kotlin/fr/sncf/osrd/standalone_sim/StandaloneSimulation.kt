@@ -12,6 +12,7 @@ import fr.sncf.osrd.api.standalone_sim.SimulationSuccess
 import fr.sncf.osrd.envelope.Envelope
 import fr.sncf.osrd.envelope_sim.EnvelopeProfile
 import fr.sncf.osrd.envelope_sim.EnvelopeSimContext
+import fr.sncf.osrd.envelope_sim.PhysicsRollingStock
 import fr.sncf.osrd.envelope_sim.allowances.AllowanceRange
 import fr.sncf.osrd.envelope_sim.allowances.AllowanceValue.FixedTime
 import fr.sncf.osrd.envelope_sim.allowances.AllowanceValue.Percentage
@@ -35,6 +36,7 @@ import fr.sncf.osrd.standalone_sim.result.ElectrificationRange.ElectrificationUs
 import fr.sncf.osrd.standalone_sim.result.ElectrificationRange.ElectrificationUsage.ElectrifiedUsage
 import fr.sncf.osrd.train.RollingStock
 import fr.sncf.osrd.utils.DistanceRangeMap
+import fr.sncf.osrd.utils.DistanceRangeMapImpl
 import fr.sncf.osrd.utils.distanceRangeMapOf
 import fr.sncf.osrd.utils.entries
 import fr.sncf.osrd.utils.units.Distance
@@ -138,11 +140,15 @@ fun runStandaloneSimulation(
 
     // Extract all kinds of metadata from the simulation,
     // and return a result matching the expected response format
+    val rollingStocks =
+        DistanceRangeMapImpl<PhysicsRollingStock>(
+            listOf(DistanceRangeMap.RangeMapEntry(0.meters, trainPath.length.meters, rollingStock))
+        )
     val maxEffortResult =
         makeSimpleReportTrain(
             maxEffortEnvelope,
             trainPath,
-            rollingStock,
+            rollingStocks,
             schedule,
             pathItemPositions,
         )
@@ -150,7 +156,7 @@ fun runStandaloneSimulation(
         makeSimpleReportTrain(
             provisionalEnvelope,
             trainPath,
-            rollingStock,
+            rollingStocks,
             schedule,
             pathItemPositions,
         )
@@ -160,7 +166,7 @@ fun runStandaloneSimulation(
             trainPath,
             // TODO path migration
             infra,
-            rollingStock,
+            rollingStocks,
             schedule,
             pathItemPositions,
             context,

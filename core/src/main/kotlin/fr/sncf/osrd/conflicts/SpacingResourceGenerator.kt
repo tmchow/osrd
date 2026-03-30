@@ -182,7 +182,7 @@ data class SpacingResourceGenerator(
     }
 
     /** Update the simulation with new time/speed callbacks. */
-    fun updateCallbacks(newCallbacks: IncrementalRequirementCallbacks): SpacingResourceGenerator {
+    fun updateCallbacks(newCallbacks: IncrementalRequirementCallbacks?): SpacingResourceGenerator {
         callbacks = newCallbacks
         return this
     }
