@@ -452,11 +452,17 @@ const TimesStopsTable = ({
     ])
   );
 
-  const getRowDayOffset = (row: Row<TimesStopsRowNew>) =>
-    calculateTimeDifferenceInDays(
-      startTime,
-      row.original.computedArrival ?? row.original.requestedArrival ?? undefined
-    ) ?? 0;
+  const getRowDayOffset = (row: Row<TimesStopsRowNew>): number | null => {
+    if (!row.original.isPathStep) return null;
+    const date = row.original.requestedArrival ?? row.original.computedArrival ?? undefined;
+    return calculateTimeDifferenceInDays(startTime, date) ?? null;
+  };
+
+  const effectiveDayOffsets = table.getRowModel().rows.reduce<number[]>((acc, row, i) => {
+    const rawOffset = getRowDayOffset(row);
+    acc.push(rawOffset !== null ? rawOffset : i > 0 ? acc[i - 1] : 0);
+    return acc;
+  }, []);
 
   if (rows.length === 0) {
     return (
@@ -494,10 +500,9 @@ const TimesStopsTable = ({
           })}
         >
           {table.getRowModel().rows.map((row, rowIndex) => {
-            const prevRow = rowIndex > 0 ? table.getRowModel().rows[rowIndex - 1] : null;
             const rowArrivalDate = row.original.computedArrival ?? row.original.requestedArrival;
-            const dayOffset = getRowDayOffset(row);
-            const prevDayOffset = prevRow ? getRowDayOffset(prevRow) : 0;
+            const dayOffset = effectiveDayOffsets[rowIndex];
+            const prevDayOffset = rowIndex > 0 ? effectiveDayOffsets[rowIndex - 1] : 0;
 
             return (
               <Fragment key={row.id}>
