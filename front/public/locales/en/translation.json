@@ -842,6 +842,8 @@
     "timeFromPreviousOp": "time from above waypoint",
     "totalTravelTime": "total travel time",
     "trackName": "track",
-    "waypoint": "Waypoint {{id}}"
+    "waypoint": "Waypoint {{id}}",
+    "powerRestrictionIncompatibility_one": "{{count}} power restriction code isn't compatible with the electrification.",
+    "powerRestrictionIncompatibility_other": "{{count}} power restriction codes aren't compatible with the electrification."
   }
 }

@@ -842,6 +842,8 @@
     "timeFromPreviousOp": "temps depuis le point précédent",
     "totalTravelTime": "temps total du trajet",
     "trackName": "voie",
-    "waypoint": "Via {{id}}"
+    "waypoint": "Via {{id}}",
+    "powerRestrictionIncompatibility_one": "{{count}} code de restriction de puissance n'est pas compatible avec l'électrification.",
+    "powerRestrictionIncompatibility_other": "{{count}} codes de restriction de puissance ne sont pas compatibles avec l'électrification."
   }
 }

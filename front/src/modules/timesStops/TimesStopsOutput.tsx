@@ -4,19 +4,26 @@ import cx from 'classnames';
 import { useSelector } from 'react-redux';
 
 import type { PathPropertiesFormatted } from 'applications/operationalStudies/types';
+import {
+  getPowerRestrictionsWarnings,
+  countWarnings,
+} from 'applications/operationalStudies/views/Scenario/components/ManageTimetableItem/PowerRestrictionsSelector/helpers/powerRestrictionWarnings';
 import type {
   CorePathfindingResultSuccess,
   ReceptionSignal,
   RollingStock,
   SimulationResponseSuccess,
 } from 'common/api/osrdEditoastApi';
+import { matchPathStepAndOp } from 'modules/pathfinding/utils';
+import { NO_POWER_RESTRICTION } from 'modules/powerRestriction/consts';
 import type { SimulationSummary, TimetableItemWithDetails } from 'modules/timetableItem/types';
 import type { TimetableItem, Train } from 'reducers/osrdconf/types';
 import { getUseNewTimesStopsTable } from 'reducers/user/userSelectors';
 import { formatLocalTime } from 'utils/date';
 import { Duration } from 'utils/duration';
 
-import { computeOptimisticRow } from './helpers/cellUpdate';
+import { buildPowerRestrictionsFromRows, computeOptimisticRow } from './helpers/cellUpdate';
+import { buildOpMatchParams } from './helpers/utils';
 import useOutputTableData from './hooks/useOutputTableData';
 import useTimesStopsTableData from './hooks/useTimesStopsTableData';
 import useUpdateTimesStopsTable from './hooks/useUpdateTimesStopsTable';
@@ -35,6 +42,7 @@ type TimesStopsOutputProps = {
   simulatedPathItemTimes?: Extract<SimulationSummary, { isValid: true }>['pathItemTimes'];
   simulatedPathItemRespect?: Extract<SimulationSummary, { isValid: true }>['pathItemRespect'];
   operationalPointsOnPath?: PathPropertiesFormatted['operationalPoints'];
+  voltages?: PathPropertiesFormatted['voltages'];
   isSimulationDataLoading?: boolean;
   rollingStock?: RollingStock;
 };
@@ -49,6 +57,7 @@ const TimesStopsOutput = ({
   simulatedPathItemTimes,
   simulatedPathItemRespect,
   operationalPointsOnPath,
+  voltages,
   isSimulationDataLoading = false,
   rollingStock,
 }: TimesStopsOutputProps) => {
@@ -96,6 +105,9 @@ const TimesStopsOutput = ({
       ? pinnedState.edit
       : null;
 
+  // The single source of truth for what the table displays. Any derived data fed to
+  // TimesStopsTable (warnings, styling, etc.) should be computed from optimisticRows,
+  // not from selectedTrain, to stay in sync with the displayed values during edits.
   const optimisticRows = useMemo(
     () =>
       optimisticEdit
@@ -114,6 +126,58 @@ const TimesStopsOutput = ({
     () => Object.keys(rollingStock?.power_restrictions ?? {}),
     [rollingStock]
   );
+
+  const { powerRestrictionWarningCount, incompatiblePowerRestrictionIds } = useMemo(() => {
+    const empty = {
+      powerRestrictionWarningCount: 0,
+      incompatiblePowerRestrictionIds: new Set<string>(),
+    };
+    // Built from optimisticRows (not selectedTrain.power_restrictions) so warnings
+    // update immediately when the user edits a cell, before the API round-trip completes.
+    const powerRestrictions = buildPowerRestrictionsFromRows(optimisticRows);
+    if (!voltages?.length || !rollingStock || !powerRestrictions.length) return empty;
+
+    const pathStepPositions = new Map<string, number>();
+    selectedTrain.path.forEach((pathStep) => {
+      const matchingOp = operationalPointsOnPath?.find((op) =>
+        matchPathStepAndOp(pathStep.location, buildOpMatchParams(op))
+      );
+      if (matchingOp) pathStepPositions.set(pathStep.id, matchingOp.position);
+    });
+
+    const rangesWithId = powerRestrictions.flatMap((pr) => {
+      if (pr.value === NO_POWER_RESTRICTION) return [];
+      const begin = pathStepPositions.get(pr.from);
+      const end = pathStepPositions.get(pr.to);
+      if (begin === undefined || end === undefined) return [];
+      return [{ begin, end, value: pr.value, fromId: pr.from }];
+    });
+
+    if (!rangesWithId.length) return empty;
+
+    const warnings = getPowerRestrictionsWarnings(
+      rangesWithId,
+      voltages,
+      rollingStock.effort_curves.modes
+    );
+
+    const warningRanges = [
+      ...warnings.invalidCombinationWarnings,
+      ...warnings.modeNotSupportedWarnings,
+      ...warnings.missingPowerRestrictionWarnings,
+    ];
+
+    const incompatibleIds = new Set<string>(
+      rangesWithId
+        .filter((pr) => warningRanges.some((w) => w.end > pr.begin && w.begin < pr.end))
+        .map((pr) => pr.fromId)
+    );
+
+    return {
+      powerRestrictionWarningCount: countWarnings(warnings),
+      incompatiblePowerRestrictionIds: incompatibleIds,
+    };
+  }, [optimisticRows, voltages, selectedTrain.path, operationalPointsOnPath, rollingStock]);
 
   const {
     updateArrival,
@@ -202,6 +266,8 @@ const TimesStopsOutput = ({
         isValid={stableIsValid}
         isComputedDataPending={isAwaitingSimulation}
         availablePowerRestrictions={availablePowerRestrictions}
+        powerRestrictionWarningCount={powerRestrictionWarningCount}
+        incompatiblePowerRestrictionIds={incompatiblePowerRestrictionIds}
         onArrivalChange={handleArrivalChange}
         onStopDurationChange={handleStopDurationChange}
         onDepartureChange={handleDepartureChange}
