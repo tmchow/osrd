@@ -30,9 +30,15 @@ import {
   applyScheduleEdit,
   scheduleStateToApiFields,
   buildUpdatedOccurrence,
+  buildPowerRestrictionsFromRows,
   insertScheduleItemInOrder,
 } from '../helpers/cellUpdate';
-import type { CellUpdate, OptimisticEdit, TimesStopsRowNew } from '../types';
+import type {
+  CellUpdate,
+  OptimisticEdit,
+  PowerRestrictionUpdate,
+  TimesStopsRowNew,
+} from '../types';
 
 /**
  * Hook that provides a callback to update times/stops cell values.
@@ -68,7 +74,7 @@ const useUpdateTimesStopsTable = (
    */
   const computeUpdatedPathAndSchedule = useCallback(
     (
-      update: CellUpdate
+      update: Exclude<CellUpdate, PowerRestrictionUpdate>
     ): { updatedPath: PathItem[]; updatedSchedule: ScheduleItem[] } | undefined => {
       const { pathStepId, updatedPath } = upsertPathStep(update.row, selectedTrain.path, allRows);
       const currentSchedule = selectedTrain.schedule ?? [];
@@ -87,7 +93,7 @@ const useUpdateTimesStopsTable = (
       }
 
       // Convert CellUpdate to OptimisticEdit (stopDuration: number → Duration)
-      let edit: OptimisticEdit;
+      let edit: Exclude<OptimisticEdit, { field: 'powerRestriction' }>;
       if (update.field === 'stopDuration') {
         edit = {
           field: 'stopDuration',
@@ -167,7 +173,21 @@ const useUpdateTimesStopsTable = (
 
       // Build updated occurrence based on update type
       let updatedOccurrence: TrainSchedule;
-      if (update.field === 'requestedArrival' && update.row.opOnPathIndex === 0) {
+      if (update.field === 'powerRestriction') {
+        const { pathStepId, updatedPath } = upsertPathStep(update.row, selectedTrain.path, allRows);
+        const modifiedRows = allRows.map((r) =>
+          r.id === update.row.id
+            ? { ...r, id: pathStepId, isPathStep: true, powerRestriction: update.value }
+            : r
+        );
+        updatedOccurrence = buildUpdatedOccurrence({
+          selectedTrain,
+          updatedPath,
+          updatedSchedule: selectedTrain.schedule ?? [],
+          trainName: occurrenceTrainName,
+          powerRestrictions: buildPowerRestrictionsFromRows(modifiedRows),
+        });
+      } else if (update.field === 'requestedArrival' && update.row.opOnPathIndex === 0) {
         if (!update.value) {
           console.error('Cannot clear start time on the origin');
           return;
@@ -217,6 +237,21 @@ const useUpdateTimesStopsTable = (
           ...selectedTrain,
           id: editoastId,
           start_time: update.value.toISOString(),
+        });
+      }
+
+      if (update.field === 'powerRestriction') {
+        const { pathStepId, updatedPath } = upsertPathStep(update.row, selectedTrain.path, allRows);
+        const modifiedRows = allRows.map((r) =>
+          r.id === update.row.id
+            ? { ...r, id: pathStepId, isPathStep: true, powerRestriction: update.value }
+            : r
+        );
+        return persistTrain({
+          ...selectedTrain,
+          id: editoastId,
+          path: updatedPath,
+          power_restrictions: buildPowerRestrictionsFromRows(modifiedRows),
         });
       }
 
@@ -277,11 +312,18 @@ const useUpdateTimesStopsTable = (
     [updateCell]
   );
 
+  const updatePowerRestrictions = useCallback(
+    (row: TimesStopsRowNew, value: string | null) =>
+      updateCell({ row, field: 'powerRestriction', value }),
+    [updateCell]
+  );
+
   return {
     updateArrival,
     updateStopDuration,
     updateDeparture,
     updateReceptionSignal,
+    updatePowerRestrictions,
   };
 };
 

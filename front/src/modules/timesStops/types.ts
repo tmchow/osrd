@@ -127,16 +127,24 @@ export type ReceptionSignalUpdate = {
   value: ReceptionSignal | undefined;
 };
 
+export type PowerRestrictionUpdate = {
+  row: TimesStopsRowNew;
+  field: 'powerRestriction';
+  value: string | null;
+};
+
 export type CellUpdate =
   | ArrivalUpdate
   | StopDurationUpdate
   | DepartureUpdate
-  | ReceptionSignalUpdate;
+  | ReceptionSignalUpdate
+  | PowerRestrictionUpdate;
 
 export type OptimisticEdit =
   | { field: 'requestedArrival'; value: Date | null }
   | { field: 'requestedDeparture'; value: Date | null }
   | { field: 'stopDuration'; value: Duration | null }
-  | { field: 'receptionSignal'; value: ReceptionSignal | undefined };
+  | { field: 'receptionSignal'; value: ReceptionSignal | undefined }
+  | { field: 'powerRestriction'; value: string | null };
 
 export type PendingEdit = OptimisticEdit & { rowId: string };

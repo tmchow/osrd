@@ -1,7 +1,7 @@
 import { useCallback, Fragment, useMemo, useRef } from 'react';
 
 import { Checkbox } from '@osrd-project/ui-core';
-import { Moon } from '@osrd-project/ui-icons';
+import { Moon, TriangleDown } from '@osrd-project/ui-icons';
 import {
   createColumnHelper,
   flexRender,
@@ -14,6 +14,7 @@ import cx from 'classnames';
 import { useTranslation } from 'react-i18next';
 
 import type { ReceptionSignal } from 'common/api/osrdEditoastApi';
+import { NO_POWER_RESTRICTION } from 'modules/powerRestriction/consts';
 import { formatLocalTime, useDateTimeLocale } from 'utils/date';
 import { calculateTimeDifferenceInDays } from 'utils/timeManipulation';
 
@@ -33,10 +34,12 @@ declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
     allRows: TimesStopsRowNew[];
     isComputedDataPending?: boolean;
+    availablePowerRestrictions: string[];
     onArrivalChange: (row: TimesStopsRowNew, arrival: Date | null) => void;
     onStopDurationChange: (row: TimesStopsRowNew, durationSeconds: number | null) => void;
     onDepartureChange: (row: TimesStopsRowNew, departure: Date | null) => void;
     onReceptionSignalChange: (row: TimesStopsRowNew, signal: ReceptionSignal | undefined) => void;
+    onPowerRestrictionChange: (row: TimesStopsRowNew, value: string | null) => void;
   }
 }
 
@@ -80,10 +83,12 @@ type TimesStopsTableProps = {
   startTime: Date;
   isValid: boolean;
   isComputedDataPending?: boolean;
+  availablePowerRestrictions: string[];
   onArrivalChange: (row: TimesStopsRowNew, arrival: Date | null) => void;
   onStopDurationChange: (row: TimesStopsRowNew, durationSeconds: number | null) => void;
   onDepartureChange: (row: TimesStopsRowNew, departure: Date | null) => void;
   onReceptionSignalChange: (row: TimesStopsRowNew, signal: ReceptionSignal | undefined) => void;
+  onPowerRestrictionChange: (row: TimesStopsRowNew, value: string | null) => void;
 };
 
 const columnHelper = createColumnHelper<TimesStopsRowNew>();
@@ -100,10 +105,12 @@ const TimesStopsTable = ({
   startTime,
   isValid,
   isComputedDataPending,
+  availablePowerRestrictions,
   onArrivalChange,
   onStopDurationChange,
   onDepartureChange,
   onReceptionSignalChange,
+  onPowerRestrictionChange,
 }: TimesStopsTableProps) => {
   const { t } = useTranslation('translation', { keyPrefix: 'timeStopTable' });
   const dateTimeLocale = useDateTimeLocale();
@@ -375,6 +382,34 @@ const TimesStopsTable = ({
       }),
       columnHelper.accessor('powerRestriction', {
         header: () => t('powerRestriction'),
+        cell: (info) => {
+          const {
+            availablePowerRestrictions: codes,
+            onPowerRestrictionChange: onRestrictionChange,
+          } = info.table.options.meta!;
+          const value = info.getValue();
+          const row = info.row.original;
+          return (
+            <div className="power-restriction-select-wrapper">
+              <select
+                value={value ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onRestrictionChange(row, v === '' ? null : v);
+                }}
+              >
+                <option value=""> </option>
+                <option value={NO_POWER_RESTRICTION}>Ø</option>
+                {codes.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <TriangleDown className="power-restriction-arrow" />
+            </div>
+          );
+        },
         meta: {
           className: 'col-power-restriction',
         },
@@ -427,10 +462,12 @@ const TimesStopsTable = ({
     meta: {
       allRows: rows,
       isComputedDataPending,
+      availablePowerRestrictions,
       onArrivalChange,
       onStopDurationChange,
       onDepartureChange,
       onReceptionSignalChange,
+      onPowerRestrictionChange,
     },
   });
 
