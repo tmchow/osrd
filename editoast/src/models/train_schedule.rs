@@ -61,8 +61,6 @@ pub struct TrainSchedule {
     pub main_category: Option<TrainMainCategory>,
     /// Sub category code
     pub sub_category: Option<String>,
-    #[model(json)]
-    pub exceptions: Vec<PacedTrainException>,
 }
 
 impl TrainSchedule {
