@@ -245,7 +245,9 @@
             padding-bottom: 14px;
           }
 
-          .path-step-counter:not(.is-only-step):not(.is-trailing-placeholder):hover {
+          .path-step-counter:not(.is-trailing-placeholder):not(
+              .has-single-step-with-trailing
+            ):hover {
             opacity: 1;
             background-color: var(--error60) !important;
 
@@ -287,7 +289,9 @@
               background-color: var(--white100);
               margin-right: 4px;
               z-index: 1;
-
+              &.has-single-step-with-trailing {
+                pointer-events: none;
+              }
               &.pathfinding-line::before {
                 content: '';
                 position: absolute;
@@ -335,9 +339,7 @@
                 background-color: var(--error60);
                 border-color: var(--error30);
               }
-              &.is-only-step {
-                pointer-events: none;
-              }
+
               &.is-trailing-placeholder {
                 pointer-events: none;
               }

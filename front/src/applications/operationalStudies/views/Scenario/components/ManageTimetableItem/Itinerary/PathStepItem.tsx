@@ -50,7 +50,7 @@ type PathStepProps = {
   connectorLong: boolean;
   onDelete: () => void;
   isTrailingPlaceHolder: boolean;
-  isOnlyStep: boolean;
+  hasSingleStepWithTrailing: boolean;
 };
 
 const PathStepItem = ({
@@ -73,7 +73,7 @@ const PathStepItem = ({
   connectorLong,
   onDelete,
   isTrailingPlaceHolder,
-  isOnlyStep,
+  hasSingleStepWithTrailing,
 }: PathStepProps) => {
   const { t } = useTranslation('operational-studies', {
     keyPrefix: 'manageTimetableItem.itineraryModal',
@@ -253,7 +253,7 @@ const PathStepItem = ({
           type="button"
           className={cx('path-step-counter', {
             invalid: isInvalidAndIsEditing,
-            'is-only-step': isOnlyStep,
+            'has-single-step-with-trailing': hasSingleStepWithTrailing,
             'is-trailing-placeholder': isTrailingPlaceHolder,
             index: isIndexed,
             'pathfinding-line': !hidePathfindingLine,
@@ -278,10 +278,11 @@ const PathStepItem = ({
           }}
         >
           <span className="counter">{!isTrailingPlaceHolder && index}</span>
-
-          <span className="remove-path-step-icon">
-            <X />
-          </span>
+          {!hasSingleStepWithTrailing && (
+            <span className="remove-path-step-icon">
+              <X />
+            </span>
+          )}
         </button>
 
         <div

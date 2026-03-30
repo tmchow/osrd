@@ -126,19 +126,19 @@ const ItineraryModal = ({
     commitSelectionForStep(stepId, formatChosenValue(suggestion, chosenCh));
     resetOpSuggestions();
   };
-
-  const isOnlyStep = pathSteps.filter((s) => !isEmptyStep(s, getInputForStep(s.id))).length <= 1;
+  const hasSingleStepWithTrailing =
+    pathSteps.length === 2 && isEmptyStep(pathSteps[1], getInputForStep(pathSteps[1].id));
 
   const hasInvalidPathStep = pathSteps.some((step) => {
     if (isEmptyStep(step, getInputForStep(step.id))) return false;
     const meta = pathStepsMetadataById.get(step.id);
     return !meta || meta.isInvalid;
   });
-
   const handleDeletePathStep = (stepId: string) => {
     resetOpSuggestions();
 
     if (activeStepId === stepId) setActiveStepId('');
+    if (pathSteps.length === 2) return;
 
     setPathSteps((prev) => {
       const step = prev.find((s) => s.id === stepId);
@@ -482,7 +482,6 @@ const ItineraryModal = ({
                       (isInvalid || !!previousPathStepMetadata?.isInvalid)
                     }
                     onDelete={() => {
-                      if (isOnlyStep) return;
                       handleDeletePathStep(pathStep.id);
                     }}
                     onOpFocus={() => markEditing(pathStep.id)}
@@ -522,7 +521,7 @@ const ItineraryModal = ({
                     resetOpSuggestions={resetOpSuggestions}
                     connectorLong={hoveredGapIndex === i}
                     isTrailingPlaceHolder={isTrailingPlaceholder}
-                    isOnlyStep={isOnlyStep}
+                    hasSingleStepWithTrailing={hasSingleStepWithTrailing}
                     isInvalidAndIsEditing={isInvalid}
                   />
                 </>
