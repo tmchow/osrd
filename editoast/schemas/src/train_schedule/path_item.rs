@@ -37,7 +37,9 @@ impl PathItem {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema, Hash)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PathItemLocation {
+    #[schema(title = "PathItemLocationTrackOffset")]
     TrackOffset(TrackOffset),
+    #[schema(title = "PathItemLocationOperationalPointPartReference")]
     OperationalPointPartReference(OperationalPointPartReference),
 }
 

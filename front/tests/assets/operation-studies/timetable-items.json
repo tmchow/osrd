@@ -64,7 +64,7 @@
         },
         {
           "id": "id3522",
-          "location": {"type":"track_offset", "track": "TA1", "offset": 1424000 }
+          "location": { "type": "track_offset", "track": "TA1", "offset": 1424000 }
         },
         {
           "id": "id498",
@@ -468,7 +468,7 @@
       "path": [
         {
           "id": "id3807",
-          "location": {"type": "track_offset", "track": "TA6", "offset": 8058000 }
+          "location": { "type": "track_offset", "track": "TA6", "offset": 8058000 }
         },
         {
           "id": "id3822",
@@ -602,11 +602,11 @@
         },
         {
           "id": "id2492",
-          "location": {"type": "track_offset", "track": "TD0", "offset": 11080000 }
+          "location": { "type": "track_offset", "track": "TD0", "offset": 11080000 }
         },
         {
           "id": "3cbdab53-120e-460b-8f4b-e0ecc7cae836",
-          "location": {"type": "track_offset", "track": "TI0", "offset": 246000 }
+          "location": { "type": "track_offset", "track": "TI0", "offset": 246000 }
         }
       ],
       "schedule": [
@@ -657,7 +657,7 @@
               "path": [
                 {
                   "id": "id2458",
-                  "location": {"type": "track_offset", "track": "TG4", "offset": 1549000 }
+                  "location": { "type": "track_offset", "track": "TG4", "offset": 1549000 }
                 },
                 {
                   "id": "id2570",
@@ -721,7 +721,7 @@
                 },
                 {
                   "id": "id2492",
-                  "location": { "type":"track_offset", "track": "TD0", "offset": 11080000 }
+                  "location": { "type": "track_offset", "track": "TD0", "offset": 11080000 }
                 },
                 {
                   "id": "id2570",
