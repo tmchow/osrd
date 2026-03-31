@@ -312,48 +312,37 @@ const ItineraryModal = ({
   };
 
   const buildPathSteps = (steps: PathStepV2[], metadataById: Map<string, PathStepMetadata>) =>
-    steps.map<PathStep>((step) => {
-      const baseStep = {
-        ...step,
-        theoreticalMargin: step.theoreticalMargin ?? undefined,
-        receptionSignal: step.receptionSignal ?? undefined,
-      };
-
-      if (step.location) {
+    steps
+      .filter((step) => step.location !== null)
+      .map<PathStep>((step) => {
         const metadata = metadataById.get(step.id);
 
+        const baseStep = {
+          id: step.id,
+          location: step.location!,
+          arrival: step.arrival,
+          stopFor: step.stopFor,
+          theoreticalMargin: step.theoreticalMargin ?? undefined,
+          receptionSignal: step.receptionSignal ?? undefined,
+        };
+
         if (!metadata || metadata.isInvalid) {
-          return {
-            ...baseStep,
-            location: step.location,
-          };
+          return { ...baseStep, isInvalid: true };
         }
 
-        const isOpRef = metadata.type === 'opRef';
+        const coordinates =
+          metadata.type === 'trackOffset' ? metadata.coordinates : metadata.parts[0]?.coordinates;
+
+        const secondary_code = metadata.type === 'opRef' ? metadata.secondaryCode : undefined;
+
         return {
           ...baseStep,
-          location: step.location,
-          coordinates: isOpRef ? metadata.parts[0]?.coordinates : metadata.coordinates,
-          name: isOpRef ? metadata.name : undefined,
-          uic: isOpRef ? metadata.uic : undefined,
+          name: metadata.type === 'opRef' ? metadata.name : undefined,
+          uic: metadata.type === 'opRef' ? metadata.uic : undefined,
+          secondary_code,
+          coordinates,
         };
-      }
-
-      const inputValue = getInputForStep(step.id)?.trim();
-      // We want to display the input value as the step name for invalid steps, but the model still needs to have a location for the pathfinding, so we set a false location with the input value as trigram. We will later have a new model allowing us to set this invalid location to the correct type.
-      return {
-        ...baseStep,
-        location: {
-          operational_point: {
-            type: 'trigram',
-            trigram: inputValue,
-            secondary_code: null,
-          },
-          local_track_name: null,
-        },
-        isInvalid: true,
-      };
-    });
+      });
 
   const clearStep = (stepId: string) => {
     setInputForStep(stepId, '');
@@ -368,12 +357,9 @@ const ItineraryModal = ({
     const filledSteps = pathSteps.filter((step) => !isEmptyStep(step, getInputForStep(step.id)));
     const updatedPathSteps = buildPathSteps(filledSteps, pathStepsMetadataById);
 
-    // No step should be null when reverseItinerary is called (as start and arrival need to be defined), so compact should let the array unchanged but constrain the type
-    const cPathSteps = compact(updatedPathSteps);
+    if (updatedPathSteps.length < 2) return;
 
-    if (cPathSteps.length < 2) return;
-
-    launchPathfinding(reversePathSteps(cPathSteps));
+    launchPathfinding(reversePathSteps(updatedPathSteps));
   };
   const submitItinerary = () => {
     setSubmitAttempted(true);
