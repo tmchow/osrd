@@ -50,6 +50,24 @@ const useOccurrenceActions = ({
 
   const selectedTrainId = useSelector(getSelectedTrainId);
 
+  const upsertWithNewExceptions = useCallback(
+    (newExceptions: SimulatedException[]) => {
+      const formattedPacedTrain = formatPacedTrainWithDetailsToPacedTrainPayload(pacedTrain);
+
+      upsertTimetableItems([
+        {
+          ...formattedPacedTrain,
+          id: pacedTrain.id,
+          train_schedule_set_id: pacedTrain.train_schedule_set_id,
+          paced: formattedPacedTrain.paced
+            ? { ...formattedPacedTrain.paced, exceptions: newExceptions }
+            : undefined,
+        },
+      ]);
+    },
+    [pacedTrain, upsertTimetableItems]
+  );
+
   const selectOccurrence = useCallback((occurrenceId: OccurrenceId) => {
     dispatch(updateSelectedTrainId(occurrenceId));
   }, []);
@@ -151,16 +169,7 @@ const useOccurrenceActions = ({
         occurrence.id
       );
 
-      const formattedPacedTrain = formatPacedTrainWithDetailsToPacedTrainPayload(pacedTrain);
-
-      upsertTimetableItems([
-        {
-          ...formattedPacedTrain,
-          id: pacedTrain.id,
-          train_schedule_set_id: pacedTrain.train_schedule_set_id,
-          paced: { ...formattedPacedTrain.paced!, exceptions: updatedExceptions },
-        },
-      ]);
+      upsertWithNewExceptions(updatedExceptions);
 
       // If we are disabling the selected occurrence, we want to put the selection
       // on the first enabled occurrence chronologically
@@ -201,49 +210,22 @@ const useOccurrenceActions = ({
         // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
         await deleteExceptions(dispatch, [exceptionToUpdate.id!]);
       } else {
-        // update exceptionToUpdate by removing all its properties except key and start time
+        const updatedException = {
+          // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
+          id: exceptionToUpdate.id!,
+          // TODO_EXCEPTION: remove `key` when using TrainSchedulingException type
+          key: exceptionToUpdate.id!.toString(),
+          start_time: exceptionToUpdate.start_time,
+        };
+        // for an added exception, we want to reset all change groups except the start time
         updatedExceptions = pacedTrain.paced.exceptions.map((exception) =>
-          exception.id === exceptionToUpdate.id
-            ? {
-                // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
-                id: exceptionToUpdate.id!,
-                // TODO_EXCEPTION: remove `key` when using TrainSchedulingException type
-                key: exceptionToUpdate.id!.toString(),
-                start_time: exceptionToUpdate.start_time,
-              }
-            : exception
+          exception.id === exceptionToUpdate.id ? updatedException : exception
         );
 
-        await updateExceptions(
-          dispatch,
-          [
-            {
-              // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
-              id: exceptionToUpdate.id!,
-              // TODO_EXCEPTION: remove `key` when using TrainSchedulingException type
-              key: exceptionToUpdate.id!.toString(),
-              start_time: exceptionToUpdate.start_time,
-            },
-          ],
-          pacedTrain.id
-        );
+        await updateExceptions(dispatch, [updatedException], pacedTrain.id);
       }
 
-      const formattedPacedTrain = formatPacedTrainWithDetailsToPacedTrainPayload({
-        ...pacedTrain,
-        paced: { ...pacedTrain.paced, exceptions: updatedExceptions },
-      });
-
-      upsertTimetableItems([
-        {
-          ...formattedPacedTrain,
-          id: pacedTrain.id,
-          train_schedule_set_id: pacedTrain.train_schedule_set_id,
-          paced: formattedPacedTrain.paced
-            ? { ...formattedPacedTrain.paced, exceptions: updatedExceptions }
-            : undefined,
-        },
-      ]);
+      upsertWithNewExceptions(updatedExceptions);
     },
     [pacedTrain]
   );
@@ -260,21 +242,7 @@ const useOccurrenceActions = ({
       }
       await deleteExceptions(dispatch, [exceptionToDelete.id]);
 
-      const formattedPacedTrain = formatPacedTrainWithDetailsToPacedTrainPayload({
-        ...pacedTrain,
-        paced: { ...pacedTrain.paced, exceptions: newExceptions },
-      });
-
-      upsertTimetableItems([
-        {
-          ...formattedPacedTrain,
-          id: pacedTrain.id,
-          train_schedule_set_id: pacedTrain.train_schedule_set_id,
-          paced: formattedPacedTrain.paced
-            ? { ...formattedPacedTrain.paced, exceptions: newExceptions }
-            : undefined,
-        },
-      ]);
+      upsertWithNewExceptions(newExceptions);
     },
     [pacedTrain.paced.exceptions]
   );

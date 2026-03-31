@@ -139,6 +139,7 @@ export async function storePacedTrain(
     );
   }
 
+  // Remove train_schedule_set_id before updating paced train as we don't want to pass it in the payload
   const { train_schedule_set_id: _trainScheduleSetId, ...pacedTrainWithoutTrainScheduleSetId } =
     pacedTrain;
 

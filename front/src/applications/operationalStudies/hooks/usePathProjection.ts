@@ -122,7 +122,10 @@ const usePathProjection = (
     }
   }
 
-  const pacedArg = rawPacedTrainId ? { id: rawPacedTrainId, infraId, exceptionId } : skipToken;
+  // TODO_EXCEPTION: remove `!` when using TrainSchedulingException type
+  const pacedArg = rawPacedTrainId
+    ? { id: rawPacedTrainId, infraId, exceptionId: exceptionId! }
+    : skipToken;
   const basePacedArg = exceptionId ? { id: rawPacedTrainId!, infraId } : skipToken;
 
   const { data: pathfinding } =

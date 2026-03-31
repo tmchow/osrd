@@ -181,6 +181,7 @@ const PacedTrainItem = ({
   };
 
   const deleteAllExceptions = async () => {
+    // TODO_EXCEPTION: remove filter when using TrainScheduleException type
     const allIds = pacedTrain.paced.exceptions.filter((e) => e.id != null).map((e) => e.id!);
 
     if (allIds.length > 0) {

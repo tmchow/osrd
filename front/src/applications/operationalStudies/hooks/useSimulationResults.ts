@@ -18,7 +18,6 @@ import { Duration } from 'utils/duration';
 import {
   extractOccurrenceIndexFromOccurrenceId,
   formatEditoastIdToPacedTrainId,
-  isIndexedOccurrenceId,
   isOccurrenceId,
 } from 'utils/trainId';
 
