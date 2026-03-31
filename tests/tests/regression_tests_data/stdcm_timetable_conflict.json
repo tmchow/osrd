@@ -14,6 +14,7 @@
             {
                 "duration": 180125,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE0",
                     "offset": 581924
                 }
@@ -21,6 +22,7 @@
             {
                 "duration": 905261,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE0",
                     "offset": 338804
                 }
@@ -28,6 +30,7 @@
             {
                 "duration": null,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE3",
                     "offset": 1469324
                 }
@@ -35,6 +38,7 @@
             {
                 "duration": 1,
                 "location": {
+                    "type": "track_offset",
                     "track": "TD2",
                     "offset": 1694161
                 }

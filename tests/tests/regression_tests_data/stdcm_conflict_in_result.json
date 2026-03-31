@@ -14,6 +14,7 @@
             {
                 "duration": 960840,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE1",
                     "offset": 1767599
                 }
@@ -21,6 +22,7 @@
             {
                 "duration": null,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE1",
                     "offset": 264224
                 }
@@ -28,6 +30,7 @@
             {
                 "duration": 575287,
                 "location": {
+                    "type": "track_offset",
                     "track": "TE3",
                     "offset": 528823
                 }
@@ -35,6 +38,7 @@
             {
                 "duration": 746487,
                 "location": {
+                    "type": "track_offset",
                     "track": "TC1",
                     "offset": 698736
                 }
@@ -42,6 +46,7 @@
             {
                 "duration": 1,
                 "location": {
+                    "type": "track_offset",
                     "track": "TA6",
                     "offset": 9146278
                 }
