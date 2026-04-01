@@ -5,7 +5,7 @@ import { ms2sec } from 'utils/timeManipulation';
 
 import { formatDigitsAndUnit } from './utils';
 import { marginsUndefined, MarginUnit } from '../consts';
-import type { MarginValue, TheoreticalMarginsRecord } from '../types';
+import type { MarginsFormatted, MarginsRaw, MarginValue, TheoreticalMarginsRecord } from '../types';
 
 type PathItemTimes = Extract<SimulationSummary, { isValid: true }>['pathItemTimes'];
 
@@ -21,54 +21,7 @@ type MarginsCoreComputed = {
   finalLostTime: number;
 };
 
-export type MarginsCore = null | MarginsCoreNoSimulation | MarginsCoreComputed;
-
-type MarginsUndefined = {
-  theoreticalMargin: undefined;
-  isTheoreticalMarginBoundary: undefined;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
-};
-
-export type MarginsComputed = {
-  theoreticalMargin: MarginValue;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: MarginValue;
-  calculatedMargin: MarginValue;
-  diffMargins: MarginValue;
-};
-
-type MarginsNoSimulation = {
-  theoreticalMargin: MarginValue;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
-};
-
-export type MarginsRaw = MarginsUndefined | MarginsComputed | MarginsNoSimulation;
-
-type MarginsComputedFormatted = {
-  theoreticalMargin: string;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: string;
-  calculatedMargin: string;
-  diffMargins: string;
-};
-
-type MarginsNoSimulationFormatted = {
-  theoreticalMargin: string;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
-};
-
-export type MarginsFormatted =
-  | MarginsUndefined
-  | MarginsComputedFormatted
-  | MarginsNoSimulationFormatted;
+type MarginsCore = null | MarginsCoreNoSimulation | MarginsCoreComputed;
 
 function parseMarginValue(raw: string): MarginValue {
   if (raw.endsWith('%')) return { value: parseFloat(raw), unit: MarginUnit.percent };

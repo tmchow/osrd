@@ -157,3 +157,50 @@ export type MarginValue = {
   value: number;
   unit: MarginUnitType;
 };
+
+type MarginsUndefined = {
+  theoreticalMargin: undefined;
+  isTheoreticalMarginBoundary: undefined;
+  theoreticalMarginSeconds: undefined;
+  calculatedMargin: undefined;
+  diffMargins: undefined;
+};
+
+export type MarginsComputed = {
+  theoreticalMargin: MarginValue;
+  isTheoreticalMarginBoundary: boolean;
+  theoreticalMarginSeconds: MarginValue;
+  calculatedMargin: MarginValue;
+  diffMargins: MarginValue;
+};
+
+type MarginsNoSimulation = {
+  theoreticalMargin: MarginValue;
+  isTheoreticalMarginBoundary: boolean;
+  theoreticalMarginSeconds: undefined;
+  calculatedMargin: undefined;
+  diffMargins: undefined;
+};
+
+export type MarginsRaw = MarginsUndefined | MarginsComputed | MarginsNoSimulation;
+
+type MarginsComputedFormatted = {
+  theoreticalMargin: string;
+  isTheoreticalMarginBoundary: boolean;
+  theoreticalMarginSeconds: string;
+  calculatedMargin: string;
+  diffMargins: string;
+};
+
+type MarginsNoSimulationFormatted = {
+  theoreticalMargin: string;
+  isTheoreticalMarginBoundary: boolean;
+  theoreticalMarginSeconds: undefined;
+  calculatedMargin: undefined;
+  diffMargins: undefined;
+};
+
+export type MarginsFormatted =
+  | MarginsUndefined
+  | MarginsComputedFormatted
+  | MarginsNoSimulationFormatted;

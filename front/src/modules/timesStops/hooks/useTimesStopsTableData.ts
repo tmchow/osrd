@@ -21,17 +21,13 @@ import { getDisplayOnlyPathSteps } from 'reducers/simulationResults/selectors';
 import { Duration } from 'utils/duration';
 
 import { ARRIVAL_TIME_ACCEPTABLE_ERROR, marginsUndefined } from '../consts';
-import {
-  computeMarginsRaw,
-  getTheoreticalMargins,
-  type MarginsRaw,
-} from '../helpers/computeMargins';
+import { computeMarginsRaw, getTheoreticalMargins } from '../helpers/computeMargins';
 import {
   buildOpMatchParams,
   getOperationalPointName,
   receptionSignalToSignalBooleans,
 } from '../helpers/utils';
-import { type StepStatus, type TimesStopsRowNew } from '../types';
+import { type MarginsRaw, type StepStatus, type TimesStopsRowNew } from '../types';
 
 type BuildTableRowParams = {
   id: string;
