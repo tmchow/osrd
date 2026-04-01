@@ -95,12 +95,12 @@ function computeMarginsCore(
   // final = margins + requested arrival times
   const { base, provisional, final } = pathItemTimes;
   const baseDuration = ms2sec(base[nextIndex] - base[pathStepIndex]);
+  const provisionalDuration = ms2sec(provisional[nextIndex] - provisional[pathStepIndex]);
+  const finalDuration = ms2sec(final[nextIndex] - final[pathStepIndex]);
 
   // how much longer it took (s) with the margin than without
-  const provisionalLostTime = Math.round(
-    ms2sec(provisional[nextIndex] - provisional[pathStepIndex]) - baseDuration
-  );
-  const finalLostTime = Math.round(ms2sec(final[nextIndex] - final[pathStepIndex]) - baseDuration);
+  const provisionalLostTime = Math.round(provisionalDuration - baseDuration);
+  const finalLostTime = Math.round(ms2sec(finalDuration - baseDuration));
 
   return { theoreticalMargin, isBoundary, provisionalLostTime, finalLostTime };
 }
