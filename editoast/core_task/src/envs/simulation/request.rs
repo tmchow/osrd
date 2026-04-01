@@ -80,7 +80,7 @@ pub(super) fn build_request(
             schedule.push(core_client::simulation::SimulationScheduleItem {
                 path_offset: position,
                 arrival: *arrival_at,
-                stop_for: Some(*stop_for).filter(|t| *t > 0),
+                stop_for: *stop_for,
                 reception_signal: *reception_signal,
             });
         }
@@ -204,7 +204,7 @@ mod tests {
             NonBlankString::from("b"),
             SimulationWaypoint::ScheduleItem {
                 arrival_at: Some(300),
-                stop_for: 0,
+                stop_for: Some(0),
                 reception_signal: Default::default(),
             },
         );
@@ -296,7 +296,7 @@ mod tests {
                 NonBlankString::from(i.to_string()),
                 SimulationWaypoint::ScheduleItem {
                     arrival_at: *arrival,
-                    stop_for: 0,
+                    stop_for: Some(0),
                     reception_signal: Default::default(),
                 },
             );
@@ -433,7 +433,7 @@ mod tests {
             NonBlankString::from("b"),
             SimulationWaypoint::ScheduleItem {
                 arrival_at: Some(300),
-                stop_for: 0,
+                stop_for: Some(0),
                 reception_signal: Default::default(),
             },
         );
