@@ -24,7 +24,11 @@ class IncrementalRequirementEnvelopeAdapter(
 ) : IncrementalRequirementCallbacks {
     init {
         // The rolling stocks range map should cover the whole envelope:
-        require((envelopeWithStops?.endPos ?: 0.toDouble()) <= rollingStocks.upperBound().meters)
+        val epsilon = 1e-5
+        require(
+            (envelopeWithStops?.endPos ?: 0.toDouble()) <=
+                rollingStocks.upperBound().meters + epsilon
+        )
     }
 
     override fun maxSpeedInRange(

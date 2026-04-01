@@ -41,6 +41,8 @@ import fr.sncf.osrd.utils.units.TimeDelta
 import fr.sncf.osrd.utils.units.meters
 import fr.sncf.osrd.utils.units.metersPerSecond
 import fr.sncf.osrd.utils.units.seconds
+import kotlin.math.abs
+import kotlin.math.min
 
 // Reserve clear track with a margin for the reaction time of the driver
 const val CLOSED_SIGNAL_RESERVATION_MARGIN = 20.0
@@ -212,10 +214,14 @@ fun makeSimpleReportTrain(
 ): ReportTrain {
     // Compute energy consumed
     var mechanicalEnergyConsumed = 0.0
+    val epsilon = 0.0001
+    require(abs(rollingStocks.upperBound().meters - envelope.endPos) <= epsilon)
     for (entry in rollingStocks) {
         mechanicalEnergyConsumed +=
             EnvelopePhysics.getMechanicalEnergyConsumed(
-                Envelope(envelope.slice(entry.lower.meters, entry.upper.meters)),
+                Envelope(
+                    envelope.slice(entry.lower.meters, min(envelope.endPos, entry.upper.meters))
+                ),
                 trainPath.subPath(Offset(entry.lower), Offset(entry.upper)),
                 entry.value,
             )

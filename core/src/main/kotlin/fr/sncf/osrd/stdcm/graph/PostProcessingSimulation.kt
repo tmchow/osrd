@@ -118,7 +118,7 @@ fun buildFinalEnvelope(
             updatedTimeData,
             allowanceRanges,
         )
-
+    require(concatenateAndShiftEnvelopes(maxSpeedEnvelopes).continuous)
     val maxIterations = edges.size * 2 // just to avoid infinite loops on bugs or edge cases
     for (i in 0 until maxIterations) {
         try {

@@ -142,7 +142,9 @@ fun runStandaloneSimulation(
     // and return a result matching the expected response format
     val rollingStocks =
         DistanceRangeMapImpl<PhysicsRollingStock>(
-            listOf(DistanceRangeMap.RangeMapEntry(0.meters, trainPath.length.meters, rollingStock))
+            listOf(
+                DistanceRangeMap.RangeMapEntry(0.meters, finalEnvelope.endPos.meters, rollingStock)
+            )
         )
     val maxEffortResult =
         makeSimpleReportTrain(

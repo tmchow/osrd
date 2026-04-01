@@ -246,19 +246,26 @@ private fun makeConsistChanges(
     // Inconsistent inputs
     assert(rollingStocksPerStep.size == finalPathSteps.getSeenSteps().size)
     assert(finalPathSteps.getSeenSteps()[0].travelledPathOffset.distance == 0.meters)
-    return rollingStocksPerStep.slice(0..rollingStocksPerStep.size - 2).mapIndexed {
-        index,
-        rollingStock ->
-        ConsistChange(
-            rollingStock,
-            finalPathSteps
-                .iterateSeenStepsBackwards()
-                .toList()
-                .reversed()
-                .filter { it.travelledPathOffset.distance != 0.meters }
-                .filter { it.isPlanned }
-                .elementAt(index)
-                .travelledPathOffset,
-        )
-    }
+    val consistsPerStep =
+        rollingStocksPerStep.slice(0..rollingStocksPerStep.size - 2).mapIndexed {
+            index,
+            rollingStock ->
+            ConsistChange(
+                rollingStock,
+                finalPathSteps
+                    .iterateSeenStepsBackwards()
+                    .toList()
+                    .reversed()
+                    .filter { it.travelledPathOffset.distance != 0.meters }
+                    .filter { it.isPlanned }
+                    .elementAt(index)
+                    .travelledPathOffset,
+            )
+        }
+    return consistsPerStep
+        .filterIndexed { index, consist ->
+            index == consistsPerStep.size - 1 ||
+                consist.rollingStock != consistsPerStep[index + 1].rollingStock
+        }
+        .toList()
 }
