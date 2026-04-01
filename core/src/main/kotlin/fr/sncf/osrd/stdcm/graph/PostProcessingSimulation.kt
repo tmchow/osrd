@@ -453,6 +453,7 @@ private fun runSimulationWithFixedPoints(
     comfort: Comfort?,
 ): List<Envelope> {
     require(envelopes.size == rollingStocks.size)
+    require(envelopes.none { it.beginSpeed != 0.0 })
     val finalEnvelopes = mutableListOf<Envelope>()
     var currentOffset = 0.meters
     var currentTime = 0.0
