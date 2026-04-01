@@ -425,9 +425,9 @@ fun parseSteps(
     infra: FullInfra,
     pathItems: List<STDCMPathItem>,
     startTime: ZonedDateTime,
-    rollingStockLength: List<Double>,
+    rollingStockLengths: List<Double>,
 ): List<ExplorerStep> {
-    require(rollingStockLength.size == pathItems.size)
+    require(rollingStockLengths.size == pathItems.size)
     if (pathItems.last().stopDuration == null) {
         throw OSRDError(ErrorType.MissingLastSTDCMStop)
     }
@@ -448,7 +448,7 @@ fun parseSteps(
     return pathItems
         .mapIndexed { index, it ->
             val rollingStockLength =
-                max(rollingStockLength[index], rollingStockLength.getOrElse(index - 1) { 0.0 })
+                max(rollingStockLengths[index], rollingStockLengths.getOrElse(index - 1) { 0.0 })
             ExplorerStep(
                 if (index != 0 && index != pathItems.size - 1) {
                     val destinationBlock = findWaypointBlocks(infra, pathItems.last().locations)
