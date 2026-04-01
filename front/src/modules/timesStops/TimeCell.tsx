@@ -508,7 +508,6 @@ const TimeCell = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const shouldPrefillRef = useRef(false);
   const blurIntentRef = useRef<BlurIntent>('none');
-  const selectedPropagationModeRef = useRef<PropagationMode>('atThisWaypoint');
 
   useImperativeHandle(
     ref,
@@ -520,7 +519,11 @@ const TimeCell = ({
     []
   );
   const handleSelectPropagationMode = (mode: PropagationMode) => {
-    selectedPropagationModeRef.current = mode;
+    if (!onCommit || !referenceDate) return;
+    const newDate = buildDateFromState(computeBlurState(state), referenceDate);
+    onCommit(newDate, mode);
+    blurIntentRef.current = 'cancel';
+    inputRef.current?.blur();
   };
 
   const [state, dispatch] = useReducer(timeReducer, controlledValue, initialTimeState);
@@ -594,7 +597,7 @@ const TimeCell = ({
   };
 
   const handleClear = () => {
-    if (controlledValue !== null) onCommit?.(null, selectedPropagationModeRef.current);
+    if (controlledValue !== null) onCommit?.(null, 'atThisWaypoint');
     dispatch({ type: 'ESCAPE_PRESSED', value: null });
   };
 
@@ -618,7 +621,6 @@ const TimeCell = ({
     } else {
       const position = e.currentTarget.selectionStart || 0;
       section = getSectionFromPosition(position);
-      handleSelectPropagationMode('atThisWaypoint');
     }
     dispatch({ type: 'FOCUSED', section });
     onFocus?.(e);
@@ -643,9 +645,9 @@ const TimeCell = ({
       const hasChanged = newDate?.getTime() !== controlledValue?.getTime();
       if (hasChanged) {
         if (blurIntent === 'commit') {
-          setTimeout(() => onCommit(newDate, selectedPropagationModeRef.current), 0);
+          setTimeout(() => onCommit(newDate, 'atThisWaypoint'), 0);
         } else {
-          onCommit(newDate, selectedPropagationModeRef.current);
+          onCommit(newDate, 'atThisWaypoint');
         }
       }
     }

@@ -36,17 +36,16 @@ const computeDeltaForPropagationMode = (
 
 const formatSignedDelta = (delta: Duration) => {
   const sign = delta.ms >= 0 ? '+' : '-';
-  const absoluteDelta = delta.abs();
-  const roundedTotalSeconds = Math.round(absoluteDelta.total('second'));
-  const hours = Math.floor(roundedTotalSeconds / 3600);
-  const minutes = Math.floor(roundedTotalSeconds / 60) % 60;
-  const seconds = roundedTotalSeconds % 60;
+  const abs = delta.abs().round('second');
+  const hours = Math.floor(abs.total('hour'));
+  const minutes = Math.floor(abs.total('minute')) % 60;
+  const seconds = Math.floor(abs.total('second')) % 60;
 
-  const hoursLabel = hours.toString().padStart(2, '0');
-  const minutesLabel = minutes.toString().padStart(2, '0');
-  const secondsLabel = seconds.toString().padStart(2, '0');
+  const hh = hours.toString().padStart(2, '0');
+  const mm = minutes.toString().padStart(2, '0');
+  const ss = seconds.toString().padStart(2, '0');
 
-  return `${sign}${hoursLabel}:${minutesLabel}:${secondsLabel}`;
+  return `${sign}${hh}:${mm}:${ss}`;
 };
 
 export const formatPropagationDeltaLabelByMode = (

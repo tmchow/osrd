@@ -54,25 +54,25 @@ const TimePropagationMenu = ({
     {
       title: `${shiftAllWaypointsDeltaLabel} ${t('shiftAllWaypoints')}`,
       icon: <ArrowBoth />,
-      onMouseDown: selectMode('shiftAllWaypoints'),
+      onClick: selectMode('shiftAllWaypoints'),
     },
     {
       title: `${fromDepartureDeltaLabel} ${t('fromDeparture')}`,
       icon: <ArrowUp />,
       disabled: disableFromDeparture,
-      onMouseDown: selectMode('fromDeparture'),
+      onClick: selectMode('fromDeparture'),
     },
     {
       title: `${atThisWaypointDeltaLabel} ${t('atThisWaypoint')}`,
       icon: <Dot variant="base" />,
       className: 'selected',
-      onMouseDown: selectMode('atThisWaypoint'),
+      onClick: selectMode('atThisWaypoint'),
     },
     {
       title: `${toDestinationDeltaLabel} ${t('toDestination')}`,
       icon: <ArrowDown />,
       disabled: disableToDestination,
-      onMouseDown: selectMode('toDestination'),
+      onClick: selectMode('toDestination'),
     },
   ];
 
@@ -84,7 +84,7 @@ const TimePropagationMenu = ({
       focusOnFirstElement={false}
     >
       {isOpen && (
-        <div className="time-propagation-menu-wrapper">
+        <div className="time-propagation-menu-wrapper" onMouseDown={(e) => e.preventDefault()}>
           <OSRDMenu items={items} className="time-propagation-menu" />
         </div>
       )}
