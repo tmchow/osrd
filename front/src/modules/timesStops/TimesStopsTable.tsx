@@ -309,7 +309,11 @@ const TimesStopsTable = ({
             return <span className="cell-loading-placeholder" />;
           }
           const value = info.getValue();
-          return <span>{value ? formatLocalTime(value) : ''}</span>;
+          return (
+            <span className={!value ? 'cell-empty-dot' : undefined}>
+              {value ? formatLocalTime(value) : '•'}
+            </span>
+          );
         },
         meta: {
           className: 'col-computed-departure computed',

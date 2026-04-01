@@ -308,6 +308,12 @@
   }
 }
 
+.cell-empty-dot {
+  display: flex;
+  justify-content: center;
+  color: var(--grey80);
+}
+
 .cell-loading-placeholder {
   display: inline-block;
   width: 38px;
