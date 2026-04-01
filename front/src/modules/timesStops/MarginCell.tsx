@@ -6,6 +6,8 @@ import CellPlaceholder from './CellPlaceholder';
 import { MarginUnit } from './consts';
 import type { MarginUnitType, MarginValue, TimesStopsRowNew } from './types';
 
+const FLOAT_REGEX = /^-?\d*[.,]?\d*$/;
+
 const UnitToggle = ({
   value,
   onChange,
@@ -80,7 +82,7 @@ const MarginCellEditable = ({
         style={{ pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
           const v = e.target.value;
-          if (/^-?\d*[.,]?\d*$/.test(v) || v === '') setRaw(v);
+          if (FLOAT_REGEX.test(v) || v === '') setRaw(v);
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
