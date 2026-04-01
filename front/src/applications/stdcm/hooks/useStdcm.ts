@@ -228,6 +228,9 @@ const useStdcm = ({
       // and avoiding storing too many very close points
       const pointsOnGrid = new Map<string, StdcmProgressPoints[0]>();
 
+      // We can receive many points at the same timestamp. To avoid displaying them at once,
+      // we track the number of nodes received at the same timestamp to be able to add a delay
+      let lastPointReceivedAt = { timestamp: Date.now(), nb: 0 };
       // Listen to events
       await subscribe(async (event) => {
         switch (event.event) {
@@ -236,14 +239,27 @@ const useStdcm = ({
             break;
           }
           case 'ongoing': {
-            const newPoint = { geoPoint: event.data.point, timestamp: Date.now() };
+            const now = Date.now();
+            if (now > lastPointReceivedAt.timestamp) {
+              lastPointReceivedAt = { timestamp: Date.now(), nb: 0 };
+            } else {
+              lastPointReceivedAt.nb++;
+            }
+            const newPoint = {
+              geoPoint: event.data.point,
+              timestamp: lastPointReceivedAt.timestamp + 10 * lastPointReceivedAt.nb,
+            };
             const newPointKey = newPoint.geoPoint.coordinates.map((n) => n.toFixed(1)).join('/');
             const pointOnGrid = pointsOnGrid.get(newPointKey);
-            // If a point is already present, we check that its animation is ended before to replace it to avoid blink effect
-            if (!pointOnGrid || newPoint.timestamp - pointOnGrid.timestamp > 2000) {
+
+            if (!pointOnGrid) {
               pointsOnGrid.set(newPointKey, newPoint);
-              progressPoints.current = [...pointsOnGrid.values()];
+              // If a point is already present, we check that its animation is ended before to replace it to avoid blink effect
+              // and we set that if this new point override a previous one
+            } else if (now - pointOnGrid.timestamp > 2000) {
+              pointsOnGrid.set(newPointKey, { ...newPoint, override: true });
             }
+            progressPoints.current = [...pointsOnGrid.values()];
             break;
           }
           case 'completed': {

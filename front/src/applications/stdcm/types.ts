@@ -257,4 +257,10 @@ export type StdcmSearchDatetimeWindow = {
   end: Date;
 };
 
-export type StdcmProgressPoints = Array<{ geoPoint: GeoJsonPoint; timestamp: number }>;
+export type StdcmProgressPoints = Array<{
+  geoPoint: GeoJsonPoint;
+  // Timestamp can be in the futur
+  timestamp: number;
+  // To know if the point is overriding a past point
+  override?: boolean;
+}>;
