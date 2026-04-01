@@ -27,7 +27,7 @@ import {
   getOperationalPointName,
   receptionSignalToSignalBooleans,
 } from '../helpers/utils';
-import { type MarginsRaw, type StepStatus, type TimesStopsRowNew } from '../types';
+import { type Margins, type StepStatus, type TimesStopsRowNew } from '../types';
 
 type BuildTableRowParams = {
   id: string;
@@ -46,7 +46,7 @@ type BuildTableRowParams = {
   isPathStep: boolean;
   shortSlipDistance?: boolean;
   closedSignal?: boolean;
-  margins?: MarginsRaw;
+  margins?: Margins;
 };
 
 const buildTableRow = ({

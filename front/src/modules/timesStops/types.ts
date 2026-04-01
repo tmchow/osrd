@@ -158,49 +158,24 @@ export type MarginValue = {
   unit: MarginUnitType;
 };
 
-type MarginsUndefined = {
-  theoreticalMargin: undefined;
-  isTheoreticalMarginBoundary: undefined;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
+export type Margins<T = MarginValue> = {
+  theoreticalMargin?: T;
+  isTheoreticalMarginBoundary?: boolean;
+  theoreticalMarginSeconds?: T;
+  calculatedMargin?: T;
+  diffMargins?: T;
 };
 
-export type MarginsComputed = {
+export type MarginsLegacyTable = Margins<string>;
+
+type MarginsCoreBase = {
   theoreticalMargin: MarginValue;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: MarginValue;
-  calculatedMargin: MarginValue;
-  diffMargins: MarginValue;
+  isBoundary: boolean;
 };
 
-type MarginsNoSimulation = {
-  theoreticalMargin: MarginValue;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
+export type MarginsCoreComputed = MarginsCoreBase & {
+  provisionalLostTime: number;
+  finalLostTime: number;
 };
 
-export type MarginsRaw = MarginsUndefined | MarginsComputed | MarginsNoSimulation;
-
-type MarginsComputedFormatted = {
-  theoreticalMargin: string;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: string;
-  calculatedMargin: string;
-  diffMargins: string;
-};
-
-type MarginsNoSimulationFormatted = {
-  theoreticalMargin: string;
-  isTheoreticalMarginBoundary: boolean;
-  theoreticalMarginSeconds: undefined;
-  calculatedMargin: undefined;
-  diffMargins: undefined;
-};
-
-export type MarginsFormatted =
-  | MarginsUndefined
-  | MarginsComputedFormatted
-  | MarginsNoSimulationFormatted;
+export type MarginsCore = null | MarginsCoreBase | MarginsCoreComputed;

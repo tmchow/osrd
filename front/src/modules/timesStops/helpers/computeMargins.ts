@@ -5,23 +5,16 @@ import { ms2sec } from 'utils/timeManipulation';
 
 import { formatDigitsAndUnit } from './utils';
 import { marginsUndefined, MarginUnit } from '../consts';
-import type { MarginsFormatted, MarginsRaw, MarginValue, TheoreticalMarginsRecord } from '../types';
+import type {
+  Margins,
+  MarginsCore,
+  MarginsCoreComputed,
+  MarginsLegacyTable,
+  MarginValue,
+  TheoreticalMarginsRecord,
+} from '../types';
 
 type PathItemTimes = Extract<SimulationSummary, { isValid: true }>['pathItemTimes'];
-
-type MarginsCoreNoSimulation = {
-  theoreticalMargin: MarginValue;
-  isBoundary: boolean;
-};
-
-type MarginsCoreComputed = {
-  theoreticalMargin: MarginValue;
-  isBoundary: boolean;
-  provisionalLostTime: number;
-  finalLostTime: number;
-};
-
-type MarginsCore = null | MarginsCoreNoSimulation | MarginsCoreComputed;
 
 function parseMarginValue(raw: string): MarginValue {
   if (raw.endsWith('%')) return { value: parseFloat(raw), unit: MarginUnit.percent };
@@ -118,7 +111,7 @@ export function computeMargins(
   scheduleByAt: Record<string, ScheduleItem>,
   pathStepIndex: number,
   pathItemTimes: PathItemTimes | undefined
-): MarginsRaw {
+): Margins {
   const core = computeMarginsCore(
     theoreticalMargins,
     train,
@@ -155,7 +148,7 @@ export function computeMarginsLegacyTable(
   scheduleByAt: Record<string, ScheduleItem>,
   pathStepIndex: number,
   pathItemTimes: PathItemTimes | undefined
-): MarginsFormatted {
+): MarginsLegacyTable {
   const core = computeMarginsCore(
     theoreticalMargins,
     train,
