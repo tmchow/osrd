@@ -134,12 +134,6 @@ class STDCMEndpoint(
                     allowedTrackSections,
                     request.pathItems.size,
                 )
-            ConsistSchedule(
-                requestConsistSchedule,
-                infra,
-                allowedTrackSections,
-                request.pathItems.size,
-            )
             val steps =
                 parseSteps(
                     infra,
