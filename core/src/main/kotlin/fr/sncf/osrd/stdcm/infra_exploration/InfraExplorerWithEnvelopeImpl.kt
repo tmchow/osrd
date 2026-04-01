@@ -124,7 +124,7 @@ data class InfraExplorerWithEnvelopeImpl(
     override fun getFullRollingStockRangeMap(): DistanceRangeMap<PhysicsRollingStock> {
         val cache = rollingStockRangeMapCache?.get()
         if (cache != null) return cache
-        val previousStepPos = 0.meters
+        var previousStepPos = 0.meters
         return distanceRangeMapOf(
             getStepTracker()
                 .iterateSeenStepsBackwards()
@@ -135,7 +135,9 @@ data class InfraExplorerWithEnvelopeImpl(
                 .map { (stepIndex, step) ->
                     val rollingStock: PhysicsRollingStock = consistSchedule.rollingStocks[stepIndex]
                     val stepPos = step.travelledPathOffset.distance
-                    DistanceRangeMap.RangeMapEntry(previousStepPos, stepPos, rollingStock)
+                    val res = DistanceRangeMap.RangeMapEntry(previousStepPos, stepPos, rollingStock)
+                    previousStepPos = step.travelledPathOffset.distance
+                    res
                 }
                 .plus(
                     run {
