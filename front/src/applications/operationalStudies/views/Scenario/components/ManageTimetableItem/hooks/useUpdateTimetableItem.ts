@@ -4,7 +4,10 @@ import { useSelector } from 'react-redux';
 import { v4 as uuidV4 } from 'uuid';
 
 import { useScenarioContext } from 'applications/operationalStudies/hooks/useScenarioContext';
-import { updatePacedTrainExceptionsList } from 'applications/operationalStudies/views/Scenario/components/ManageTimetableItem/helpers/buildPacedTrainException';
+import {
+  checkChangeGroups,
+  updatePacedTrainExceptionsList,
+} from 'applications/operationalStudies/views/Scenario/components/ManageTimetableItem/helpers/buildPacedTrainException';
 import { MANAGE_TIMETABLE_ITEM_TYPES } from 'applications/operationalStudies/views/Scenario/consts';
 import type { PacedTrainException } from 'common/api/osrdEditoastApi';
 import { useStoreDataForRollingStockSelector } from 'modules/rollingStock/components/RollingStockSelector/useStoreDataForRollingStockSelector';
@@ -24,6 +27,7 @@ import {
   getName,
   getStartTime,
   getOperationalStudiesConf,
+  getAddedExceptions,
 } from 'reducers/osrdconf/operationalStudiesConf/selectors';
 import type { TimetableItem, TrainId, TimetableItemToEditData } from 'reducers/osrdconf/types';
 import { updateSelectedTrainId, updateTrainIdUsedForProjection } from 'reducers/simulationResults';
@@ -61,6 +65,7 @@ const useUpdateTimetableItem = (
   const simulationConf = useSelector(getOperationalStudiesConf);
   const trainIdUsedForProjection = useSelector(getTrainIdUsedForProjection);
   const startTime = useSelector(getStartTime);
+  const addedExceptions = useSelector(getAddedExceptions);
   const { rollingStock } = useStoreDataForRollingStockSelector({
     rollingStockId: simulationConf.rollingStockID,
   });
@@ -152,11 +157,10 @@ const useUpdateTimetableItem = (
       ]);
     } else {
       // ========== user is editing the whole paced train or transforming from an unique train ==========
-      const {
-        newTrainSchedulePayload: trainSchedule,
-        originalExceptions,
-        updatedExceptions,
-      } = formatPacedTrainPayload(simulationConf, rollingStock!.name, timetableItemToEditData);
+      const { newTrainSchedulePayload: trainSchedule } = formatPacedTrainPayload(
+        simulationConf,
+        rollingStock!.name
+      );
 
       const exceptionsToDeleteIds =
         simulationConf.editingItemType === 'uniqueTrain'
@@ -170,8 +174,43 @@ const useUpdateTimetableItem = (
         await deleteExceptions(dispatch, exceptionsToDeleteIds);
       }
 
+      const newAddedExceptions = addedExceptions.map(({ key, startTime: exStartTime }) => ({
+        key,
+        start_time: { value: exStartTime.toISOString() },
+      }));
+
+      const originalPacedTrainExceptions =
+        timetableItemToEditData.originalPacedTrain.paced?.exceptions ?? [];
+
+      let originalExceptions: PacedTrainException[] | undefined;
+      let updatedExceptions: PacedTrainException[] | undefined;
+
+      if (timetableItemToEditData.originalPacedTrain.paced && trainSchedule.paced) {
+        const hasPacedTrainSettingsChanged =
+          simulationConf.timeWindow.toISOString() !==
+            timetableItemToEditData.originalPacedTrain.paced.timeWindow.toISOString() ||
+          simulationConf.interval.toISOString() !==
+            timetableItemToEditData.originalPacedTrain.paced.interval.toISOString();
+
+        originalExceptions = originalPacedTrainExceptions as PacedTrainException[];
+        updatedExceptions = hasPacedTrainSettingsChanged
+          ? []
+          : [
+              ...checkChangeGroups(
+                trainSchedule,
+                trainSchedule.paced,
+                originalPacedTrainExceptions as PacedTrainException[]
+              ),
+              ...newAddedExceptions,
+            ];
+      } else if (!timetableItemToEditData.originalPacedTrain.paced) {
+        // user is creating a new paced train (was a unique train before)
+        originalExceptions = undefined;
+        updatedExceptions = newAddedExceptions.length > 0 ? newAddedExceptions : undefined;
+      }
+
       // Handle exceptions create/update/delete before storing the paced train
-      let finalExceptions = originalExceptions ?? [];
+      let finalExceptions: PacedTrainException[] = originalExceptions ?? [];
 
       if (updatedExceptions) {
         const exceptionsToUpdate = updatedExceptions.filter((updatedException) => {
@@ -244,6 +283,7 @@ const useUpdateTimetableItem = (
           });
       }
 
+      // Store the paced train with the final exceptions list
       await storePacedTrain(
         timetableItemId,
         {
