@@ -180,7 +180,7 @@ class BenchSTDCM : CliCommand {
                             it.copy(
                                 supportedSignalingSystems =
                                     it.supportedSignalingSystems.filter {
-                                        // Ignoring ETCS as it is not (yet) supported for
+                                        // Ignoring ETCS as it is not (yet) supported for STDCM
                                         it != ETCS_LEVEL2.id
                                     }
                             )
