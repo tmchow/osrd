@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScheduleItem } from 'common/api/osrdEditoastApi';
 import type { TimetableItem } from 'reducers/osrdconf/types';
 
-import { getTheoreticalMargins, computeMarginsFormatted } from '../computeMargins';
+import { getTheoreticalMargins, computeMarginsLegacyTable } from '../computeMargins';
 
 describe('computeMargins', () => {
   const path = [
@@ -80,7 +80,7 @@ describe('computeMargins', () => {
     const scheduleByAt: Record<string, ScheduleItem> = keyBy(train.schedule, 'at');
     const theoreticalMargins = getTheoreticalMargins(train);
     expect(
-      computeMarginsFormatted(theoreticalMargins, train, scheduleByAt, 0, pathItemTimes)
+      computeMarginsLegacyTable(theoreticalMargins, train, scheduleByAt, 0, pathItemTimes)
     ).toEqual({
       theoreticalMargin: '10 %',
       isTheoreticalMarginBoundary: true,
@@ -89,7 +89,7 @@ describe('computeMargins', () => {
       diffMargins: '10 s',
     });
     expect(
-      computeMarginsFormatted(theoreticalMargins, train, scheduleByAt, 1, pathItemTimes)
+      computeMarginsLegacyTable(theoreticalMargins, train, scheduleByAt, 1, pathItemTimes)
     ).toEqual({
       theoreticalMargin: undefined,
       isTheoreticalMarginBoundary: undefined,
@@ -98,7 +98,7 @@ describe('computeMargins', () => {
       diffMargins: undefined,
     });
     expect(
-      computeMarginsFormatted(theoreticalMargins, train, scheduleByAt, 2, pathItemTimes)
+      computeMarginsLegacyTable(theoreticalMargins, train, scheduleByAt, 2, pathItemTimes)
     ).toEqual({
       theoreticalMargin: '5 %',
       isTheoreticalMarginBoundary: true,
@@ -107,7 +107,7 @@ describe('computeMargins', () => {
       diffMargins: '0 s',
     });
     expect(
-      computeMarginsFormatted(theoreticalMargins, train, scheduleByAt, 3, pathItemTimes)
+      computeMarginsLegacyTable(theoreticalMargins, train, scheduleByAt, 3, pathItemTimes)
     ).toEqual({
       theoreticalMargin: undefined,
       isTheoreticalMarginBoundary: undefined,
@@ -116,7 +116,7 @@ describe('computeMargins', () => {
       diffMargins: undefined,
     });
     expect(
-      computeMarginsFormatted(theoreticalMargins, train, scheduleByAt, 4, pathItemTimes)
+      computeMarginsLegacyTable(theoreticalMargins, train, scheduleByAt, 4, pathItemTimes)
     ).toEqual({
       theoreticalMargin: undefined,
       isTheoreticalMarginBoundary: undefined,

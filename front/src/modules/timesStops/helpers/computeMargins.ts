@@ -112,7 +112,7 @@ function computeMarginsCore(
   return { theoreticalMargin, isBoundary, provisionalLostTime, finalLostTime };
 }
 
-export function computeMarginsRaw(
+export function computeMargins(
   theoreticalMargins: TheoreticalMarginsRecord | undefined,
   train: Pick<Train, 'path' | 'margins'>,
   scheduleByAt: Record<string, ScheduleItem>,
@@ -149,7 +149,7 @@ export function computeMarginsRaw(
   };
 }
 
-export function computeMarginsFormatted(
+export function computeMarginsLegacyTable(
   theoreticalMargins: TheoreticalMarginsRecord | undefined,
   train: Pick<Train, 'path' | 'margins'>,
   scheduleByAt: Record<string, ScheduleItem>,

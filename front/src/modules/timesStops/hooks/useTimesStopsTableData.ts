@@ -21,7 +21,7 @@ import { getDisplayOnlyPathSteps } from 'reducers/simulationResults/selectors';
 import { Duration } from 'utils/duration';
 
 import { ARRIVAL_TIME_ACCEPTABLE_ERROR, marginsUndefined } from '../consts';
-import { computeMarginsRaw, getTheoreticalMargins } from '../helpers/computeMargins';
+import { computeMargins, getTheoreticalMargins } from '../helpers/computeMargins';
 import {
   buildOpMatchParams,
   getOperationalPointName,
@@ -266,7 +266,7 @@ const useTimesStopsTableData = (
           stableIsValid &&
           stepIndex < selectedTrain.path.length - 1 &&
           !stablePathItemRespect?.margins[stepIndex + 1];
-        const margins = computeMarginsRaw(
+        const margins = computeMargins(
           getTheoreticalMargins(selectedTrain),
           selectedTrain,
           scheduleByAt,
