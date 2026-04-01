@@ -907,4 +907,54 @@ class PathfindingStopsAtEndOfBlock : ApiTest() {
                 listOf(Offset(intermediateStopDistance), Offset(secondIntermediateStopDistance)),
         )
     }
+
+    @Test
+    fun simpleBacktrackingYInfraTest() {
+        val waypointsStart = listOf(TrackLocation("t_a", Offset(3100.meters)))
+        val waypointsBacktracking = listOf(TrackLocation("t_center", Offset(2800.meters)))
+        val waypointsEnd = listOf(TrackLocation("t_b", Offset(3400.meters)))
+        val parsed =
+            callPathfindingEndpoint(
+                TestTrains.REALISTIC_FAST_TRAIN,
+                listOf(waypointsStart, waypointsBacktracking, waypointsEnd),
+                "y_infra/infra.json",
+                false,
+            )
+        checkPathfindingSuccess(
+            parsed,
+            10250.meters,
+            expectedBlocks =
+                listOf(
+                    "[il.sig.C3-BAL];[buffer_stop_b, tde.foo_b-switch_foo];[]",
+                    "[il.sig.C3-BAL, il.sig.S7-BAL];[tde.foo_b-switch_foo, tde.track-bar];[il.switch_foo-A_B1]",
+                    "[il.sig.S7-BAL];[tde.track-bar, buffer_stop_c];[]",
+                ),
+            expectedRoutes =
+                listOf(
+                    "rt.buffer_stop_b->tde.foo_b-switch_foo",
+                    "rt.tde.foo_b-switch_foo->buffer_stop_c",
+                ),
+            expectedTrackSectionRanges =
+                listOf(
+                    TrackSectionRange(
+                        "ne.micro.foo_b",
+                        Offset(50.meters),
+                        Offset(200.meters),
+                        EdgeDirection.START_TO_STOP,
+                    ),
+                    TrackSectionRange(
+                        "ne.micro.foo_to_bar",
+                        Offset(0.meters),
+                        Offset(10_000.meters),
+                        EdgeDirection.START_TO_STOP,
+                    ),
+                    TrackSectionRange(
+                        "ne.micro.bar_a",
+                        Offset(0.meters),
+                        Offset(100.meters),
+                        EdgeDirection.START_TO_STOP,
+                    ),
+                ),
+        )
+    }
 }

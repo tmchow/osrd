@@ -244,8 +244,14 @@ private class InfraExplorerImpl(
     }
 
     override fun cloneAndExtendLookahead(): Collection<InfraExplorer> {
+        // TODO PEB: allow backtracking: do not extend more than stops which canBacktrack
         if (isPathComplete) return listOf() // Can't extend beyond the destination
         val infraExplorers = mutableListOf<InfraExplorer>()
+        val lastReachedStep = stepTracker.iterateReachedStepsBackwards().firstOrNull()
+        /*if (
+            lastReachedStep.originalStep.stop &&
+                lastReachedStep.travelledPathOffset == getCurrentBlockRange().pathEnd
+        ) {} else {*/
         val lastRoute = routes.last().value
         val lastRouteExit = rawInfra.getRouteExit(lastRoute)
         val nextRoutes = rawInfra.getRoutesStartingAtDet(lastRouteExit)
@@ -254,7 +260,23 @@ private class InfraExplorerImpl(
             val infraExtended = infraExplorer.extend(it)
             // Blocked explorers are dropped
             if (infraExtended) infraExplorers.add(infraExplorer)
+
+            // generate backtracking lookaheads
+            val nbAddedSteps =
+                infraExplorer.stepTracker.getSeenSteps().size - this.stepTracker.getSeenSteps().size
+            // TODO PEB: use real backtracking flag, not only "step.stop"
+            for (possibleBacktracking in
+                infraExplorer.stepTracker.iterateSeenStepsBackwards().take(nbAddedSteps).filter {
+                    step ->
+                    step.originalStep.stop
+                }) {
+                // clone and extend until backtracking
+                val infraExplorer = this.clone() as InfraExplorerImpl
+                val infraExtended = infraExplorer.extend(it, null, possibleBacktracking.location)
+                // generate routes from that point backward
+            }
         }
+        // }
         return infraExplorers
     }
 
@@ -391,10 +413,16 @@ private class InfraExplorerImpl(
      * Otherwise, it returns false and the instance is supposed to be dropped. `blockRoutes` is
      * updated to keep track of the route used for each block.
      */
-    fun extend(route: RouteId, firstLocation: BlockLocation? = null): Boolean {
+    fun extend(
+        route: RouteId,
+        firstLocation: BlockLocation? = null,
+        // 'untilBacktrackingLocation' MUST be on 'route'
+        untilBacktrackingLocation: BlockLocation? = null,
+    ): Boolean {
         val routeBlocks = blockInfra.getRouteBlocks(rawInfra, route)
         var seenFirstBlock = firstLocation == null
         var pathAlreadyStarted = blockRanges.isNotEmpty()
+        var isBacktrackingBlockReached = false
 
         var routeBeginOffset = Offset<Route>(firstLocation?.offset?.distance ?: 0.meters)
         for (block in routeBlocks) {
@@ -414,11 +442,20 @@ private class InfraExplorerImpl(
             val blockStartOffset: Offset<Block> =
                 if (startsPath) firstLocation!!.offset else Offset.zero()
 
-            stepTracker.exploreBlockRange(block, blockStartOffset, blockLength)
+            isBacktrackingBlockReached = block == untilBacktrackingLocation?.edge
+            val untilOffset =
+                if (isBacktrackingBlockReached) untilBacktrackingLocation!!.offset else blockLength
+
+            stepTracker.exploreBlockRange(
+                block,
+                blockStartOffset,
+                untilOffset,
+                isBacktrackingBlockReached,
+            )
 
             val lastSeenStepLocation = stepTracker.getSeenSteps().lastOrNull()?.location
             isPathComplete = stepTracker.hasSeenDestination() && lastSeenStepLocation?.edge == block
-            val blockEndOffset = if (isPathComplete) lastSeenStepLocation!!.offset else blockLength
+            val blockEndOffset = if (isPathComplete) lastSeenStepLocation!!.offset else untilOffset
 
             // If a block cannot be explored, give up
             val isRouteBlocked =
@@ -443,9 +480,10 @@ private class InfraExplorerImpl(
                 )
             blockRanges.add(blockRange)
             pathAlreadyStarted = true
-            if (isPathComplete) break // Can't extend any further
+            if (isPathComplete || isBacktrackingBlockReached) break // Can't extend any further
         }
         assert(seenFirstBlock)
+        assert(untilBacktrackingLocation == null || isBacktrackingBlockReached)
 
         val lastRouteEndOffset = routes.lastOrNull()?.pathEnd ?: Offset(0.meters)
         val newRouteEndOffset = blockRanges.lastOrNull()?.pathEnd ?: Offset(0.meters)
