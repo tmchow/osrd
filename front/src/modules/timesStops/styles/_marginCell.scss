@@ -3,21 +3,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 0.875rem;
   
   &-unit {
     color: var(--grey30);
-    font-size: 10px;
+    font-size: 0.625rem;
     line-height: 9px;
     text-align: right;
     width: 100%;
     cursor: pointer;
 
     &:hover:not(&-active) {
-      color: rgba(60, 138, 255, 1);
+      color: var(--primary40);
     }
 
     &:hover {
-      color: rgba(31, 15, 150, 1);
+      color: var(--primary80);
     }
 
     &-selection {
@@ -39,7 +40,7 @@
   }
 
   &-input {
-    color: rgba(24, 68, 239, 1);
+    color: var(--primary60);
     position: absolute;
     left: 0;
     top: 50%;

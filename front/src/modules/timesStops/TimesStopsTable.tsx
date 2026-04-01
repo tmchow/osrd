@@ -398,21 +398,21 @@ const TimesStopsTable = ({
         header: () => t('computedTheoreticalMargin'),
         cell: (info) => <MarginCell {...info} editable={false} />,
         meta: {
-          className: 'col-computed-theoretical-margin computed',
+          className: 'col-computed-theoretical-margin computed computed-margin',
         },
       }),
       columnHelper.accessor('realMargin', {
         header: () => t('realMargin'),
         cell: (info) => <MarginCell {...info} editable={false} />,
         meta: {
-          className: 'col-real-margin computed',
+          className: 'col-real-margin computed computed-margin',
         },
       }),
       columnHelper.accessor('marginsDifference', {
         header: () => t('diffMargins'),
         cell: (info) => <MarginCell showPolarity {...info} editable={false} />,
         meta: {
-          className: 'col-margins-difference computed',
+          className: 'col-margins-difference computed computed-margin',
         },
       }),
       columnHelper.accessor('timeFromPreviousOp', {
