@@ -162,16 +162,15 @@ const useUpdateTimetableItem = (
         rollingStock!.name
       );
 
-      const exceptionsToDeleteIds =
-        simulationConf.editingItemType === 'uniqueTrain'
-          ? (timetableItemToEditData.originalPacedTrain.paced?.exceptions
-              .map((e) => e.id)
-              .filter((id): id is number => id != null) ?? [])
-          : [];
+      const originalPacedExceptions =
+        timetableItemToEditData.originalPacedTrain.paced?.exceptions ?? [];
 
-      // Delete exceptions marked for deletion (e.g. when switching from paced to unique train)
-      if (exceptionsToDeleteIds.length > 0) {
-        await deleteExceptions(dispatch, exceptionsToDeleteIds);
+      // When switching from paced to unique train, delete all existing exceptions up front
+      if (simulationConf.editingItemType === 'uniqueTrain' && originalPacedExceptions.length > 0) {
+        await deleteExceptions(
+          dispatch,
+          originalPacedExceptions.map((e) => e.id!).filter((id) => id != null)
+        );
       }
 
       const newAddedExceptions = addedExceptions.map(({ key, startTime: exStartTime }) => ({
@@ -179,62 +178,57 @@ const useUpdateTimetableItem = (
         start_time: { value: exStartTime.toISOString() },
       }));
 
-      const originalPacedTrainExceptions =
-        timetableItemToEditData.originalPacedTrain.paced?.exceptions ?? [];
-
+      // Compute the target exceptions list after the user's edits
       let originalExceptions: PacedTrainException[] | undefined;
       let updatedExceptions: PacedTrainException[] | undefined;
 
       if (timetableItemToEditData.originalPacedTrain.paced && trainSchedule.paced) {
+        // Editing an existing paced train
         const hasPacedTrainSettingsChanged =
           simulationConf.timeWindow.toISOString() !==
             timetableItemToEditData.originalPacedTrain.paced.timeWindow.toISOString() ||
           simulationConf.interval.toISOString() !==
             timetableItemToEditData.originalPacedTrain.paced.interval.toISOString();
 
-        originalExceptions = originalPacedTrainExceptions as PacedTrainException[];
+        originalExceptions = originalPacedExceptions;
+        // Reset all exceptions if cadence/interval changed, otherwise reconcile with new added ones
         updatedExceptions = hasPacedTrainSettingsChanged
           ? []
           : [
-              ...checkChangeGroups(
-                trainSchedule,
-                trainSchedule.paced,
-                originalPacedTrainExceptions as PacedTrainException[]
-              ),
+              ...checkChangeGroups(trainSchedule, trainSchedule.paced, originalPacedExceptions),
               ...newAddedExceptions,
             ];
       } else if (!timetableItemToEditData.originalPacedTrain.paced) {
-        // user is creating a new paced train (was a unique train before)
+        // Converting a unique train into a paced train
         originalExceptions = undefined;
         updatedExceptions = newAddedExceptions.length > 0 ? newAddedExceptions : undefined;
       }
 
-      // Handle exceptions create/update/delete before storing the paced train
+      // Sync exceptions with the backend (create / update / delete) and build the final list
       let finalExceptions: PacedTrainException[] = originalExceptions ?? [];
 
       if (updatedExceptions) {
-        const exceptionsToUpdate = updatedExceptions.filter((updatedException) => {
-          const original = originalExceptions?.find((o) => o.id === updatedException.id);
-          if (!original) return false;
-          if (hasNoChangeGroups(updatedException)) return false;
-          return !isEqual(original, updatedException);
+        const exceptionsToUpdate = updatedExceptions.filter((ex) => {
+          const original = originalExceptions?.find((o) => o.id === ex.id);
+          return original && !hasNoChangeGroups(ex) && !isEqual(original, ex);
         });
 
         const exceptionsToCreate = updatedExceptions.filter(
-          (updatedException) => !originalExceptions?.some((o) => o.id === updatedException.id)
+          (ex) => !originalExceptions?.some((o) => o.id === ex.id)
         );
 
-        const exceptionsToDelete = (originalExceptions ?? []).filter(
-          (original) =>
-            original.id != null &&
-            (!updatedExceptions.some((u) => u.id === original.id) ||
-              updatedExceptions.some(
-                (u) =>
-                  u.id === original.id &&
-                  hasNoChangeGroups(u) &&
-                  (u.disabled === false || u.disabled === undefined)
-              ))
-        );
+        const exceptionsToDelete =
+          originalExceptions?.filter(
+            (original) =>
+              original.id != null &&
+              (!updatedExceptions.some((u) => u.id === original.id) ||
+                updatedExceptions.some(
+                  (u) =>
+                    u.id === original.id &&
+                    hasNoChangeGroups(u) &&
+                    (u.disabled === false || u.disabled === undefined)
+                ))
+          ) ?? [];
 
         if (exceptionsToDelete.length > 0) {
           await deleteExceptions(
@@ -257,30 +251,21 @@ const useUpdateTimetableItem = (
           );
 
           // TODO: remove this part when the back will be done inserting the new exception format in TrainSchedule
-          createdExceptions = created.map((exceptionNewModel) => {
-            const {
-              change_groups,
-              train_schedule_id: _train_schedule_id,
-              timetable_id: _timetable_id,
-              ...restExceptions
-            } = exceptionNewModel;
-            return {
+          createdExceptions = created.map(
+            ({ change_groups, train_schedule_id: _, timetable_id: __, ...rest }) => ({
               ...change_groups,
-              ...restExceptions,
+              ...rest,
               // TODO_EXCEPTION: remove this when drop key in the model
-              key: restExceptions.id.toString(),
-            };
-          });
+              key: rest.id.toString(),
+            })
+          );
         }
 
         // Build final exceptions list with created ids
         let createIndex = 0;
         finalExceptions = updatedExceptions
           .filter((ex) => !exceptionsToDelete.some((d) => d.id === ex.id))
-          .map((ex) => {
-            if (!ex.id) return createdExceptions[createIndex++] ?? ex;
-            return ex;
-          });
+          .map((ex) => (!ex.id ? (createdExceptions[createIndex++] ?? ex) : ex));
       }
 
       // Store the paced train with the final exceptions list
