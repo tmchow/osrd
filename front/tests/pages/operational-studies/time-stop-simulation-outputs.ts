@@ -105,10 +105,10 @@ class TimeAndStopSimulationOutputs {
           cells.nth(headerIndexMap[frTranslations.theoreticalMarginSeconds])
         ),
         TimeAndStopSimulationOutputs.getCellValue(
-          cells.nth(headerIndexMap[frTranslations.realMargin])
+          cells.nth(headerIndexMap[frTranslations.realMarginLegacy])
         ),
         TimeAndStopSimulationOutputs.getCellValue(
-          cells.nth(headerIndexMap[frTranslations.diffMargins])
+          cells.nth(headerIndexMap[frTranslations.diffMarginsLegacy])
         ),
         TimeAndStopSimulationOutputs.getCellValue(
           cells.nth(headerIndexMap[frTranslations.calculatedArrivalTime])

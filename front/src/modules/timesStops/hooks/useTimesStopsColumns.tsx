@@ -95,13 +95,15 @@ export const useTimesStopsColumns = <T extends TimesStopsRow>(
               ...fixedWidth(90),
             },
             {
-              ...disabledTextColumn('calculatedMargin', t('realMargin'), { alignRight: true }),
+              ...disabledTextColumn('calculatedMargin', t('realMarginLegacy'), {
+                alignRight: true,
+              }),
               headerClassName: 'padded-header',
               ...fixedWidth(90),
             },
             {
-              ...disabledTextColumn('diffMargins', t('diffMargins'), { alignRight: true }),
-              title: headerWithTitleTagIfShortened(t('diffMargins'), t('diffMarginsFull')),
+              ...disabledTextColumn('diffMargins', t('diffMarginsLegacy'), { alignRight: true }),
+              title: headerWithTitleTagIfShortened(t('diffMarginsLegacy'), t('diffMarginsFull')),
               headerClassName: 'padded-header',
               ...fixedWidth(90),
             },
