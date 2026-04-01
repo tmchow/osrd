@@ -13,15 +13,15 @@ const UnitToggle = ({
   value: MarginUnitType;
   onChange: (unit: MarginUnitType) => void;
 }) => (
-  <div className="margin-cell-unit-selection">
+  <div className="unit-selection">
     <button
-      className={`margin-cell-unit ${value === MarginUnit.percent ? 'margin-cell-unit-active' : ''}`}
+      className={`unit ${value === MarginUnit.percent ? 'unit-active' : ''}`}
       onClick={() => onChange(MarginUnit.percent)}
     >
       %
     </button>
     <button
-      className={`margin-cell-unit ${value === MarginUnit.minPer100km ? 'margin-cell-unit-active' : ''}`}
+      className={`unit ${value === MarginUnit.minPer100km ? 'unit-active' : ''}`}
       onClick={() => onChange(MarginUnit.minPer100km)}
     >
       min/
@@ -75,7 +75,7 @@ const MarginCellEditable = ({
         type="text"
         inputMode="numeric"
         ref={inputRef}
-        className="margin-cell-input"
+        className="input"
         value={raw ?? ''}
         style={{ pointerEvents: isEmpty ? 'none' : 'auto' }}
         onChange={(e) => {
@@ -91,7 +91,7 @@ const MarginCellEditable = ({
         }}
         onWheel={(e) => e.currentTarget.blur()}
         onBlur={(e) => {
-          if (!e.relatedTarget?.classList.contains('margin-cell-unit')) {
+          if (!e.relatedTarget?.classList.contains('unit')) {
             commit();
           }
         }}
@@ -126,9 +126,9 @@ const MarginCellReadOnly = ({
     <div className="margin-cell">
       {showPolarity && <span>{!isZero && polarity}</span>}
       <span className="mono">{minutes}</span>
-      <span className="margin-cell-unit-letter">m</span>
+      <span className="unit-letter">m</span>
       <span className="mono">{seconds}</span>
-      <span className="margin-cell-unit-letter">s</span>
+      <span className="unit-letter">s</span>
     </div>
   );
 };
