@@ -145,7 +145,7 @@ class STDCMEndpoint(
                     infra,
                     request.pathItems,
                     request.startTime,
-                    consistSchedules.rollingStocks.map { it -> it.length },
+                    consistSchedules.rollingStocks.map { it.length },
                 )
             val requirements = getRequirements(request, infra, timetableCacheManager)
             val failureExplainer =
