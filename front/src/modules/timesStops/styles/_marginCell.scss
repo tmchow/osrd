@@ -3,14 +3,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
-  &-positive {
-    color: var(--success60);
-  }
-  
-  &-negative {
-    color: var(--error60);
-  }
   
   &-unit {
     color: var(--grey30);

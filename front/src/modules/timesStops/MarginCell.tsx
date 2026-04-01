@@ -118,14 +118,13 @@ const MarginCellReadOnly = ({
   const marginInSeconds = props.getValue()?.value ?? 0;
   const isZero = marginInSeconds === 0;
   const polarity = marginInSeconds >= 0 ? '+' : '-';
-  const polarityClassname = marginInSeconds > 0 ? 'margin-cell-positive' : 'margin-cell-negative';
   const abs = Math.abs(marginInSeconds);
   const minutes = String(Math.floor(abs / 60)).padStart(2, '0');
   const seconds = String(Math.floor(abs % 60)).padStart(2, '0');
 
   return (
     <div className="margin-cell">
-      {showPolarity && <span className={`${polarityClassname}`}>{!isZero && polarity}</span>}
+      {showPolarity && <span>{!isZero && polarity}</span>}
       <span className="mono">{minutes}</span>
       <span className="margin-cell-unit-letter">m</span>
       <span className="mono">{seconds}</span>
