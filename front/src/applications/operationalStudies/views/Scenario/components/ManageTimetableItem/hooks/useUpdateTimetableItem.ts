@@ -80,6 +80,51 @@ const useUpdateTimetableItem = (
     setIsWorking(true);
 
     const { timetableItemId } = timetableItemToEditData;
+    const editData = timetableItemToEditData;
+
+    // Shared post-submit logic: dispatches success, updates selected train id, closes modal
+    function handlePostSubmit() {
+      // if the selected TimetableItem is an Occurrence of the edited PacedTrain, keep it selected
+      // else select the first Occurrence by default
+      const trainIdToSelect =
+        (selectedTrainId &&
+          isOccurrenceId(selectedTrainId) &&
+          extractEditoastIdFromPacedTrainId(
+            extractPacedTrainIdFromOccurrenceId(selectedTrainId)
+          ) === timetableItemId) ||
+        !editData.originalPacedTrain.paced
+          ? selectedTrainId
+          : formatEditoastIdToIndexedOccurrenceId({
+              pacedTrainId: timetableItemId,
+              occurrenceIndex: 0,
+            });
+
+      dispatch(
+        setSuccess({
+          title:
+            simulationConf.editingItemType === 'uniqueTrain'
+              ? t('pacedTrainUpdated')
+              : t('uniqueTrainUpdated'),
+          text: `${confName}: ${startTime.toLocaleString()}`,
+        })
+      );
+      dispatch(updateSelectedTrainId(trainIdToSelect));
+
+      // if the updated train was just transformed from pacedTrain to uniqueTrain
+      // and one of the occurrences was used for the projection, update the projectedTrainId
+      if (
+        trainIdUsedForProjection &&
+        isOccurrenceId(trainIdUsedForProjection) &&
+        trainIdUsedForProjection.includes(`_${timetableItemId}_`) &&
+        !editData.originalPacedTrain.paced
+      ) {
+        dispatch(updateTrainIdUsedForProjection(formatEditoastIdToPacedTrainId(timetableItemId)));
+      }
+
+      dispatch(clearAddedExceptionsList());
+      setDisplayTimetableItemManagement(MANAGE_TIMETABLE_ITEM_TYPES.none);
+      setTimetableItemIdToEdit(undefined);
+    }
 
     // ========== user is editing an occurrence ==========
     if (timetableItemToEditData.occurrenceId) {
@@ -192,9 +237,52 @@ const useUpdateTimetableItem = (
           ...newAddedExceptions,
         ];
       } else if (!timetableItemToEditData.originalPacedTrain.paced) {
-        // Converting a unique train into a paced train
-        originalExceptions = undefined;
-        updatedExceptions = newAddedExceptions.length > 0 ? newAddedExceptions : undefined;
+        // Converting a unique train into a paced train:
+        // storePacedTrain must be called first to make the train a paced train on the backend
+        // before we can create exceptions on it.
+        await storePacedTrain(
+          timetableItemId,
+          {
+            ...trainSchedule,
+            train_schedule_set_id: timetableItemToEditData.originalPacedTrain.train_schedule_set_id,
+          },
+          dispatch,
+          upsertTimetableItems
+        );
+
+        let createdExceptions: PacedTrainException[] = [];
+        if (newAddedExceptions.length > 0) {
+          const created = await createExceptions(
+            dispatch,
+            newAddedExceptions,
+            timetableItemId,
+            timetableId
+          );
+
+          // TODO: remove this part when the back will be done inserting the new exception format in TrainSchedule
+          createdExceptions = created.map(
+            ({ change_groups, train_schedule_id: _, timetable_id: __, ...rest }) => ({
+              ...change_groups,
+              ...rest,
+              // TODO_EXCEPTION: remove this when drop key in the model
+              key: rest.id.toString(),
+            })
+          );
+        }
+
+        upsertTimetableItems([
+          {
+            ...trainSchedule,
+            id: timetableItemId,
+            train_schedule_set_id: timetableItemToEditData.originalPacedTrain.train_schedule_set_id,
+            ...(trainSchedule.paced && {
+              paced: { ...trainSchedule.paced, exceptions: createdExceptions },
+            }),
+          },
+        ]);
+
+        // Early return: storePacedTrain + exceptions already handled above
+        return handlePostSubmit();
       }
 
       // Sync exceptions with the backend (create / update / delete) and build the final list
@@ -276,47 +364,7 @@ const useUpdateTimetableItem = (
       );
     }
 
-    // if the selected TimetableItem is an Occurrence of the edited PacedTrain, keep it selected
-    // else select the first Occurrence by default
-    const trainIdToSelect =
-      (selectedTrainId &&
-        isOccurrenceId(selectedTrainId) &&
-        extractEditoastIdFromPacedTrainId(extractPacedTrainIdFromOccurrenceId(selectedTrainId)) ===
-          timetableItemId) ||
-      !timetableItemToEditData.originalPacedTrain.paced
-        ? selectedTrainId
-        : formatEditoastIdToIndexedOccurrenceId({
-            pacedTrainId: timetableItemId,
-            occurrenceIndex: 0,
-          });
-
-    // dispatch success and update the selected train id
-    dispatch(
-      setSuccess({
-        title:
-          simulationConf.editingItemType === 'uniqueTrain'
-            ? t('pacedTrainUpdated')
-            : t('uniqueTrainUpdated'),
-        text: `${confName}: ${startTime.toLocaleString()}`,
-      })
-    );
-    dispatch(updateSelectedTrainId(trainIdToSelect));
-
-    // if the updated train was just transformed from pacedTrain to uniqueTrain
-    // and one of the occurrences was used for the projection, update the projectedTrainId
-    if (
-      trainIdUsedForProjection &&
-      isOccurrenceId(trainIdUsedForProjection) &&
-      trainIdUsedForProjection.includes(`_${timetableItemId}_`) &&
-      !timetableItemToEditData.originalPacedTrain.paced
-    ) {
-      dispatch(updateTrainIdUsedForProjection(formatEditoastIdToPacedTrainId(timetableItemId)));
-    }
-
-    // close the modal
-    dispatch(clearAddedExceptionsList());
-    setDisplayTimetableItemManagement(MANAGE_TIMETABLE_ITEM_TYPES.none);
-    setTimetableItemIdToEdit(undefined);
+    handlePostSubmit();
   };
 };
 
