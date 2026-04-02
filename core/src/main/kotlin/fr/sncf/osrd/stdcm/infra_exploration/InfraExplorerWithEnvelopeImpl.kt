@@ -142,11 +142,14 @@ data class InfraExplorerWithEnvelopeImpl(
                 .plus(
                     run {
                         val lastStep =
-                            getStepTracker().iterateSeenStepsBackwards().lastOrNull { it.isPlanned }
+                            getStepTracker().iterateSeenStepsBackwards().firstOrNull {
+                                it.isPlanned
+                            }
                         val rollingStock = getCurrentRollingStock()
+                        val lookaheadEndOffset = getAllBlocks().last().pathEnd.distance
                         DistanceRangeMap.RangeMapEntry(
                             lastStep?.travelledPathOffset?.distance ?: 0.meters,
-                            getFullEnvelope().endPos.meters,
+                            lookaheadEndOffset,
                             rollingStock,
                         )
                     }
