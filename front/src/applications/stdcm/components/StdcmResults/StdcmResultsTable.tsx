@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { Button } from '@osrd-project/ui-core';
-import { CheckCircle } from '@osrd-project/ui-icons';
+import { ArrowRight, CheckCircle } from '@osrd-project/ui-icons';
 import cx from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
@@ -11,8 +11,10 @@ import type {
   StdcmSimulationInputs,
   StdcmSuccessResponse,
 } from 'applications/stdcm/types';
+import { getConsistChangesAroundStep } from 'modules/SimulationReportSheet/utils/formatSimulationCommon';
 import { getStopDurationTime } from 'modules/SimulationReportSheet/utils/formatSimulationReportSheet';
 import { retainSimulation } from 'reducers/osrdconf/stdcmConf';
+import type { StdcmViaPathStep } from 'reducers/osrdconf/types';
 
 type SimulationTableProps = {
   stdcmData: StdcmSuccessResponse;
@@ -31,6 +33,10 @@ const StdcmResultsTable = ({
 }: SimulationTableProps) => {
   const { t } = useTranslation('stdcm');
   const dispatch = useDispatch();
+  const intermediatePathSteps = stdcmData.simulationPathSteps.slice(1, -1) as StdcmViaPathStep[];
+  const lastDefinedConsistChange = [...intermediatePathSteps]
+    .reverse()
+    .find((pathStep) => pathStep.consistChange)?.consistChange;
 
   const [showAllOP, setShowAllOP] = useState(false);
   const toggleShowAllOP = () => setShowAllOP((prevState) => !prevState);
@@ -54,25 +60,39 @@ const StdcmResultsTable = ({
             <th>{t('reportSheet.refEngine')}</th>
           </tr>
         </thead>
-        <tbody>
-          {operationalPointsList.map((step, index) => {
-            const isFirstStep = index === 0;
-            const isLastStep = index === operationalPointsList.length - 1;
-            const prevStep = operationalPointsList[index - 1];
-            const isRequestedPathStep = stdcmData.simulationPathSteps.some(
-              ({ operationalPoint }) => operationalPoint && operationalPoint.id === step.opId
-            );
-            const shouldRenderRow =
-              isFirstStep || isRequestedPathStep || isLastStep || step.duration !== null;
-            const isPathStep =
-              isFirstStep || isLastStep || (isRequestedPathStep && step.duration === null);
-            const isNotExtremity = !isFirstStep && !isLastStep;
+        {operationalPointsList.map((step, index) => {
+          const isFirstStep = index === 0;
+          const isLastStep = index === operationalPointsList.length - 1;
+          const prevStep = operationalPointsList[index - 1];
+          const isRequestedPathStep = stdcmData.simulationPathSteps.some(
+            ({ operationalPoint }) => operationalPoint && operationalPoint.id === step.opId
+          );
+          const shouldRenderRow =
+            isFirstStep || isRequestedPathStep || isLastStep || step.duration !== null;
+          const isPathStep =
+            isFirstStep || isLastStep || (isRequestedPathStep && step.duration === null);
+          const isNotExtremity = !isFirstStep && !isLastStep;
 
-            const mass = consist?.totalMass ?? stdcmData.rollingStock.mass / 1000;
+          const consistChanges = getConsistChangesAroundStep(
+            step.opId!,
+            intermediatePathSteps,
+            consist! // TODO: modify StdcmSimulationInputs to have consist as non-optional and remove this non-null assertion
+          );
 
-            if (showAllOP || shouldRenderRow) {
-              return (
-                <tr key={index}>
+          const initialConsistMass = consist?.totalMass ?? stdcmData.rollingStock.mass / 1000;
+
+          const extremityStepMass = isLastStep
+            ? (lastDefinedConsistChange?.totalMass ?? initialConsistMass)
+            : initialConsistMass;
+
+          const displayedMass = isNotExtremity
+            ? (consistChanges?.consistAfter.totalMass ?? undefined)
+            : extremityStepMass;
+
+          if (showAllOP || shouldRenderRow) {
+            return (
+              <tbody key={index}>
+                <tr>
                   <td
                     className="index"
                     style={{
@@ -110,17 +130,31 @@ const StdcmResultsTable = ({
                     {isFirstStep || step.duration !== null ? step.stopEndTime : ''}
                   </td>
                   <td className="weight" style={{ color: !isFirstStep ? '#797671' : '#312E2B' }}>
-                    {isNotExtremity ? '=' : `${Math.floor(mass)}t`}
+                    {displayedMass ? `${Math.floor(displayedMass)}t` : '='}
                   </td>
                   <td className="ref" style={{ color: !isFirstStep ? '#797671' : '#312E2B' }}>
                     {isNotExtremity ? '=' : stdcmData.rollingStock.metadata?.reference}
                   </td>
                 </tr>
-              );
-            }
-            return null;
-          })}
-        </tbody>
+                {consistChanges && (
+                  <tr>
+                    <td></td> {/* Empty cell for the index column */}
+                    <td colSpan={8}>
+                      <p className="consist-change-label">{t('consist.consistChange')}</p>
+                      <p>
+                        {t('consist.tonnage')} ({consistChanges.consistBefore.totalMass}t{' '}
+                        <ArrowRight /> {consistChanges.consistAfter.totalMass}t),{' '}
+                        {t('consist.length')} ({consistChanges.consistBefore.totalLength}m{' '}
+                        <ArrowRight /> {consistChanges.consistAfter.totalLength}m)
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            );
+          }
+          return null;
+        })}
       </table>
       <div className={cx('results-buttons', { 'simulation-retained': isSimulationRetained })}>
         <div className="button-display-all-PR">

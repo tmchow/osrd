@@ -4,11 +4,13 @@ import type { TFunction } from 'i18next';
 import type { OperationalPointWithTimeAndSpeed } from 'applications/operationalStudies/types';
 import type { StdcmSuccessResponse, StdcmResultsOperationalPoint } from 'applications/stdcm/types';
 import type { CorePathfindingResultSuccess } from 'common/api/osrdEditoastApi';
+import type { StdcmViaPathStep } from 'reducers/osrdconf/types';
 import { timeToLocaleStringRounded } from 'utils/date';
 import { addDurationToDate, Duration } from 'utils/duration';
 import { kgToT } from 'utils/physics';
 import { capitalizeFirstLetter } from 'utils/strings';
 
+import { getConsistChangesAroundStep } from './formatSimulationCommon';
 import { getStopDurationTime } from './formatSimulationReportSheet';
 import styles from '../styles/SimulationReportStyleSheet';
 
@@ -86,6 +88,13 @@ export const formatStdcmDataForSimulationTable = (
       passageStop = step.duration !== null ? getStopDurationTime(step.duration) : String(step.time);
     }
 
+    const intermediatePathSteps = stdcmPathSteps.slice(1, -1) as StdcmViaPathStep[];
+
+    const consistChanges = getConsistChangesAroundStep(step.opId!, intermediatePathSteps, {
+      totalLength: consist.length,
+      totalMass: consist.mass,
+    });
+
     return {
       name:
         !isPathStep && step.name === previousStep.name
@@ -105,6 +114,7 @@ export const formatStdcmDataForSimulationTable = (
         : { weight: '=', length: '=', referenceEngine: '=' }),
       stopTypeLabel,
       stopType,
+      consistChanges,
       ...getRowStyle(step.duration, isPathStep, isFirst, isLast),
     };
   });

@@ -210,10 +210,10 @@
             th:last-child {
               text-transform: none;
             }
-            tbody tr:nth-child(odd) {
+            tbody:nth-child(odd) tr {
               background-color: rgb(239, 243, 245);
             }
-            tbody tr:nth-child(even) {
+            tbody:nth-child(even) tr {
               background-color: rgb(246, 248, 249);
             }
             td {
@@ -231,6 +231,10 @@
             }
             .name {
               width: 232px;
+            }
+            .consist-change-label {
+              font-size: 1rem;
+              margin-bottom: 0;
             }
             .ch {
               width: 48px;
