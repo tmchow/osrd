@@ -20,6 +20,8 @@ import fr.sncf.osrd.utils.units.TimeDelta
 import fr.sncf.osrd.utils.units.seconds
 import java.time.ZonedDateTime
 
+val DEFAULT_TIME_STEP: Duration = 2.seconds
+
 class STDCMRequest(
     var infra: String,
     @Json(name = "expected_version") var expectedVersion: Int,
@@ -39,7 +41,7 @@ class STDCMRequest(
 
     // STDCM search parameters
     /// Numerical integration time step. Defaults to 2s.
-    @Json(name = "time_step") val timeStep: Duration? = 2.seconds,
+    @Json(name = "time_step") val timeStep: Duration? = DEFAULT_TIME_STEP,
     @Json(name = "start_time") val startTime: ZonedDateTime,
     /// Maximum departure delay. Defaults to 2h.
     @Json(name = "maximum_departure_delay")

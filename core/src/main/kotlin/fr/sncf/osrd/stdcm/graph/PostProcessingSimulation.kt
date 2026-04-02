@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory
 
 val postProcessingLogger: Logger = LoggerFactory.getLogger("postprocessing-STDCM")
 
-private data class FixedTimePoint(
+data class FixedTimePoint(
     val time: Double,
     val offset: Offset<PhysicsPath>,
     val stopTime: Double?,
@@ -443,7 +443,7 @@ private fun getUpdatedExplorer(
  * Run a full simulation, with allowances configured to match the given fixed points. If isMareco is
  * set to true, the allowances follow the mareco distribution (more accurate but less reliable).
  */
-private fun runSimulationWithFixedPoints(
+fun runSimulationWithFixedPoints(
     envelopes: List<Envelope>,
     envelopeSimPath: PhysicsPath,
     rollingStocks: List<RollingStock>,
@@ -470,7 +470,9 @@ private fun runSimulationWithFixedPoints(
                 .map { it.copy(offset = it.offset - currentOffset, time = it.time - currentTime) }
                 .filter { it.offset.meters <= envelope.endPos && it.offset.meters > 0 }
         val ranges = makeAllowanceRanges(envelope, shiftedFixedPoints)
-        if (ranges.isEmpty()) finalEnvelopes.add(envelope)
+        require(ranges.isNotEmpty()) {
+            "There should be at least one allowance range, even if it's just a 0 allowance"
+        }
         val allowance =
             if (isMareco)
                 MarecoAllowance(
