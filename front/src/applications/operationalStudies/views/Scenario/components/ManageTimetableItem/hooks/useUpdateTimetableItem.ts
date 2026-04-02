@@ -184,20 +184,13 @@ const useUpdateTimetableItem = (
 
       if (timetableItemToEditData.originalPacedTrain.paced && trainSchedule.paced) {
         // Editing an existing paced train
-        const hasPacedTrainSettingsChanged =
-          simulationConf.timeWindow.toISOString() !==
-            timetableItemToEditData.originalPacedTrain.paced.timeWindow.toISOString() ||
-          simulationConf.interval.toISOString() !==
-            timetableItemToEditData.originalPacedTrain.paced.interval.toISOString();
-
         originalExceptions = originalPacedExceptions;
-        // Reset all exceptions if cadence/interval changed, otherwise reconcile with new added ones
-        updatedExceptions = hasPacedTrainSettingsChanged
-          ? []
-          : [
-              ...checkChangeGroups(trainSchedule, trainSchedule.paced, originalPacedExceptions),
-              ...newAddedExceptions,
-            ];
+        // Reconcile existing exceptions with the new paced train settings and newly added ones
+        // Note: exceptions are reset by the backend when cadence/interval changes
+        updatedExceptions = [
+          ...checkChangeGroups(trainSchedule, trainSchedule.paced, originalPacedExceptions),
+          ...newAddedExceptions,
+        ];
       } else if (!timetableItemToEditData.originalPacedTrain.paced) {
         // Converting a unique train into a paced train
         originalExceptions = undefined;
