@@ -7790,10 +7790,10 @@ components:
         context:
           type: object
           required:
-          - count
+          - ids
           properties:
-            count:
-              type: integer
+            ids:
+              type: object
         message:
           type: string
         status:

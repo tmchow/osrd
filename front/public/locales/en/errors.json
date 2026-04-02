@@ -226,7 +226,7 @@
       "UnknownSignalingSystem": "Unknown signaling system"
     },
     "stdcm": {
-      "BatchRollingStockNotFound": "'{{count}}' rolling stock(s) could not be found",
+      "BatchRollingStockNotFound": "'{{ids}}' rolling stock(s) could not be found",
       "Database": "Internal error (database)",
       "InfraNotFound": "Infrastructure '{{infra_id}}' does not exist",
       "InvalidConsistLength": "Invalid consist length {{provided_consist_length}}: it should be greater than '{{expected_min}}'",

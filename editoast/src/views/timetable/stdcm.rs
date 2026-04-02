@@ -31,6 +31,7 @@ use schemas::train_schedule::TrainOccurrence;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cmp::max;
+use std::collections::HashSet;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::Span;
@@ -84,9 +85,9 @@ enum StdcmError {
     #[error("Timetable {timetable_id} does not exist")]
     #[editoast_error(status = 404)]
     TimetableNotFound { timetable_id: i64 },
-    #[error("{count} rolling stock(s) could not be found")]
+    #[error("{:?} rolling stock(s) could not be found", .ids)]
     #[editoast_error(status = 404)]
-    BatchRollingStockNotFound { count: usize },
+    BatchRollingStockNotFound { ids: HashSet<i64> },
     #[error("Towed rolling stock {towed_rolling_stock_id} does not exist")]
     TowedRollingStockNotFound { towed_rolling_stock_id: i64 },
     #[error("Train simulation fail")]
@@ -267,9 +268,7 @@ pub(in crate::views) async fn stdcm_handler(
 
     let rolling_stocks_models: Vec<RollingStock> =
         RollingStock::retrieve_batch_or_fail(&mut conn.clone(), rolling_stock_ids, |missing| {
-            StdcmError::BatchRollingStockNotFound {
-                count: missing.len(),
-            }
+            StdcmError::BatchRollingStockNotFound { ids: missing }
         })
         .await?;
 
