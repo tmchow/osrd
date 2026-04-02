@@ -127,10 +127,10 @@ data class InfraExplorerWithEnvelopeImpl(
         var previousStepPos = 0.meters
         return distanceRangeMapOf(
             getStepTracker()
-                .iterateSeenStepsBackwards()
-                .filter { it.isPlanned }
+                .getSeenSteps()
                 .toList()
-                .reversed()
+                .asSequence()
+                .filter { it.isPlanned }
                 .withIndex()
                 .map { (stepIndex, step) ->
                     val rollingStock: PhysicsRollingStock = consistSchedule.rollingStocks[stepIndex]
