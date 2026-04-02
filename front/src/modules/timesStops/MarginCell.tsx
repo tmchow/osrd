@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { CellContext } from '@tanstack/react-table';
 
@@ -45,6 +45,11 @@ const MarginCellEditable = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isEmpty: boolean = raw == null;
+
+  useEffect(() => {
+    setUnit(initial?.unit ?? MarginUnit.percent);
+    setRaw(initial?.value?.toString() ?? null);
+  }, [initial?.value, initial?.unit]);
 
   const commit = (overrideRaw: string | null = raw, overrideUnit: MarginUnitType = unit) => {
     if (!overrideRaw) {
@@ -117,7 +122,9 @@ const MarginCellReadOnly = ({
 }: CellContext<TimesStopsRowNew, MarginValue | undefined> & {
   showPolarity?: boolean;
 }) => {
-  const marginInSeconds = props.getValue()?.value ?? 0;
+  const margin = props.getValue();
+  if (!margin) return;
+  const marginInSeconds = margin.value ?? 0;
   const isZero = marginInSeconds === 0;
   const polarity = marginInSeconds >= 0 ? '+' : '-';
   const abs = Math.abs(marginInSeconds);
@@ -153,5 +160,4 @@ const MarginCell = ({
   ) : (
     <MarginCellReadOnly showPolarity={showPolarity} {...props} />
   );
-
 export default MarginCell;
