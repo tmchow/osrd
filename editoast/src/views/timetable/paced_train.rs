@@ -71,7 +71,7 @@ use crate::views::timetable::simulation::train_simulation_batch;
 use crate::views::timetable::track_occupancy;
 use editoast_models::rolling_stock::RollingStock;
 
-#[derive(Debug, Error, EditoastError)]
+#[derive(Debug, Error, EditoastError, derive_more::From)]
 #[editoast_error(base_id = "train_schedule")]
 enum TrainScheduleError {
     #[error("{count} train schedule(s) could not be found")]
@@ -101,7 +101,8 @@ enum TrainScheduleError {
 
     #[error(transparent)]
     #[editoast_error(status = 500)]
-    Database(#[from] editoast_models::Error),
+    #[from(editoast_models::Error, database::DatabaseError)]
+    Database(editoast_models::Error),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -192,11 +193,31 @@ pub(in crate::views) async fn update_train_schedule(
         return Err(AuthorizationError::Forbidden.into());
     }
 
-    let conn = &mut db_pool.get().await?;
-    let train_schedule_changeset: TrainScheduleChangeset = train_schedule_base.into();
-    train_schedule_changeset
-        .update_or_fail(conn, train_schedule_id, || TrainScheduleError::NotFound {
-            train_schedule_id,
+    db_pool
+        .get()
+        .await?
+        .transaction(async move |tx| {
+            let train_schedule =
+                models::TrainSchedule::retrieve_or_fail(tx.clone(), train_schedule_id, || {
+                    TrainScheduleError::NotFound { train_schedule_id }
+                })
+                .await?;
+
+            if train_schedule.need_exceptions_reset(&train_schedule_base) {
+                TrainScheduleException::delete_exceptions_for_train_schedule(
+                    &mut tx.clone(),
+                    train_schedule.id,
+                )
+                .await?;
+            }
+
+            let train_schedule_changeset: TrainScheduleChangeset = train_schedule_base.into();
+            train_schedule_changeset
+                .update_or_fail(&mut tx.clone(), train_schedule_id, || {
+                    TrainScheduleError::NotFound { train_schedule_id }
+                })
+                .await?;
+            Ok::<_, TrainScheduleError>(())
         })
         .await?;
 
@@ -1695,8 +1716,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
     use schemas::TrainScheduleExceptionChangeGroups;
-    use schemas::fixtures::simple_created_exception_with_change_groups;
-    use schemas::fixtures::simple_modified_exception_with_change_groups;
     use schemas::infra::Direction;
     use schemas::paced_train::InitialSpeedChangeGroup;
     use schemas::paced_train::Paced;
@@ -1856,43 +1875,76 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn update_paced_train_exception() {
+    async fn update_paced_train_resets_exceptions_when_interval_changes() {
         let app = TestAppBuilder::default_app();
         let pool = app.db_pool();
 
-        let train_schedule_set = create_train_schedule_set(&mut pool.get_ok()).await;
-        let simple_paced_train =
+        let (timetable, train_schedule_set) =
+            create_timetable_with_train_schedule_set(&mut pool.get_ok()).await;
+
+        let simple_train_schedule =
             simple_paced_train_changeset(train_schedule_set.id).exceptions(vec![]);
-        let mut simple_paced_train = simple_paced_train
+        let train_schedule = simple_train_schedule
             .create(&mut pool.get_ok())
             .await
             .expect("Failed to create paced train");
 
-        assert_eq!(simple_paced_train.exceptions.len(), 0);
+        let _exception_1 = create_train_schedule_exception(
+            &mut pool.get_ok(),
+            timetable.id,
+            train_schedule.id,
+            None,
+            Some("exception_1".to_string()),
+            None,
+        )
+        .await;
 
-        simple_paced_train.exceptions = vec![simple_created_exception_with_change_groups(
-            "exception_key_1",
-        )];
-        let paced_train: TrainSchedule = simple_paced_train.clone().into();
+        let _exception_2 = create_train_schedule_exception(
+            &mut pool.get_ok(),
+            timetable.id,
+            train_schedule.id,
+            Some(0),
+            Some("exception_2".to_string()),
+            None,
+        )
+        .await;
+
+        let exceptions_before = TrainScheduleException::retrieve_exceptions_by_train_schedules(
+            &mut pool.get_ok(),
+            timetable.id,
+            vec![train_schedule.id],
+        )
+        .await
+        .expect("Failed to retrieve exceptions before update");
+        assert_eq!(exceptions_before.len(), 2);
+
+        let mut updated_train_schedule = simple_paced_train_base();
+        updated_train_schedule.paced.as_mut().unwrap().interval =
+            chrono::Duration::minutes(30).try_into().unwrap();
 
         let request = app
-            .put(format!("/train_schedules/{}", simple_paced_train.id).as_str())
-            .json(&json!(&paced_train));
+            .put(&format!(
+                "/train_schedules/{}?timetable_id={}",
+                train_schedule.id, timetable.id
+            ))
+            .json(&json!(&updated_train_schedule));
 
         app.fetch(request)
             .await
             .assert_status(StatusCode::NO_CONTENT);
 
-        let created_paced_train =
-            models::TrainSchedule::retrieve(pool.get_ok(), simple_paced_train.id)
-                .await
-                .expect("Failed to retrieve updated paced train")
-                .expect("Updated paced train not found");
+        let exceptions_after = TrainScheduleException::retrieve_exceptions_by_train_schedules(
+            &mut pool.get_ok(),
+            timetable.id,
+            vec![train_schedule.id],
+        )
+        .await
+        .expect("Failed to retrieve exceptions after update");
 
-        assert_eq!(created_paced_train.exceptions.len(), 1);
-        assert_eq!(
-            simple_paced_train.exceptions,
-            created_paced_train.exceptions
+        assert!(
+            exceptions_after.is_empty(),
+            "Expected exceptions to be reset after interval change, but found {}",
+            exceptions_after.len()
         );
     }
 
@@ -1901,7 +1953,8 @@ mod tests {
         let app = TestAppBuilder::default_app();
         let pool = app.db_pool();
 
-        let train_schedule_set = create_train_schedule_set(&mut pool.get_ok()).await;
+        let (timetable, train_schedule_set) =
+            create_timetable_with_train_schedule_set(&mut pool.get_ok()).await;
         let paced_train =
             create_simple_paced_train(&mut pool.get_ok(), train_schedule_set.id).await;
 
@@ -1912,7 +1965,13 @@ mod tests {
             Duration::minutes(15).try_into().unwrap();
 
         let request = app
-            .put(format!("/train_schedules/{}", paced_train.id).as_str())
+            .put(
+                format!(
+                    "/train_schedules/{}?timetable_id={}",
+                    paced_train.id, timetable.id
+                )
+                .as_str(),
+            )
             .json(&json!(&paced_train_base));
 
         app.fetch(request)
@@ -1925,73 +1984,6 @@ mod tests {
             .expect("Updated paced train not found");
 
         assert_eq!(paced_train_base, updated_paced_train.into());
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn update_paced_train_with_duplicated_exceptions() {
-        let app = TestAppBuilder::default_app();
-        let pool = app.db_pool();
-
-        let train_schedule_set = create_train_schedule_set(&mut pool.get_ok()).await;
-        let paced_train =
-            create_simple_paced_train(&mut pool.get_ok(), train_schedule_set.id).await;
-
-        let mut paced_train_base = simple_paced_train_base();
-        paced_train_base.paced.as_mut().unwrap().time_window =
-            Duration::minutes(90).try_into().unwrap();
-        paced_train_base.paced.as_mut().unwrap().interval =
-            Duration::minutes(15).try_into().unwrap();
-        paced_train_base.paced.as_mut().unwrap().exceptions = vec![
-            simple_created_exception_with_change_groups("duplicated_key_1"),
-            simple_modified_exception_with_change_groups("duplicated_key_1", 0),
-        ];
-
-        let request = app
-            .put(format!("/train_schedules/{}", paced_train.id).as_str())
-            .json(&json!(&paced_train_base));
-
-        let response = app
-            .fetch(request)
-            .await
-            .assert_status(StatusCode::UNPROCESSABLE_ENTITY)
-            .bytes();
-        assert_eq!(
-            &String::from_utf8(response).unwrap(),
-            "Failed to deserialize the JSON body into the target type: Duplicate exception key: 'duplicated_key_1'"
-        )
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn update_paced_train_with_invalid_exceptions_occurrence_index() {
-        let app = TestAppBuilder::default_app();
-        let pool = app.db_pool();
-
-        let train_schedule_set = create_train_schedule_set(&mut pool.get_ok()).await;
-        let paced_train =
-            create_simple_paced_train(&mut pool.get_ok(), train_schedule_set.id).await;
-
-        let mut paced_train_base = simple_paced_train_base();
-        paced_train_base.paced.as_mut().unwrap().time_window =
-            Duration::minutes(60).try_into().unwrap();
-        paced_train_base.paced.as_mut().unwrap().interval =
-            Duration::minutes(15).try_into().unwrap();
-        paced_train_base.paced.as_mut().unwrap().exceptions =
-            vec![simple_modified_exception_with_change_groups("key_1", 5)];
-
-        let request = app
-            .put(format!("/train_schedules/{}", paced_train.id).as_str())
-            .json(&json!(&paced_train_base));
-
-        let response = app
-            .fetch(request)
-            .await
-            .assert_status(StatusCode::UNPROCESSABLE_ENTITY)
-            .bytes();
-
-        assert_eq!(
-            &String::from_utf8(response).unwrap(),
-            "Failed to deserialize the JSON body into the target type: Modified exception 'key_1' references invalid occurrence index 5"
-        )
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

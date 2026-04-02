@@ -382,6 +382,16 @@ impl TrainSchedule {
             .chain(self.get_created_occurrences_exceptions_v2(exceptions))
             .sorted_by_key(|(_, ts)| ts.start_time)
     }
+
+    /// Determines whether the exceptions need to be reset based on the provided train schedule update.
+    ///
+    /// Returns `true` if either the `interval` or `time_window` fields differ from those
+    /// in the given [`TrainSchedule`], meaning a reset of exceptions is required.
+    pub fn need_exceptions_reset(&self, update: &schemas::paced_train::TrainSchedule) -> bool {
+        let paced = update.paced.as_ref();
+        self.interval != paced.map(|p| p.interval.into())
+            || self.time_window != paced.map(|p| p.time_window.into())
+    }
 }
 
 impl From<paced_train::TrainSchedule> for TrainScheduleChangeset {
@@ -590,6 +600,33 @@ mod tests {
             sub_category: None,
             exceptions,
         }
+    }
+
+    #[test]
+    fn need_exceptions_reset_returns_false_when_nothing_changed() {
+        let train_schedule = create_paced_train(vec![]);
+        let train_schedule_update = create_paced_train(vec![]);
+        assert!(!train_schedule.need_exceptions_reset(&train_schedule_update.into()));
+    }
+
+    #[test]
+    fn need_exceptions_reset_returns_true_when_interval_changed() {
+        let train_schedule = create_paced_train(vec![]);
+        let mut train_schedule_update: schemas::paced_train::TrainSchedule =
+            create_paced_train(vec![]).into();
+        train_schedule_update.paced.as_mut().unwrap().interval =
+            chrono::Duration::minutes(60).try_into().unwrap();
+        assert!(train_schedule.need_exceptions_reset(&train_schedule_update));
+    }
+
+    #[test]
+    fn need_exceptions_reset_returns_true_when_time_window_changed() {
+        let train_schedule = create_paced_train(vec![]);
+        let mut train_schedule_update: schemas::paced_train::TrainSchedule =
+            create_paced_train(vec![]).into();
+        train_schedule_update.paced.as_mut().unwrap().time_window =
+            chrono::Duration::hours(4).try_into().unwrap();
+        assert!(train_schedule.need_exceptions_reset(&train_schedule_update));
     }
 
     #[tokio::test]

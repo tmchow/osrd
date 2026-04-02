@@ -7,8 +7,7 @@ use schemas::paced_train::PacedTrainException;
 use schemas::train_schedule_exception::TrainScheduleExceptionChangeGroups;
 
 use crate as editoast_models;
-use crate::prelude::List;
-use crate::prelude::SelectionSettings;
+use crate::prelude::*;
 
 #[derive(Debug, Clone, Model)]
 #[cfg_attr(test, derive(serde::Deserialize))]
@@ -65,6 +64,35 @@ impl TrainScheduleException {
             .collect();
 
         Ok(exceptions)
+    }
+
+    pub async fn retrieve_exceptions_for_train_schedule(
+        conn: &mut DbConnection,
+        train_schedule_id: i64,
+    ) -> Result<Vec<TrainScheduleException>, editoast_models::Error> {
+        let exceptions_settings = SelectionSettings::new().filter(move || {
+            editoast_models::TrainScheduleException::TRAIN_SCHEDULE_ID.eq(train_schedule_id)
+        });
+
+        let exceptions = Self::list(conn, exceptions_settings).await?;
+
+        Ok(exceptions)
+    }
+
+    pub async fn delete_exceptions_for_train_schedule(
+        conn: &mut DbConnection,
+        train_schedule_id: i64,
+    ) -> Result<usize, editoast_models::Error> {
+        let exceptions_ids: Vec<i64> = Self::retrieve_exceptions_for_train_schedule(
+            conn,
+            train_schedule_id,
+        )
+        .await?
+        .into_iter()
+        .map(|ts| ts.id)
+        .collect();
+        let result = Self::delete_batch(conn, exceptions_ids).await?;
+        Ok(result)
     }
 }
 
