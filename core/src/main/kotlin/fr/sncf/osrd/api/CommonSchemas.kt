@@ -54,6 +54,11 @@ data class RangeValues<valueT>(
         return distanceRangeMapOf(rangeMapEntries)
     }
 
+    /**
+     * Return a copy of the RangeValues with all the internal boundaries shifted of `distance`. The
+     * input distance can be negative but should not lead to negative or null offsets. If it
+     * happens, the method will throw an exception.
+     */
     fun shifted(distance: Distance): RangeValues<valueT> {
         return this.copy(
             internalBoundaries =
