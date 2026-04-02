@@ -95,7 +95,7 @@ internal constructor(
                     BlockSimulationParameters(
                         infraExplorer.getCurrentBlock(),
                         prevNode.speed,
-                        infraExplorer.getStepTracker().getCurrentReachedStep(),
+                        infraExplorer.getStepTracker().getCurrentReachedPlannedStepIndex(),
                         startOffset,
                         getNextStopOnCurrentBlock(infraExplorer),
                     ),

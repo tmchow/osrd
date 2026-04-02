@@ -111,7 +111,7 @@ class StepTracker(
     }
 
     /** Get the index of the current reached step */
-    fun getCurrentReachedStep(): Int {
+    fun getCurrentReachedPlannedStepIndex(): Int {
         return max(0, iterateReachedStepsBackwards().count { it.isPlanned } - 1)
     }
 

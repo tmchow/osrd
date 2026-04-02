@@ -96,7 +96,7 @@ data class InfraExplorerWithEnvelopeImpl(
     }
 
     override fun getCurrentRollingStock(): PhysicsRollingStock {
-        val currentStepIndex = infraExplorer.getStepTracker().getCurrentReachedStep()
+        val currentStepIndex = infraExplorer.getStepTracker().getCurrentReachedPlannedStepIndex()
         return consistSchedule.rollingStocks[currentStepIndex]
     }
 
