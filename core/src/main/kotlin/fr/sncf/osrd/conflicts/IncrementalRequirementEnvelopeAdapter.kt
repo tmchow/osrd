@@ -103,6 +103,8 @@ class IncrementalRequirementEnvelopeAdapter(
         val end = pathEndOff.meters
         val rollingStock = rollingStocks.get(pathEndOff.distance)
         if (rollingStock == null) {
+            // There should not be holes in the rolling stocks DistanceRangeMap.
+            // Either pathEndOff is out of bounds or the DistanceRangeMap is invalid.
             require(envelopeWithStops.endPos < end)
             return Double.POSITIVE_INFINITY
         }
