@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useOutsideClick } from '@osrd-project/ui-core';
 import { Pencil, Trash } from '@osrd-project/ui-icons';
 import cx from 'classnames';
 import { sortBy } from 'lodash';
@@ -31,7 +32,6 @@ import { useAppDispatch } from 'store';
 import { castErrorToFailure } from 'utils/error';
 import useInputChange from 'utils/hooks/useInputChange';
 import useModalFocusTrap from 'utils/hooks/useModalFocusTrap';
-import useOutsideClick from 'utils/hooks/useOutsideClick';
 
 import { checkScenarioFields, cleanScenarioLocalStorage } from '../helpers/utils';
 
@@ -64,7 +64,7 @@ const emptyScenario: ScenarioForm = {
 const AddOrEditScenarioModal = ({ editionMode = false, scenario }: AddOrEditScenarioModalProps) => {
   const { t } = useTranslation(['operational-studies', 'translation']);
   const { openModal } = useModal();
-  const { closeModal, isOpen } = useContext(ModalContext);
+  const { closeModal } = useContext(ModalContext);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const infraID = useInfraID();
@@ -123,11 +123,18 @@ const AddOrEditScenarioModal = ({ editionMode = false, scenario }: AddOrEditScen
 
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  const { clickedOutside, setHasChanges, resetClickedOutside } = useOutsideClick(
-    modalRef,
-    closeModal,
-    isOpen
-  );
+  const [clickedOutside, setClickedOutside] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const resetClickedOutside = () => setClickedOutside(false);
+
+  useOutsideClick(modalRef, () => {
+    if (modalRef.current?.classList.contains('no-close-modal')) return;
+    if (hasChanges) {
+      setClickedOutside(true);
+    } else {
+      closeModal();
+    }
+  });
 
   const handleScenarioInputChange = useInputChange(
     initialValuesRef,

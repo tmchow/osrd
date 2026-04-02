@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useOutsideClick } from '@osrd-project/ui-core';
 import { Note, Pencil, Trash } from '@osrd-project/ui-icons';
 import { useTranslation } from 'react-i18next';
 import { FaPlus, FaTasks } from 'react-icons/fa';
@@ -31,7 +32,6 @@ import { useAppDispatch } from 'store';
 import { castErrorToFailure } from 'utils/error';
 import useInputChange from 'utils/hooks/useInputChange';
 import useModalFocusTrap from 'utils/hooks/useModalFocusTrap';
-import useOutsideClick from 'utils/hooks/useOutsideClick';
 
 import { createSelectOptions, checkStudyFields } from './utils';
 
@@ -66,7 +66,7 @@ const emptyStudy: StudyForm = {
 const AddOrEditStudyModal = ({ editionMode, study, scenarios }: AddOrEditStudyModalProps) => {
   const { t } = useTranslation(['operational-studies', 'translation']);
   const { openModal } = useModal();
-  const { closeModal, isOpen } = useContext(ModalContext);
+  const { closeModal } = useContext(ModalContext);
   const { projectId } = useParams() as StudyParams;
   const [currentStudy, setCurrentStudy] = useState<StudyForm>(study || emptyStudy);
   const [displayErrors, setDisplayErrors] = useState(false);
@@ -86,11 +86,18 @@ const AddOrEditStudyModal = ({ editionMode, study, scenarios }: AddOrEditStudyMo
 
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  const { clickedOutside, setHasChanges, resetClickedOutside } = useOutsideClick(
-    modalRef,
-    closeModal,
-    isOpen
-  );
+  const [clickedOutside, setClickedOutside] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const resetClickedOutside = () => setClickedOutside(false);
+
+  useOutsideClick(modalRef, () => {
+    if (modalRef.current?.classList.contains('no-close-modal')) return;
+    if (hasChanges) {
+      setClickedOutside(true);
+    } else {
+      closeModal();
+    }
+  });
 
   const handleStudyInputChange = useInputChange(initialValuesRef, setCurrentStudy, setHasChanges);
 
