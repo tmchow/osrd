@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { CellContext } from '@tanstack/react-table';
+import cx from 'classnames';
 
 import CellPlaceholder from './CellPlaceholder';
 import { MarginUnit } from './consts';
@@ -17,13 +18,13 @@ const UnitToggle = ({
 }) => (
   <div className="unit-selection">
     <button
-      className={`unit ${value === MarginUnit.percent ? 'unit-active' : ''}`}
+      className={cx('unit', { 'unit-active': value === MarginUnit.percent })}
       onClick={() => onChange(MarginUnit.percent)}
     >
       %
     </button>
     <button
-      className={`unit ${value === MarginUnit.minPer100km ? 'unit-active' : ''}`}
+      className={cx('unit', { 'unit-active': value === MarginUnit.minPer100km })}
       onClick={() => onChange(MarginUnit.minPer100km)}
     >
       min/
