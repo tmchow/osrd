@@ -109,7 +109,7 @@ class IncrementalRequirementEnvelopeAdapter(
             return Double.POSITIVE_INFINITY
         }
 
-        val criticalPoint = end + (rollingStock.length)
+        val criticalPoint = end + rollingStock.length
         if (criticalPoint >= 0.0 && criticalPoint <= envelopeWithStops.endPos)
             return envelopeWithStops.interpolateDepartureFrom(criticalPoint)
 
