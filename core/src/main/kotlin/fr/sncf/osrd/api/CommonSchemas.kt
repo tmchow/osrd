@@ -55,7 +55,7 @@ data class RangeValues<valueT>(
     }
 
     /**
-     * Return a copy of the RangeValues with all the internal boundaries shifted of `distance`. The
+     * Return a copy of the RangeValues with all the internal boundaries shifted by `distance`. The
      * input distance can be negative but should not lead to negative or null offsets. If it
      * happens, the method will throw an exception.
      */
