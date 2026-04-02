@@ -92,8 +92,9 @@ data class ConsistSchedule(
             for ((index, rollingStock) in rollingStocks.withIndex()) {
                 val boundary = boundaries.getOrNull(index) ?: totalSteps
                 val constraint =
-                    CachedBlockConstraintCombiner(
-                        initConstraints(infra, rollingStock, allowedTrackSections)
+                    CachedBlockConstraintCombiner.getCachedConstraintCombiner(
+                        infra,
+                        initConstraints(infra, rollingStock, allowedTrackSections),
                     )
                 (previousBoundary..<boundary).forEach { _ ->
                     rollingStocksPerStep.add(rollingStock)
