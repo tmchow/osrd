@@ -375,10 +375,17 @@ pub(in crate::views) async fn simulation_summary(
         })
         .await?;
 
-    // Get the physic consist parameters for the train schedules
-    let rolling_stocks_ids = train_schedules
+    // Materialize occurrences first so exception-specific rolling stock overrides
+    // are preserved when building simulation inputs.
+    let train_occurrences = train_schedules
         .iter()
-        .map::<String, _>(|train_schedule| train_schedule.rolling_stock_name.to_string());
+        .flat_map(models::TrainSchedule::iter_occurrences)
+        .collect_vec();
+
+    // Get the physic consist parameters for the train occurrences
+    let rolling_stocks_ids = train_occurrences
+        .iter()
+        .map::<String, _>(|(_, train_occurrence)| train_occurrence.rolling_stock_name.clone());
 
     let consists =
         RollingStock::retrieve_batch_unchecked::<_, Vec<_>>(&mut conn.clone(), rolling_stocks_ids)
@@ -393,27 +400,48 @@ pub(in crate::views) async fn simulation_summary(
             })
             .collect::<HashMap<_, _>>();
 
-    // Associate train schedules with their consist, when possible
-    let (train_schedules_with_physics_consist, not_found_rolling_stock_names) = train_schedules
-        .iter()
-        .map(|train_schedule| {
-            let rolling_stock_name = train_schedule.rolling_stock_name.clone();
+    // Associate train occurrences with their consist, when possible.
+    let (train_occurrences_with_physics_consist, not_found_rolling_stock_names) = train_occurrences
+        .into_iter()
+        .map(|(occurrence_id, train_occurrence)| {
+            let rolling_stock_name = train_occurrence.rolling_stock_name.clone();
             consists
                 .get(&rolling_stock_name)
-                .map(|consist| (train_schedule, consist))
-                .ok_or((train_schedule.id, rolling_stock_name))
+                .cloned()
+                .map(|consist| (occurrence_id.clone(), (train_occurrence, consist)))
+                .ok_or((occurrence_id, rolling_stock_name))
         })
         .partition_result::<Vec<_>, Vec<_>, _, _>();
-    let train_occurrences_with_physics_consist = train_schedules_with_physics_consist
-        .iter()
-        .flat_map(|(train_schedule, physics_consist_parameters)| {
-            train_schedule
-                .iter_occurrences()
-                .map(|(occurrence_id, train_schedule)| {
-                    (occurrence_id, (train_schedule, *physics_consist_parameters))
-                })
-        })
+    let train_occurrences_with_physics_consist = train_occurrences_with_physics_consist
+        .into_iter()
         .collect::<HashMap<_, _>>();
+
+    let add_summary_response =
+        |simulation_summaries: &mut HashMap<i64, TrainScheduleSummaryResponseBuilder>,
+         occurrence_id: OccurrenceId,
+         summary_response: SummaryResponse| {
+            match occurrence_id {
+                OccurrenceId::Base {
+                    train_schedule_id,
+                    index: _,
+                } => {
+                    let builder = simulation_summaries.entry(train_schedule_id).or_default();
+                    builder.train_schedule(summary_response);
+                }
+                OccurrenceId::Modified {
+                    train_schedule_id,
+                    index: _,
+                    exception_key,
+                }
+                | OccurrenceId::Created {
+                    train_schedule_id,
+                    exception_key,
+                } => {
+                    let builder = simulation_summaries.entry(train_schedule_id).or_default();
+                    builder.add_exception(exception_key, summary_response);
+                }
+            }
+        };
 
     // Build the operational point cache
     let path_items = train_occurrences_with_physics_consist
@@ -487,7 +515,7 @@ pub(in crate::views) async fn simulation_summary(
     );
 
     // Collect all the simulations per train schedule
-    let simulation_summaries = simulations
+    let mut simulation_summaries = simulations
         .into_iter()
         .flat_map(
             |Correlated {
@@ -531,30 +559,22 @@ pub(in crate::views) async fn simulation_summary(
         .fold(
             HashMap::<i64, TrainScheduleSummaryResponseBuilder>::default(),
             |mut simulation_summaries, (occurrence_id, summary_response)| {
-                match occurrence_id {
-                    OccurrenceId::Base {
-                        train_schedule_id,
-                        index: _,
-                    } => {
-                        let builder = simulation_summaries.entry(train_schedule_id).or_default();
-                        builder.train_schedule(summary_response);
-                    }
-                    OccurrenceId::Modified {
-                        train_schedule_id,
-                        index: _,
-                        exception_key,
-                    }
-                    | OccurrenceId::Created {
-                        train_schedule_id,
-                        exception_key,
-                    } => {
-                        let builder = simulation_summaries.entry(train_schedule_id).or_default();
-                        builder.add_exception(exception_key, summary_response);
-                    }
-                }
+                add_summary_response(&mut simulation_summaries, occurrence_id, summary_response);
                 simulation_summaries
             },
-        )
+        );
+
+    for (occurrence_id, rolling_stock_name) in not_found_rolling_stock_names {
+        add_summary_response(
+            &mut simulation_summaries,
+            occurrence_id,
+            SummaryResponse::PathfindingInputError(PathfindingInputError::RollingStockNotFound {
+                rolling_stock_name,
+            }),
+        );
+    }
+
+    let simulation_summaries = simulation_summaries
         .into_iter()
         .map(
             |(train_schedule_id, train_schedule_summary_response_builder)| {
@@ -566,19 +586,6 @@ pub(in crate::views) async fn simulation_summary(
             )
             },
         )
-        .chain(not_found_rolling_stock_names.into_iter().map(
-            |(train_schedule_id, rolling_stock_name)| {
-                (
-                    train_schedule_id,
-                    TrainScheduleSummaryResponse {
-                        train_schedule: SummaryResponse::PathfindingInputError(
-                            PathfindingInputError::RollingStockNotFound { rolling_stock_name },
-                        ),
-                        exceptions: HashMap::default(),
-                    },
-                )
-            },
-        ))
         .collect();
 
     Ok(Json(simulation_summaries))
@@ -2468,6 +2475,100 @@ mod tests {
                 .collect()
             }
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn paced_train_simulation_summary_with_exception_rolling_stock_override() {
+        let mut core = MockingClient::new();
+        let pathfinding_response = json!({
+            "path": {
+                "blocks":[],
+                "routes": [],
+                "track_section_ranges": [{"track_section": "TA1", "begin":0, "end": 3, "direction": "START_TO_STOP"}],
+            },
+            "path_item_positions": [0,1,2,3],
+            "length": 3,
+            "status": "success"
+        });
+        let mut pathfinding_stub = core.stub("/pathfinding/blocks").response(StatusCode::OK);
+        for _ in 0..8 {
+            pathfinding_stub = pathfinding_stub.json(pathfinding_response.clone());
+        }
+        pathfinding_stub.finish();
+
+        let simulation_response = simulation_empty_response();
+        let mut simulation_stub = core.stub("/standalone_simulation").response(StatusCode::OK);
+        for _ in 0..8 {
+            simulation_stub = simulation_stub.json(simulation_response.clone());
+        }
+        simulation_stub.finish();
+
+        let db_pool = DbConnectionPoolV2::for_tests();
+        let small_infra = create_small_infra(&mut db_pool.get_ok()).await;
+        let train_schedule_set = create_train_schedule_set(&mut db_pool.get_ok()).await;
+        let rolling_stock =
+            create_fast_rolling_stock(&mut db_pool.get_ok(), "simulation_rolling_stock").await;
+        create_fast_rolling_stock(&mut db_pool.get_ok(), "exception_rolling_stock").await;
+
+        let paced_train_base = TrainSchedule {
+            train_occurrence: TrainOccurrence {
+                rolling_stock_name: rolling_stock.name.clone(),
+                ..TrainOccurrence::fake()
+            },
+            paced: Some(Paced {
+                time_window: Duration::hours(2).try_into().unwrap(),
+                interval: Duration::minutes(50).try_into().unwrap(),
+                exceptions: vec![PacedTrainException {
+                    key: "change_rolling_stock".to_string(),
+                    exception_type: ExceptionType::Modified {
+                        occurrence_index: 2,
+                    },
+                    change_groups: TrainScheduleExceptionChangeGroups {
+                        rolling_stock: Some(RollingStockChangeGroup {
+                            rolling_stock_name: "exception_rolling_stock".into(),
+                            comfort: Comfort::AirConditioning,
+                        }),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }],
+            }),
+        };
+        let paced_train: TrainScheduleChangeset = paced_train_base.into();
+        let paced_train = paced_train
+            .train_schedule_set_id(train_schedule_set.id)
+            .create(&mut db_pool.get_ok())
+            .await
+            .expect("Failed to create paced train");
+
+        let app = TestAppBuilder::new()
+            .db_pool(db_pool)
+            .core_client(core.into())
+            .build();
+
+        let request = app
+            .post("/train_schedules/simulation_summary")
+            .json(&json!({
+                "infra_id": small_infra.id,
+                "ids": vec![paced_train.id],
+            }));
+
+        let response: HashMap<i64, TrainScheduleSummaryResponse> = app
+            .fetch(request)
+            .await
+            .assert_status(StatusCode::OK)
+            .json_into();
+
+        let paced_train_summary = response.get(&paced_train.id).unwrap();
+        assert_eq!(paced_train_summary.exceptions.len(), 1);
+        assert!(matches!(
+            &paced_train_summary.train_schedule,
+            SummaryResponse::Success { .. }
+        ));
+        assert!(matches!(
+            paced_train_summary.exceptions.get("change_rolling_stock"),
+            Some(SummaryResponse::Success { .. })
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

@@ -233,7 +233,9 @@ impl TrainSchedule {
     /// Returns 1 if it's not a paced train.
     fn num_base_occurrences(&self) -> usize {
         if let Some((time_window, interval)) = self.pace() {
-            (time_window.num_seconds() / interval.num_seconds()) as usize
+            let time_window = time_window.num_seconds();
+            let interval = interval.num_seconds();
+            ((time_window + interval - 1) / interval) as usize
         } else {
             1
         }
