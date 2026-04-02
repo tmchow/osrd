@@ -513,6 +513,9 @@ const styles = {
     indexWidth: {
       width: '56',
     },
+    indexWithConsistRow: {
+      width: '52',
+    },
     opWidth: {
       width: '272',
     },
@@ -630,7 +633,7 @@ const styles = {
     },
     tbody: {
       backgroundColor: '#FFFFFF',
-      height: '24',
+      minHeight: '24',
       borderRadius: '4',
       border: '0.5 solid #D3D1CF',
       marginLeft: '8',
@@ -640,12 +643,36 @@ const styles = {
     blueRow: {
       backgroundColor: '#E6F7FF',
       borderColor: '#216482',
-      height: '24',
+      minHeight: '24',
       borderRadius: '4',
       border: '0.5 solid #216482',
       marginLeft: '8',
       marginRight: '8',
       marginTop: '4',
+    },
+    consistChangeRow: {
+      borderTopWidth: 0,
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      marginTop: 0,
+      paddingBottom: '4',
+    },
+    consistChangeLabel: {
+      fontFamily: 'IBM Plex Sans',
+      fontSize: '14',
+      fontWeight: 'semibold',
+      color: '#312E2B',
+      marginRight: '8',
+    },
+    consistChangeData: {
+      fontFamily: 'IBM Plex Sans',
+      fontSize: '14',
+      color: '#312E2B',
+    },
+    mainRowWithConsistChange: {
+      borderBottomWidth: 0,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
     },
     horizontalBar: {
       width: '36',

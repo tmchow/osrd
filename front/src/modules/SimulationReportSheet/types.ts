@@ -40,6 +40,16 @@ export type SimulationTableRow = {
   stopTypeLabel?: string;
   stopType?: string;
   rowStyle: Style;
+  consistChanges?: {
+    consistBefore: {
+      totalMass?: number;
+      totalLength?: number;
+    };
+    consistAfter: {
+      totalMass?: number;
+      totalLength?: number;
+    };
+  };
   stylesByColumn: {
     index: Style;
     name: Style;
